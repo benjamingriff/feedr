@@ -17,7 +17,8 @@
     "seed": "npm run seed -w @feedr/api",
     "smoke:mcp": "npm run smoke:mcp -w @feedr/api",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present"
+    "test": "npm run test --workspaces --if-present",
+    "dev:mobile:web": "npm run web -w @feedr/mobile --"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

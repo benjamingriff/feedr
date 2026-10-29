@@ -1,0 +1,137 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import {
+  DEFAULT_SLOT_SPLIT,
+  aggregateShopping,
+  dishUpGuide,
+  fractionWords,
+  normaliseUnit,
+  sharesFromTargets,
+  simpleRatio,
+  slotTarget,
+  type ShoppingLineInput,
+} from '../src/index.ts';
+
+const me = { daily_kcal: 2800, daily_protein_g: 180, slot_split: DEFAULT_SLOT_SPLIT };
+const partner = { daily_kcal: 2000, daily_protein_g: 110, slot_split: DEFAULT_SLOT_SPLIT };
+
+test('slot targets follow the daily split', () => {
+  assert.deepEqual(slotTarget(me, 'dinner'), { kcal: 980, protein_g: 63 });
+  assert.deepEqual(slotTarget(partner, 'dinner'), { kcal: 700, protein_g: 39 });
+  assert.deepEqual(slotTarget({ ...me, daily_protein_g: null }, 'snack'), { kcal: 280, protein_g: null });
+});
+
+test('shares are proportional to calorie targets', () => {
+  const [a, b] = sharesFromTargets([980, 700]);
+  assert.ok(Math.abs(a! - 0.5833) < 0.001);
+  assert.ok(Math.abs(b! - 0.4167) < 0.001);
+  assert.deepEqual(sharesFromTargets([0, 0]), [0.5, 0.5]);
+});
+
+test('two-person dinner: ratio, fraction and grams', () => {
+  const guide = dishUpGuide(
+    [
+      { id: 'a', person_name: 'Ben', date: '2026-11-02', slot: 'dinner', target_kcal: 980 },
+      { id: 'b', person_name: 'Sam', date: '2026-11-02', slot: 'dinner', target_kcal: 700 },
+    ],
+    1203,
+  );
+  assert.equal(guide.meals.length, 1);
+  const meal = guide.meals[0]!;
+  assert.equal(meal.fraction, 'all of it');
+  assert.equal(meal.ratio, '4:3');
+  assert.equal(meal.grams, 1203);
+  assert.deepEqual(meal.portions.map((p) => p.grams), [700, 503]);
+  assert.equal(meal.portions[1]!.is_rest, true);
+});
+
+test('four portions over two meals split by meal, then person', () => {
+  const guide = dishUpGuide(
+    [
+      { id: 'l1', person_name: 'Ben', date: '2026-11-03', slot: 'lunch', target_kcal: 700 },
+      { id: 'd1', person_name: 'Ben', date: '2026-11-02', slot: 'dinner', target_kcal: 990 },
+      { id: 'd2', person_name: 'Sam', date: '2026-11-02', slot: 'dinner', target_kcal: 720 },
+      { id: 'l2', person_name: 'Sam', date: '2026-11-03', slot: 'lunch', target_kcal: 500 },
+    ],
+    2400,
+  );
+  const [dinner, lunch] = guide.meals;
+  assert.equal(dinner!.slot, 'dinner');
+  assert.equal(dinner!.fraction, 'just over half');
+  assert.equal(dinner!.ratio, '4:3');
+  assert.equal(lunch!.is_rest, true);
+  const grams = guide.meals.flatMap((m) => m.portions.map((p) => p.grams!));
+  assert.equal(grams.reduce((s, g) => s + g, 0), 2400);
+  assert.ok(grams.slice(0, -1).every((g) => g % 5 === 0));
+  assert.equal(dinner!.grams! + lunch!.grams!, 2400);
+});
+
+test('without a cooked weight there are no grams', () => {
+  const guide = dishUpGuide([{ id: 'a', person_name: null, date: null, slot: null, target_kcal: 500 }], null);
+  assert.equal(guide.meals[0]!.grams, null);
+  assert.equal(guide.meals[0]!.portions[0]!.grams, null);
+});
+
+test('fraction words and ratios', () => {
+  assert.equal(fractionWords(0.5), 'about half');
+  assert.equal(fractionWords(0.34), 'about a third');
+  assert.equal(fractionWords(0.41), 'just over a third');
+  assert.equal(fractionWords(0.46), 'just under half');
+  assert.equal(simpleRatio([0.5, 0.5]), '1:1');
+  assert.equal(simpleRatio([2, 1, 1]), '2:1:1');
+  assert.equal(simpleRatio([0.6, 0.4]), '3:2');
+});
+
+test('unit normalisation', () => {
+  assert.equal(normaliseUnit('Tbsp'), 'tbsp');
+  assert.equal(normaliseUnit('grams'), 'g');
+  assert.equal(normaliseUnit('cloves'), 'clove');
+  assert.equal(normaliseUnit('tins'), 'tin');
+  assert.equal(normaliseUnit('bunches'), 'bunch');
+  assert.equal(normaliseUnit(''), null);
+  assert.equal(normaliseUnit(undefined), null);
+});
+
+test('shopping list combines lines across recipes', () => {
+  const line = (over: Partial<ShoppingLineInput>): ShoppingLineInput => ({
+    ingredient_id: 'onion',
+    ingredient: 'onion',
+    aisle: 'Produce',
+    quantity: 1,
+    unit: null,
+    raw_text: '1 onion',
+    optional: false,
+    recipe_title: 'Curry',
+    ...over,
+  });
+  const items = aggregateShopping([
+    line({ quantity: 2 }),
+    line({ quantity: 150, unit: 'g', recipe_title: 'Soup' }),
+    line({ quantity: 0.2, unit: 'kg', recipe_title: 'Soup' }),
+    line({ ingredient_id: 'cumin', ingredient: 'ground cumin', aisle: 'Spices', quantity: 1, unit: 'tbsp' }),
+    line({ ingredient_id: 'cumin', ingredient: 'ground cumin', aisle: 'Spices', quantity: 2, unit: 'tsp' }),
+    line({ ingredient_id: 'salt', ingredient: 'salt', aisle: null, quantity: null, raw_text: 'salt, to taste' }),
+    line({ ingredient_id: 'garlic', ingredient: 'garlic', quantity: 3, unit: 'cloves' }),
+    line({ ingredient_id: 'cream', ingredient: 'double cream', aisle: 'Dairy', quantity: 300, unit: 'ml', optional: true }),
+  ]);
+  assert.deepEqual(
+    items.map((i) => [i.aisle, i.ingredient]),
+    [
+      ['Dairy', 'double cream'],
+      ['Produce', 'garlic'],
+      ['Produce', 'onion'],
+      ['Spices', 'ground cumin'],
+      ['Other', 'salt'],
+    ],
+  );
+  const onion = items.find((i) => i.ingredient_id === 'onion')!;
+  assert.deepEqual(onion.amounts, [
+    { quantity: 2, unit: null },
+    { quantity: 350, unit: 'g' },
+  ]);
+  assert.deepEqual(onion.recipes, ['Curry', 'Soup']);
+  assert.deepEqual(items.find((i) => i.ingredient_id === 'cumin')!.amounts, [{ quantity: 1.5, unit: 'tbsp' }]);
+  assert.deepEqual(items.find((i) => i.ingredient_id === 'garlic')!.amounts, [{ quantity: 3, unit: 'clove' }]);
+  assert.deepEqual(items.find((i) => i.ingredient_id === 'salt')!.unquantified, ['salt, to taste']);
+  assert.equal(items.find((i) => i.ingredient_id === 'cream')!.optional, true);
+});

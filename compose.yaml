@@ -1,0 +1,29 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: feedr
+      POSTGRES_PASSWORD: feedr
+      POSTGRES_DB: feedr
+    ports: ['127.0.0.1:55433:5432']
+    volumes: ['feedr_pg:/var/lib/postgresql/data']
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U feedr']
+      interval: 2s
+      retries: 15
+  api:
+    build: .
+    image: feedr-api
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://feedr:feedr@postgres:5432/feedr
+      PORT: 4100
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-}
+    # Bound to all interfaces so the phone can reach it on your LAN. Every route needs a token.
+    ports: ['4100:4100']
+    depends_on:
+      postgres:
+        condition: service_healthy
+volumes:
+  feedr_pg:

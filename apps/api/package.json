@@ -1,0 +1,30 @@
+{
+  "name": "@feedr/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=../../.env src/server.ts",
+    "start": "tsx src/server.ts",
+    "migrate": "tsx --env-file-if-exists=../../.env src/migrate.ts",
+    "account": "tsx --env-file-if-exists=../../.env src/account.ts",
+    "seed": "tsx --env-file-if-exists=../../.env scripts/seed.ts",
+    "smoke:mcp": "tsx --env-file-if-exists=../../.env scripts/smoke-mcp.ts",
+    "test": "tsx --env-file-if-exists=../../.env --test --test-concurrency=1 test/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@clerk/backend": "^3.26.4",
+    "@feedr/core": "*",
+    "@hono/mcp": "^0.3.5",
+    "@hono/node-server": "^2.1.5",
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "hono": "^4.13.14",
+    "kysely": "^0.29.7",
+    "pg": "^8.23.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.23.1"
+  }
+}

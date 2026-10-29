@@ -35,14 +35,14 @@ Planning a meal:
 
 Shopping: get_shopping_list combines the ingredients of every service cooked in a date range (or of given versions) by ingredient and aisle. It is read-only.
 
-Use metric units. Reuse ingredient names from list_ingredients so shopping lists combine correctly.`;
+Ingredients: call list_ingredients first and reuse existing names exactly (spelling variants like yogurt/yoghurt create duplicates and split the shopping list). Give an aisle for every new ingredient, reusing existing aisle names (e.g. Produce, Meat & fish, Dairy, Spices, Tins & jars, Rice & pasta). Use metric units.`;
 
 type Result = { content: { type: 'text'; text: string }[]; isError?: boolean };
 
 async function run(fn: () => Promise<unknown>): Promise<Result> {
   try {
     const value = await fn();
-    return { content: [{ type: 'text', text: value === undefined ? 'Done.' : JSON.stringify(value) }] };
+    return { content: [{ type: 'text', text: JSON.stringify(value === undefined ? { ok: true } : value) }] };
   } catch (error) {
     const message =
       error instanceof svc.NotFoundError || error instanceof svc.InvalidError || error instanceof z.ZodError

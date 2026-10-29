@@ -90,22 +90,24 @@ export function aggregateShopping(lines: ShoppingLineInput[]): ShoppingItem[] {
 
 function displayAmount(family: string, unit: string | null, base: number): ShoppingAmount {
   if (family === 'mass') {
-    return base >= 1000 ? { quantity: round(base / 1000, 2), unit: 'kg' } : { quantity: Math.round(base), unit: 'g' };
+    if (base >= 1000) return { quantity: round(base / 1000, 3), unit: 'kg' };
+    return { quantity: base >= 10 ? Math.round(base) : round(base, 2), unit: 'g' };
   }
   if (family === 'volume') {
-    if (base >= 1000) return { quantity: round(base / 1000, 2), unit: 'l' };
-    if (base >= 75) return { quantity: Math.round(base), unit: 'ml' };
-    if (base >= 15) return { quantity: roundHalf(base / 15), unit: 'tbsp' };
-    return { quantity: roundHalf(base / 5) || 0.5, unit: 'tsp' };
+    if (base >= 1000) return { quantity: round(base / 1000, 3), unit: 'l' };
+    // Spoons only when they express the amount exactly (to a quarter spoon); otherwise ml.
+    if (base < 75 && isQuarter(base / 15) && base >= 15) return { quantity: round(base / 15, 2), unit: 'tbsp' };
+    if (base < 75 && isQuarter(base / 5)) return { quantity: round(base / 5, 2), unit: 'tsp' };
+    return { quantity: base >= 10 ? Math.round(base) : round(base, 1), unit: 'ml' };
   }
   return { quantity: round(base, 2), unit };
+}
+
+function isQuarter(n: number): boolean {
+  return Math.abs(n * 4 - Math.round(n * 4)) < 0.01;
 }
 
 function round(n: number, dp: number): number {
   const f = 10 ** dp;
   return Math.round(n * f) / f;
-}
-
-function roundHalf(n: number): number {
-  return Math.round(n * 2) / 2;
 }

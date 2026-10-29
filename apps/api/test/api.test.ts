@@ -153,6 +153,13 @@ test('recipe → version → service → plan → shopping', async () => {
   assert.deepEqual(byVersion.items.find((i) => i.ingredient === 'onion')!.amounts, [{ quantity: 5, unit: null }]);
   assert.deepEqual(byVersion.items.find((i) => i.ingredient === 'salt')!.unquantified, ['salt, to taste']);
 
+  // A leftover dated next week shows in next week's plan even though it was cooked this week.
+  const dated = await call<Service>('POST', `/services/${service.id}/portions`, [{ target_kcal: 400, date: '2026-11-09' }]);
+  const datedSpare = dated.portions.find((p) => p.date === '2026-11-09')!;
+  assert.equal((await call<Plan>('GET', '/plan?start=2026-11-09&end=2026-11-15')).unassigned.length, 1);
+  assert.equal((await call<Plan>('GET', '/plan?start=2026-11-02&end=2026-11-08')).unassigned.length, 0);
+  await call('DELETE', `/portions/${datedSpare.id}`);
+
   // A version in use can't be deleted; removing every portion removes the service.
   await call('DELETE', `/versions/${version.id}`, undefined, 400);
   for (const p of withSpare.portions) await call('DELETE', `/portions/${p.id}`);

@@ -746,7 +746,9 @@ export async function getPlan(userId: string, start: string, end: string): Promi
       const day = days.find((d) => d.date === portion.date);
       const entry = day?.people.find((p) => p.person_id === portion.person_id);
       if (!portion.date || !portion.person_id || !portion.slot) {
-        if (service.cook_date >= start && service.cook_date <= end) unassigned.push(portion);
+        // A dated leftover belongs to its own date's range; an undated one to the cook date's.
+        const when = portion.date ?? service.cook_date;
+        if (when >= start && when <= end) unassigned.push(portion);
         continue;
       }
       if (!entry) continue;

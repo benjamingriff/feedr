@@ -130,8 +130,32 @@ test('shopping list combines lines across recipes', () => {
     { quantity: 350, unit: 'g' },
   ]);
   assert.deepEqual(onion.recipes, ['Curry', 'Soup']);
-  assert.deepEqual(items.find((i) => i.ingredient_id === 'cumin')!.amounts, [{ quantity: 1.5, unit: 'tbsp' }]);
+  // 1 tbsp + 2 tsp = 25 ml: not a whole number of tablespoons, so teaspoons.
+  assert.deepEqual(items.find((i) => i.ingredient_id === 'cumin')!.amounts, [{ quantity: 5, unit: 'tsp' }]);
   assert.deepEqual(items.find((i) => i.ingredient_id === 'garlic')!.amounts, [{ quantity: 3, unit: 'clove' }]);
   assert.deepEqual(items.find((i) => i.ingredient_id === 'salt')!.unquantified, ['salt, to taste']);
   assert.equal(items.find((i) => i.ingredient_id === 'cream')!.optional, true);
+});
+
+test('shopping keeps small quantities exact', () => {
+  const line = (quantity: number, unit: string): ShoppingLineInput => ({
+    ingredient_id: unit + quantity,
+    ingredient: 'x',
+    aisle: null,
+    quantity,
+    unit,
+    raw_text: '',
+    optional: false,
+    recipe_title: 'R',
+  });
+  const amounts = aggregateShopping([line(0.2, 'g'), line(1, 'ml'), line(1.25, 'tsp'), line(3, 'tbsp'), line(1250, 'g')]).map(
+    (i) => i.amounts[0],
+  );
+  assert.deepEqual(amounts, [
+    { quantity: 0.2, unit: 'g' },
+    { quantity: 1, unit: 'ml' },
+    { quantity: 1.25, unit: 'tsp' },
+    { quantity: 3, unit: 'tbsp' },
+    { quantity: 1.25, unit: 'kg' },
+  ]);
 });

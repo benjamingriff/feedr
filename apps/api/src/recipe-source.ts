@@ -40,7 +40,7 @@ export function parseRecipeSource(url: string, html: string): RecipeSource {
     found: true,
     name: str(recipe.name),
     description: str(recipe.description),
-    yield: Array.isArray(recipe.recipeYield) ? recipe.recipeYield.map(String).join(' / ') : str(recipe.recipeYield),
+    yield: [recipe.recipeYield].flat().filter((y: Json) => y != null && y !== '').map(String).join(' / ') || undefined,
     prep_time: str(recipe.prepTime),
     cook_time: str(recipe.cookTime),
     total_time: str(recipe.totalTime),

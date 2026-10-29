@@ -40,6 +40,7 @@ test('extracts schema.org Recipe from an @graph, with sections and nutrition', (
 test('falls back to page text without Recipe data', () => {
   const r = parseRecipeSource('https://e.com', '<title>Soup</title><style>x{}</style><p>Boil water.</p><li>Add salt</li>');
   assert.equal(r.found, false);
+  assert.equal(parseRecipeSource('u', `<script type="application/ld+json">{"@type":"Recipe","name":"N","recipeYield":4}</script>`).yield, '4');
   assert.equal(r.name, 'Soup');
   assert.match(r.text!, /Boil water\.\nAdd salt/);
 });

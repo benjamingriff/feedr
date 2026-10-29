@@ -18,6 +18,7 @@ import {
 } from '@feedr/core';
 import type { AuthUser } from './auth.ts';
 import * as svc from './service.ts';
+import { fetchRecipeSource } from './recipe-source.ts';
 
 const INSTRUCTIONS = `feedr stores recipes, plans meals and portions cooked dishes for a household.
 
@@ -26,6 +27,8 @@ Model:
 - Scaling is your job, not the server's. To cook a different amount, create a new version with sensible amounts: round whole items (eggs, tins) to whole numbers, don't scale spices, salt or aromatics linearly, adjust pan sizes and cook times in the steps, and record what you changed in notes. Reuse an existing version when it's close enough.
 - Nutrition is for the whole batch the version makes, not per serving. Mark it from_source when taken from the source, agent_estimate when you calculated it.
 - A service is one version cooked on a date. Its portions say who eats it, when (date + slot: breakfast, lunch, dinner, snack) and how much. The server splits the dish by calorie target: each portion's share = its target_kcal / the sum of all portion targets. Leftovers are extra portions, e.g. tomorrow's lunch.
+
+Importing: call fetch_recipe_source with the URL, then create_recipe. Published nutrition is usually per serving; multiply by the yield for the whole batch.
 
 Planning a meal:
 1. get_slot_targets for the slot and people to see the calories (and protein) the meal should provide.
@@ -105,6 +108,23 @@ export function buildMcpServer(user: AuthUser): McpServer {
     'get_recipe',
     { description: 'A recipe with every version in full: ingredients, steps and whole-batch nutrition.', inputSchema: { recipe_id: id }, annotations: readOnly },
     ({ recipe_id }) => run(() => svc.getRecipe(u, recipe_id)),
+  );
+  server.registerTool(
+    'fetch_recipe_source',
+    {
+      description:
+        "Fetch a recipe web page and return its structured recipe data (name, yield, times, ingredient lines, steps, published nutrition per serving) from the page's schema.org markup. Falls back to the page's plain text. Use this to import from a URL instead of reading raw HTML.",
+      inputSchema: { url: z.url() },
+      annotations: readOnly,
+    },
+    ({ url }) =>
+      run(async () => {
+        try {
+          return await fetchRecipeSource(url);
+        } catch (error) {
+          throw new svc.InvalidError(error instanceof Error ? error.message : String(error));
+        }
+      }),
   );
   server.registerTool(
     'create_recipe',

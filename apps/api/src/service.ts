@@ -550,6 +550,32 @@ export async function planService(userId: string, input: ServiceCreate): Promise
   return getService(userId, id);
 }
 
+/** Plans several services atomically, e.g. a week of breakfasts. */
+export async function planServices(userId: string, inputs: ServiceCreate[]): Promise<Service[]> {
+  const prepared: { input: ServiceCreate; portions: Awaited<ReturnType<typeof resolvePortionTargets>> }[] = [];
+  for (const input of inputs) {
+    await ownedVersion(db, userId, input.version_id);
+    prepared.push({ input, portions: await resolvePortionTargets(userId, input.portions) });
+  }
+  const ids = await db.transaction().execute(async (trx) => {
+    const out: string[] = [];
+    for (const { input, portions } of prepared) {
+      const { id } = await trx
+        .insertInto('services')
+        .values({ user_id: userId, version_id: input.version_id, cook_date: input.cook_date, notes: input.notes ?? null })
+        .returning('id')
+        .executeTakeFirstOrThrow();
+      await trx
+        .insertInto('portions')
+        .values(portions.map((p) => ({ ...p, service_id: id })))
+        .execute();
+      out.push(id);
+    }
+    return out;
+  });
+  return Promise.all(ids.map((id) => getService(userId, id)));
+}
+
 export async function addPortions(userId: string, serviceId: string, portions: PortionInput[]): Promise<Service> {
   await ownedService(db, userId, serviceId);
   const rows = await resolvePortionTargets(userId, portions);

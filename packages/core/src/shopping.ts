@@ -95,9 +95,9 @@ function displayAmount(family: string, unit: string | null, base: number): Shopp
   }
   if (family === 'volume') {
     if (base >= 1000) return { quantity: round(base / 1000, 3), unit: 'l' };
-    // Spoons only when they express the amount exactly (to a quarter spoon); otherwise ml.
-    if (base < 75 && isQuarter(base / 15) && base >= 15) return { quantity: round(base / 15, 2), unit: 'tbsp' };
-    if (base < 75 && isQuarter(base / 5)) return { quantity: round(base / 5, 2), unit: 'tsp' };
+    // Up to 6 tbsp, spoons when they express the amount exactly (to a quarter spoon); otherwise ml.
+    if (base <= 90 && isQuarter(base / 15) && base >= 15) return { quantity: round(base / 15, 2), unit: 'tbsp' };
+    if (base <= 90 && isQuarter(base / 5)) return { quantity: round(base / 5, 2), unit: 'tsp' };
     return { quantity: base >= 10 ? Math.round(base) : round(base, 1), unit: 'ml' };
   }
   return { quantity: round(base, 2), unit };

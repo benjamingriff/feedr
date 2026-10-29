@@ -166,6 +166,37 @@ test('recipe → version → service → plan → shopping', async () => {
   await call('GET', `/services/${service.id}`, undefined, 404);
 });
 
+test('plan_services plans a batch atomically', async () => {
+  const people = await call<{ id: string }[]>('GET', '/people');
+  const recipes = await call<{ versions: { id: string }[] }[]>('GET', '/recipes');
+  const versionId = recipes[0]!.versions[0]!.id;
+  const rpc = async (args: unknown) => {
+    const res = await app.request('/mcp', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'plan_services', arguments: args } }),
+    });
+    return ((await res.json()) as { result: { content: { text: string }[]; isError?: boolean } }).result;
+  };
+  const days = ['2026-12-07', '2026-12-08', '2026-12-09'];
+  const ok = await rpc({
+    services: days.map((d) => ({ version_id: versionId, cook_date: d, portions: [{ person_id: people[0]!.id, date: d, slot: 'breakfast' }] })),
+  });
+  const planned = JSON.parse(ok.content[0]!.text) as { id: string; portions: { kcal: number }[] }[];
+  assert.equal(planned.length, 3);
+  // One bad service means nothing is planned.
+  const bad = await rpc({
+    services: [
+      { version_id: versionId, cook_date: '2026-12-10', portions: [{ person_id: people[0]!.id, slot: 'breakfast' }] },
+      { version_id: '00000000-0000-4000-8000-000000000000', cook_date: '2026-12-10', portions: [{ target_kcal: 100 }] },
+    ],
+  });
+  assert.equal(bad.isError, true);
+  const plan = await call<Plan>('GET', '/plan?start=2026-12-07&end=2026-12-10');
+  assert.equal(plan.days.filter((d) => d.people.some((p) => p.meals.length)).length, 3);
+  for (const s of planned) await call('DELETE', `/services/${s.id}`, undefined, 204);
+});
+
 test('cannot read another user’s data', async () => {
   const other = (await db.insertInto('users').values({ name: 'Other' }).returning('id').executeTakeFirstOrThrow()).id;
   const otherToken = await createAccessToken(other, 'other');

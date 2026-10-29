@@ -179,6 +179,31 @@ export function buildMcpServer(user: AuthUser): McpServer {
     (input) => run(() => svc.planService(u, input)),
   );
   server.registerTool(
+    'plan_services',
+    {
+      description:
+        'Plan several services in one atomic call, e.g. breakfast and a snack for each day of the week. Same fields as plan_service. Returns a compact summary of each.',
+      inputSchema: { services: z.array(ServiceCreate).min(1).max(40) },
+    },
+    ({ services }) =>
+      run(async () =>
+        (await svc.planServices(u, services)).map((s) => ({
+          id: s.id,
+          recipe: s.recipe_title,
+          version: s.version_label,
+          cook_date: s.cook_date,
+          portions: s.portions.map((p) => ({
+            id: p.id,
+            person: p.person_name,
+            date: p.date,
+            slot: p.slot,
+            kcal: p.nutrition.kcal == null ? null : Math.round(p.nutrition.kcal),
+            protein_g: p.nutrition.protein_g == null ? null : Math.round(p.nutrition.protein_g),
+          })),
+        })),
+      ),
+  );
+  server.registerTool(
     'get_service',
     { description: 'A service with its portions, per-portion nutrition and dish-up guide.', inputSchema: { service_id: id }, annotations: readOnly },
     ({ service_id }) => run(() => svc.getService(u, service_id)),

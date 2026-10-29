@@ -148,7 +148,7 @@ test('shopping keeps small quantities exact', () => {
     optional: false,
     recipe_title: 'R',
   });
-  const amounts = aggregateShopping([line(0.2, 'g'), line(1, 'ml'), line(1.25, 'tsp'), line(3, 'tbsp'), line(1250, 'g')]).map(
+  const amounts = aggregateShopping([line(0.2, 'g'), line(1, 'ml'), line(1.25, 'tsp'), line(3, 'tbsp'), line(5, 'tbsp'), line(1250, 'g')]).map(
     (i) => i.amounts[0],
   );
   assert.deepEqual(amounts, [
@@ -156,6 +156,7 @@ test('shopping keeps small quantities exact', () => {
     { quantity: 1, unit: 'ml' },
     { quantity: 1.25, unit: 'tsp' },
     { quantity: 3, unit: 'tbsp' },
+    { quantity: 5, unit: 'tbsp' },
     { quantity: 1.25, unit: 'kg' },
   ]);
 });

@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "feedr",
+    "slug": "feedr",
+    "scheme": "feedr",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        }
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": ["expo-router", "expo-secure-store", "@clerk/expo"]
+  }
+}

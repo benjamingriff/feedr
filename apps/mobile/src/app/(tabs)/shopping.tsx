@@ -4,7 +4,16 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { ShoppingList } from "@feedr/core";
 import { useApiQuery, useStore } from "../../store";
 import { useWeek, WeekStrip } from "../../dates";
-import { Card, ErrorMessage, QueryState, Screen, T, num } from "../../ui";
+import {
+  ErrorMessage,
+  QueryState,
+  Screen,
+  T,
+  TextButton,
+  Tag,
+  num,
+  s,
+} from "../../ui";
 function Checklist({
   storageKey,
   list,
@@ -32,65 +41,111 @@ function Checklist({
       alive = false;
     };
   }, [storageKey]);
-  function toggle(id: string) {
-    const next = { ...checked, [id]: !checked[id] };
+  function persist(next: Record<string, boolean>) {
     setChecked(next);
     writes.current = writes.current
       .catch(() => {})
       .then(() => AsyncStorage.setItem(storageKey, JSON.stringify(next)))
       .catch(() => setError("Could not save shopping ticks."));
   }
+  function toggle(id: string) {
+    persist({ ...checked, [id]: !checked[id] });
+  }
   const aisles = [...new Set(list.items.map((item) => item.aisle))];
   return (
     <>
       <ErrorMessage error={error} />
+      <View style={s.spread}>
+        <T small muted>
+          {list.items.length} items ·{" "}
+          {list.items.filter((i) => checked[i.ingredient_id]).length} ticked
+        </T>
+        <TextButton
+          title="Clear ticks"
+          disabled={!ready || !Object.values(checked).some(Boolean)}
+          onPress={() => persist({})}
+        />
+      </View>
       {aisles.map((aisle) => (
-        <Card key={aisle}>
-          <T title>{aisle}</T>
-          {list.items
-            .filter((item) => item.aisle === aisle)
-            .map((item) => (
-              <Pressable
-                key={item.ingredient_id}
-                accessibilityRole="checkbox"
-                aria-checked={!!checked[item.ingredient_id]}
-                accessibilityLabel={item.ingredient}
-                accessibilityState={{
-                  checked: !!checked[item.ingredient_id],
-                  disabled: !ready,
-                }}
-                disabled={!ready}
-                onPress={() => toggle(item.ingredient_id)}
-                style={{ paddingVertical: 9 }}
-              >
-                <View
-                  style={{
-                    opacity: checked[item.ingredient_id] ? 0.5 : 1,
-                    gap: 3,
-                  }}
-                >
-                  <T>
-                    {checked[item.ingredient_id] ? "☑" : "☐"} {item.ingredient}
-                    {item.optional ? " (optional)" : ""}
-                  </T>
-                  {item.amounts.length > 0 && (
-                    <T>
-                      {item.amounts
-                        .map(
-                          (amount) =>
-                            `${num(amount.quantity)}${amount.unit ? ` ${amount.unit}` : ""}`,
-                        )
-                        .join(" + ")}
-                    </T>
-                  )}
-                  {item.unquantified.map((line, i) => (
-                    <T key={i}>{line}</T>
-                  ))}
-                  <T muted>{item.recipes.join(" · ")}</T>
-                </View>
-              </Pressable>
-            ))}
-        </Card>
+        <View key={aisle} style={{ gap: 5 }}>
+          <T small muted style={{ textTransform: "capitalize" }}>
+            {aisle}
+          </T>
+          <View style={s.group}>
+            {list.items
+              .filter((item) => item.aisle === aisle)
+              .map((item) => {
+                const ticked = !!checked[item.ingredient_id];
+                return (
+                  <Pressable
+                    key={item.ingredient_id}
+                    accessibilityRole="checkbox"
+                    aria-checked={ticked}
+                    accessibilityLabel={item.ingredient}
+                    accessibilityState={{ checked: ticked, disabled: !ready }}
+                    disabled={!ready}
+                    onPress={() => toggle(item.ingredient_id)}
+                    style={[s.listRow, { paddingVertical: 9 }]}
+                  >
+                    <View
+                      style={{
+                        width: 21,
+                        height: 21,
+                        borderWidth: 1,
+                        borderColor: ticked ? "#236b50" : "#a8b2ab",
+                        borderRadius: 5,
+                        backgroundColor: ticked ? "#236b50" : "white",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <T small style={{ color: "white" }}>
+                        {ticked ? "✓" : ""}
+                      </T>
+                    </View>
+                    <View
+                      style={{ flex: 1, opacity: ticked ? 0.45 : 1, gap: 2 }}
+                    >
+                      <View style={s.spread}>
+                        <T
+                          style={{
+                            flex: 1,
+                            textDecorationLine: ticked
+                              ? "line-through"
+                              : "none",
+                          }}
+                        >
+                          {item.ingredient}
+                        </T>
+                        <T
+                          small
+                          style={{
+                            textAlign: "right",
+                            maxWidth: "48%",
+                            textDecorationLine: ticked
+                              ? "line-through"
+                              : "none",
+                          }}
+                        >
+                          {[
+                            ...item.amounts.map(
+                              (a) =>
+                                `${num(a.quantity, a.unit === "g" ? 0 : 6)}${a.unit ? ` ${a.unit}` : ""}`,
+                            ),
+                            ...item.unquantified,
+                          ].join(" + ")}
+                        </T>
+                      </View>
+                      <T small muted numberOfLines={1}>
+                        {item.recipes.join(" · ")}
+                      </T>
+                      {item.optional && <Tag>Optional</Tag>}
+                    </View>
+                  </Pressable>
+                );
+              })}
+          </View>
+        </View>
       ))}
       {!list.items.length && <T muted>No shopping needed for this week.</T>}
     </>

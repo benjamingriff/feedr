@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Text, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useKeepAwake } from "expo-keep-awake";
 import type { Recipe, RecipeVersion, Step } from "@feedr/core";
@@ -59,7 +60,29 @@ function Cooking({
   const steps = [...version.steps].sort((a, b) => a.position - b.position);
   const step: Step | undefined = steps[index];
   return (
-    <>
+    <Screen
+      footer={
+        step ? (
+          <View style={{ flexDirection: "row", gap: 12 }}>
+            <View style={{ flex: 1 }}>
+              <Button
+                title="Prev"
+                secondary
+                disabled={index === 0}
+                onPress={() => setIndex(index - 1)}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Button
+                title="Next"
+                disabled={index === steps.length - 1}
+                onPress={() => setIndex(index + 1)}
+              />
+            </View>
+          </View>
+        ) : undefined
+      }
+    >
       <T title>{title}</T>
       <T muted>{version.label}</T>
       <Button
@@ -75,24 +98,14 @@ function Cooking({
               Step {index + 1} of {steps.length}
             </T>
             {!!step.section && <T muted>{step.section}</T>}
-            <T>{step.text}</T>
+            <Text style={{ fontSize: 25, lineHeight: 36, color: "#202522" }}>
+              {step.text}
+            </Text>
           </Card>
           {step.timer_seconds != null && (
             <Timer key={step.id} seconds={step.timer_seconds} />
           )}
-          <Row>
-            <Button
-              title="Previous"
-              secondary
-              disabled={index === 0}
-              onPress={() => setIndex(index - 1)}
-            />
-            <Button
-              title="Next"
-              disabled={index === steps.length - 1}
-              onPress={() => setIndex(index + 1)}
-            />
-          </Row>
+
           {index === steps.length - 1 && (
             <T muted>Last step. Enjoy your meal.</T>
           )}
@@ -104,7 +117,7 @@ function Cooking({
         Keep this screen open while cooking. Timers run on this screen; no
         background notification is sent.
       </T>
-    </>
+    </Screen>
   );
 }
 export default function CookScreen() {
@@ -117,6 +130,10 @@ export default function CookScreen() {
     `/recipes/${recipeId}`,
   );
   const version = query.data?.versions.find((v) => v.id === versionId);
+  if (version && query.data)
+    return (
+      <Cooking key={version.id} title={query.data.title} version={version} />
+    );
   return (
     <Screen>
       <QueryState
@@ -124,9 +141,6 @@ export default function CookScreen() {
         error={query.error}
         retry={() => void query.refetch()}
       />
-      {version && query.data && (
-        <Cooking key={version.id} title={query.data.title} version={version} />
-      )}
       {query.data && !version && <T>Recipe version not found.</T>}
     </Screen>
   );

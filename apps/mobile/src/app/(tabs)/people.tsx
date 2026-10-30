@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Pressable, View } from "react-native";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Clipboard from "expo-clipboard";
 import { SLOTS, type Person, type Slot } from "@feedr/core";
@@ -13,6 +14,9 @@ import {
   Screen,
   T,
   num,
+  pct,
+  Chevron,
+  s,
 } from "../../ui";
 const slots = SLOTS;
 function PersonForm({ person, close }: { person?: Person; close: () => void }) {
@@ -152,59 +156,73 @@ function Settings() {
     }
   }
   return (
-    <Card>
-      <T title>Settings</T>
-      <T>API URL</T>
-      <T muted>{connection?.url}</T>
-      <Button
-        title={connection?.auth === "clerk" ? "Sign out" : "Disconnect"}
-        secondary
-        onPress={() => {
-          void disconnect().catch((e) => setError(String(e)));
-        }}
-      />
-      <Button
-        title={create.isPending ? "Creating…" : "Create agent token"}
-        disabled={create.isPending || !!token}
-        onPress={() => create.mutate()}
-      />
-      <ErrorMessage error={create.error ?? error} />
-      {!!token && (
-        <>
-          <T>
-            Save this token now. It is shown only here and cannot be retrieved
-            later.
-          </T>
-          <Field label="Agent token" value={token} editable={false} multiline />
-          <Button
-            title="Copy token"
-            secondary
-            onPress={() => {
-              void copy(token, "Token copied");
-            }}
-          />
-          <Field
-            label="Claude MCP command"
-            value={command}
-            editable={false}
-            multiline
-          />
-          <Button
-            title="Copy command"
-            secondary
-            onPress={() => {
-              void copy(command, "Command copied");
-            }}
-          />
-          <T muted>{copied}</T>
-          <Button
-            title="Done — hide token"
-            secondary
-            onPress={() => setToken("")}
-          />
-        </>
-      )}
-    </Card>
+    <>
+      <T small muted>
+        Settings
+      </T>
+      <Card>
+        <T>API URL</T>
+        <T muted>{connection?.url}</T>
+        <Button
+          title={connection?.auth === "clerk" ? "Sign out" : "Disconnect"}
+          secondary
+          onPress={() => {
+            void disconnect().catch((e) => setError(String(e)));
+          }}
+        />
+      </Card>
+      <T small muted>
+        Agent access
+      </T>
+      <Card>
+        <Button
+          title={create.isPending ? "Creating…" : "Create agent token"}
+          disabled={create.isPending || !!token}
+          onPress={() => create.mutate()}
+        />
+        <ErrorMessage error={create.error ?? error} />
+        {!!token && (
+          <>
+            <T>
+              Save this token now. It is shown only here and cannot be retrieved
+              later.
+            </T>
+            <Field
+              label="Agent token"
+              value={token}
+              editable={false}
+              multiline
+            />
+            <Button
+              title="Copy token"
+              secondary
+              onPress={() => {
+                void copy(token, "Token copied");
+              }}
+            />
+            <Field
+              label="Claude MCP command"
+              value={command}
+              editable={false}
+              multiline
+            />
+            <Button
+              title="Copy command"
+              secondary
+              onPress={() => {
+                void copy(command, "Command copied");
+              }}
+            />
+            <T muted>{copied}</T>
+            <Button
+              title="Done — hide token"
+              secondary
+              onPress={() => setToken("")}
+            />
+          </>
+        )}
+      </Card>
+    </>
   );
 }
 export default function PeopleScreen() {
@@ -220,25 +238,34 @@ export default function PeopleScreen() {
         error={query.error}
         retry={() => void query.refetch()}
       />
-      {query.data?.map((person) => (
-        <Card key={person.id}>
-          <T title>{person.name}</T>
-          <T>
-            {num(person.weight_kg)} kg · {num(person.daily_kcal)} kcal/day ·{" "}
-            {num(person.daily_protein_g)} g protein/day
-          </T>
-          <T muted>
-            {slots
-              .map((slot) => `${slot} ${num(person.slot_split[slot] * 100)}%`)
-              .join(" · ")}
-          </T>
-          <Button
-            title={`Edit ${person.name}`}
-            secondary
+      <View style={s.group}>
+        {query.data?.map((person) => (
+          <Pressable
+            key={person.id}
+            accessibilityRole="button"
+            accessibilityLabel={`Edit ${person.name}`}
             onPress={() => setEditing(person)}
-          />
-        </Card>
-      ))}
+            style={s.listRow}
+          >
+            <View style={{ flex: 1, gap: 4 }}>
+              <T style={{ fontWeight: "600" }}>{person.name}</T>
+              <T small>
+                {num(person.weight_kg, 1)} kg · {num(person.daily_kcal)} kcal ·{" "}
+                {num(person.daily_protein_g)} g protein
+              </T>
+              <T small muted>
+                {slots
+                  .map(
+                    (slot) =>
+                      `${slot === "snack" ? "Snacks" : slot.charAt(0).toUpperCase() + slot.slice(1)} ${pct(person.slot_split[slot])}`,
+                  )
+                  .join(" · ")}
+              </T>
+            </View>
+            <Chevron />
+          </Pressable>
+        ))}
+      </View>
       {query.data?.length === 0 && <T muted>Add the people you cook for.</T>}
       {editing ? (
         <PersonForm
@@ -247,7 +274,11 @@ export default function PeopleScreen() {
           close={() => setEditing(null)}
         />
       ) : (
-        <Button title="Add person" onPress={() => setEditing("new")} />
+        <Button
+          title="Add person"
+          secondary
+          onPress={() => setEditing("new")}
+        />
       )}
       <Settings />
     </Screen>

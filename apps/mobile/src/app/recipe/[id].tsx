@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Linking } from "react-native";
+import { Linking, Pressable, ScrollView, View } from "react-native";
+import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import type { Recipe } from "@feedr/core";
 import { useApiQuery } from "../../store";
@@ -9,7 +10,8 @@ import {
   Card,
   ErrorMessage,
   QueryState,
-  Row,
+  TextButton,
+  colors,
   Screen,
   T,
 } from "../../ui";
@@ -19,6 +21,7 @@ export default function RecipeScreen() {
     versionId?: string;
   }>();
   const [selected, setSelected] = useState(versionId);
+  const [more, setMore] = useState(false);
   const [linkError, setLinkError] = useState("");
   const query = useApiQuery<Recipe>(["recipe", id], `/recipes/${id}`);
   const recipe = query.data;
@@ -36,12 +39,19 @@ export default function RecipeScreen() {
       />
       {recipe && (
         <>
+          {!!recipe.image_url && (
+            <Image
+              source={{ uri: recipe.image_url }}
+              contentFit="cover"
+              style={{ width: "100%", aspectRatio: 16 / 9, borderRadius: 10 }}
+              accessibilityLabel={recipe.title}
+            />
+          )}
           <T title>{recipe.title}</T>
           {!!recipe.description && <T>{recipe.description}</T>}
           {!!recipe.source_url && (
-            <Button
-              title={`Source: ${recipe.source_name ?? recipe.source_url}`}
-              secondary
+            <TextButton
+              title={`${recipe.source_name ?? new URL(recipe.source_url).hostname} ↗`}
               onPress={() => {
                 void Linking.openURL(recipe.source_url!).catch(() =>
                   setLinkError("Could not open source link."),
@@ -50,26 +60,61 @@ export default function RecipeScreen() {
             />
           )}
           <ErrorMessage error={linkError} />
-          <Row>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ flexGrow: 0 }}
+            contentContainerStyle={{ gap: 6 }}
+          >
             {recipe.versions.map((v) => (
-              <Button
+              <Pressable
                 key={v.id}
-                title={`${v.label} · ${v.servings} servings`}
-                secondary={version?.id !== v.id}
-                onPress={() => setSelected(v.id)}
-              />
+                accessibilityRole="button"
+                accessibilityLabel={`${v.label} · ${v.servings} servings`}
+                accessibilityState={{ selected: version?.id === v.id }}
+                onPress={() => {
+                  setSelected(v.id);
+                  setMore(false);
+                }}
+                style={{
+                  maxWidth: 280,
+                  paddingHorizontal: 12,
+                  paddingVertical: 9,
+                  borderRadius: 8,
+                  backgroundColor:
+                    version?.id === v.id ? colors.accent : "white",
+                }}
+              >
+                <T
+                  small
+                  numberOfLines={1}
+                  style={{
+                    color: version?.id === v.id ? "white" : colors.text,
+                  }}
+                >
+                  {v.label} · {v.servings} servings
+                </T>
+              </Pressable>
             ))}
-          </Row>
+          </ScrollView>
           {version ? (
             <>
               <Card>
-                <T title>{version.label}</T>
+                <T style={{ fontWeight: "600" }}>{version.label}</T>
                 <T>
                   {version.servings} servings · Prep{" "}
                   {version.prep_minutes ?? "—"} min · Cook{" "}
                   {version.cook_minutes ?? "—"} min
                 </T>
-                {!!version.notes && <T>{version.notes}</T>}
+                {!!version.notes && (
+                  <View>
+                    <T numberOfLines={more ? undefined : 3}>{version.notes}</T>
+                    <TextButton
+                      title={more ? "Less" : "More"}
+                      onPress={() => setMore(!more)}
+                    />
+                  </View>
+                )}
                 <Button
                   title="Cook"
                   onPress={() =>

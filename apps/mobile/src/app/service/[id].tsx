@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Service } from "@feedr/core";
@@ -8,7 +9,9 @@ import {
   Button,
   Card,
   ErrorMessage,
-  Field,
+  TextButton,
+  Tag,
+  s,
   QueryState,
   Row,
   Screen,
@@ -74,105 +77,137 @@ export default function ServiceScreen() {
       />
       {service && (
         <>
-          <T title>{service.recipe_title}</T>
-          <T>
-            {service.version_label} · Cooked{" "}
-            {dateLabel(service.cook_date, true)}
-          </T>
+          <View style={{ gap: 4 }}>
+            <T title>{service.recipe_title}</T>
+            <T muted>{service.version_label}</T>
+            <T small muted>
+              Cooked {dateLabel(service.cook_date, true)}
+            </T>
+            <Row>
+              <TextButton
+                title="Recipe"
+                onPress={() =>
+                  router.push({
+                    pathname: "/recipe/[id]",
+                    params: {
+                      id: service.recipe_id,
+                      versionId: service.version_id,
+                    },
+                  })
+                }
+              />
+              <TextButton
+                title="Cook"
+                onPress={() =>
+                  router.push({
+                    pathname: "/cook/[versionId]",
+                    params: {
+                      versionId: service.version_id,
+                      recipeId: service.recipe_id,
+                    },
+                  })
+                }
+              />
+            </Row>
+          </View>
           <Card>
-            <Field
-              label="Cooked weight (g)"
-              value={weight}
-              onChangeText={setWeight}
-              keyboardType="decimal-pad"
-              placeholder="Weigh the whole cooked dish"
-            />
-            <Button
-              title={save.isPending ? "Saving…" : "Save weight"}
-              disabled={save.isPending}
-              onPress={() => save.mutate()}
-            />
+            <T small muted>
+              Cooked weight
+            </T>
+            <View style={s.spread}>
+              <TextInput
+                accessibilityLabel="Cooked weight (g)"
+                value={weight}
+                onChangeText={setWeight}
+                keyboardType="decimal-pad"
+                placeholder="Weight in grams"
+                style={[s.input, { flex: 1 }]}
+              />
+              <Button
+                title={save.isPending ? "Saving…" : "Save"}
+                disabled={save.isPending}
+                onPress={() => save.mutate()}
+              />
+            </View>
+            {service.cooked_weight_g == null && (
+              <T small muted>
+                Weigh the whole cooked dish to see grams per plate.
+              </T>
+            )}
             <ErrorMessage error={save.error} />
           </Card>
-          <T title>Dish-up guide</T>
-          {service.cooked_weight_g == null && (
-            <T muted>
-              Weigh the cooked food and save its weight to see grams for each
-              plate.
-            </T>
-          )}
           {service.dish_up.meals.map((meal, i) => (
             <Card key={`${meal.date}-${meal.slot}-${i}`}>
-              <T title>
-                {meal.date ? dateLabel(meal.date, true) : "Unassigned"}{" "}
-                {meal.slot ?? "leftovers"}
-              </T>
-              <T>
-                {pct(meal.share)} of the pot
-                {meal.fraction ? ` · ${meal.fraction}` : ""}
-                {meal.grams == null ? "" : ` · ${num(meal.grams)} g`}
-                {meal.is_rest ? " · the rest of the pot" : ""}
-              </T>
-              {!!meal.ratio && <T>Between people: {meal.ratio}</T>}
+              <View style={s.spread}>
+                <T style={{ fontWeight: "600", flexShrink: 1 }}>
+                  {meal.date ? dateLabel(meal.date) : "Unassigned"}{" "}
+                  {meal.slot ?? "leftovers"}
+                </T>
+                <T small muted style={{ flexShrink: 1, textAlign: "right" }}>
+                  {pct(meal.share)}
+                  {meal.fraction ? ` · ${meal.fraction}` : ""}
+                </T>
+              </View>
+              {meal.grams != null && (
+                <Text style={s.large}>{num(meal.grams)} g</Text>
+              )}
+              {!!meal.ratio && (
+                <T small muted>
+                  Split {meal.ratio} between{" "}
+                  {meal.portions
+                    .map((p) => p.person_name ?? "Unassigned")
+                    .join(" and ")}
+                </T>
+              )}
               {meal.portions.map((p) => {
                 const portion = service.portions.find(
                   (portion) => portion.id === p.portion_id,
                 );
                 return (
-                  <Card key={p.portion_id}>
-                    <T>
-                      {p.person_name ?? "Unassigned"} · {pct(p.share_of_meal)}{" "}
-                      of this meal
-                      {p.grams == null ? "" : ` · ${num(p.grams)} g`}
-                      {p.is_rest ? " · the rest" : ""}
+                  <View
+                    key={p.portion_id}
+                    style={{
+                      borderTopWidth: 0.5,
+                      borderColor: "#d9dfdb",
+                      paddingTop: 10,
+                      gap: 4,
+                    }}
+                  >
+                    <View style={s.spread}>
+                      <Row>
+                        <T style={{ fontWeight: "600" }}>
+                          {p.person_name ?? "Unassigned"}
+                        </T>
+                        {p.is_rest && <Tag>the rest</Tag>}
+                      </Row>
+                      <Text style={s.large}>
+                        {p.grams == null
+                          ? pct(p.share_of_meal)
+                          : `${num(p.grams)} g`}
+                      </Text>
+                    </View>
+                    <T small muted>
+                      {pct(p.share_of_meal)} of this meal
+                      {portion
+                        ? ` · ${num(portion.nutrition.kcal)} kcal · ${num(portion.nutrition.protein_g)} g protein`
+                        : ""}
                     </T>
-                    {portion && (
-                      <T muted>
-                        {num(portion.nutrition.kcal)} kcal ·{" "}
-                        {num(portion.nutrition.protein_g)} g protein
-                      </T>
-                    )}
-                    <Button
-                      title="Remove"
-                      secondary
-                      disabled={remove.isPending}
-                      onPress={() =>
-                        confirmRemoval(() => remove.mutate(p.portion_id))
-                      }
-                    />
-                  </Card>
+                    <View style={{ alignItems: "flex-end" }}>
+                      <TextButton
+                        title="Remove"
+                        destructive
+                        disabled={remove.isPending}
+                        onPress={() =>
+                          confirmRemoval(() => remove.mutate(p.portion_id))
+                        }
+                      />
+                    </View>
+                  </View>
                 );
               })}
             </Card>
           ))}
           <ErrorMessage error={remove.error} />
-          <Row>
-            <Button
-              title="View recipe"
-              secondary
-              onPress={() =>
-                router.push({
-                  pathname: "/recipe/[id]",
-                  params: {
-                    id: service.recipe_id,
-                    versionId: service.version_id,
-                  },
-                })
-              }
-            />
-            <Button
-              title="Start cook mode"
-              onPress={() =>
-                router.push({
-                  pathname: "/cook/[versionId]",
-                  params: {
-                    versionId: service.version_id,
-                    recipeId: service.recipe_id,
-                  },
-                })
-              }
-            />
-          </Row>
         </>
       )}
     </Screen>

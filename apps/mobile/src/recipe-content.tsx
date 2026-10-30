@@ -1,5 +1,6 @@
 import type { IngredientLine, Nutrition, NutrientKey } from "@feedr/core";
-import { Card, Row, T, num } from "./ui";
+import { View } from "react-native";
+import { Card, T, Tag, num, s } from "./ui";
 const nutrients: [NutrientKey, string][] = [
   ["kcal", "Energy (kcal)"],
   ["protein_g", "Protein (g)"],
@@ -20,13 +21,15 @@ export function Ingredients({ lines }: { lines: IngredientLine[] }) {
     <>
       {[...groups].map(([section, ingredients]) => (
         <Card key={section}>
-          <T title>{section}</T>
+          <T style={{ fontWeight: "600" }}>{section}</T>
           {ingredients.map((line) => (
-            <T key={line.id}>
-              {line.raw_text ||
-                `${num(line.quantity)} ${line.unit ?? ""} ${line.ingredient}`}
-              {line.optional ? " (optional)" : ""}
-            </T>
+            <View key={line.id} style={{ gap: 2 }}>
+              <T>
+                {line.raw_text ||
+                  `${num(line.quantity, line.unit === "g" ? 0 : 6)} ${line.unit ?? ""} ${line.ingredient}`}
+              </T>
+              {line.optional && <Tag>Optional</Tag>}
+            </View>
           ))}
         </Card>
       ))}
@@ -44,22 +47,50 @@ export function NutritionTable({
   if (!nutrition) return <T muted>No nutrition available.</T>;
   return (
     <Card>
-      <T title>Nutrition</T>
-      <Row>
-        <T>Per serving / whole batch</T>
-      </Row>
-      {nutrients.map(([key, label]) => (
-        <T key={key}>
-          {label}:{" "}
-          {num(nutrition[key] == null ? null : nutrition[key] / servings)} /{" "}
-          {num(nutrition[key])}
+      <View style={s.spread}>
+        <T style={{ fontWeight: "600" }}>Nutrition</T>
+        <Tag>
+          {nutrition.source === "from_source" ? "From source" : "Estimated"}
+        </Tag>
+      </View>
+      <View style={s.spread}>
+        <T small muted style={{ flex: 1.3 }}>
+          Nutrient
         </T>
+        <T small muted style={{ flex: 1, textAlign: "right" }}>
+          Per serving
+        </T>
+        <T small muted style={{ flex: 0.8, textAlign: "right" }}>
+          Batch
+        </T>
+      </View>
+      {nutrients.map(([key, label]) => (
+        <View
+          key={key}
+          style={[
+            s.spread,
+            { borderTopWidth: 0.5, borderColor: "#d9dfdb", paddingTop: 5 },
+          ]}
+        >
+          <T small style={{ flex: 1.3 }}>
+            {label}
+          </T>
+          <T small style={{ flex: 1, textAlign: "right" }}>
+            {num(
+              nutrition[key] == null ? null : nutrition[key] / servings,
+              key === "salt_g" ? 1 : 0,
+            )}
+          </T>
+          <T small style={{ flex: 0.8, textAlign: "right" }}>
+            {num(nutrition[key], key === "salt_g" ? 1 : 0)}
+          </T>
+        </View>
       ))}
-      <T muted>
-        Source:{" "}
-        {nutrition.source === "from_source" ? "from source" : "agent estimate"}
-      </T>
-      {!!nutrition.notes && <T muted>{nutrition.notes}</T>}
+      {!!nutrition.notes && (
+        <T small muted>
+          {nutrition.notes}
+        </T>
+      )}
     </Card>
   );
 }

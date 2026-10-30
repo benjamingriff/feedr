@@ -11,6 +11,7 @@ import {
   TextInput,
   View,
   type TextInputProps,
+  type TextProps,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -26,19 +27,26 @@ export function T({
   children,
   muted = false,
   title = false,
+  small = false,
+  ...props
 }: {
   children: ReactNode;
   muted?: boolean;
   title?: boolean;
-}) {
+  small?: boolean;
+} & TextProps) {
   return (
     <Text
-      style={{
-        color: muted ? colors.muted : colors.text,
-        fontSize: title ? 21 : 16,
-        fontWeight: title ? "600" : "400",
-        lineHeight: title ? 28 : 23,
-      }}
+      {...props}
+      style={[
+        {
+          color: muted ? colors.muted : colors.text,
+          fontSize: title ? 20 : small ? 13 : 16,
+          fontWeight: title ? "600" : "400",
+          lineHeight: title ? 26 : small ? 18 : 22,
+        },
+        props.style,
+      ]}
     >
       {children}
     </Text>
@@ -49,11 +57,13 @@ export function Screen({
   refresh,
   refreshing = false,
   top = false,
+  footer,
 }: {
   children: ReactNode;
   refresh?: () => void;
   refreshing?: boolean;
   top?: boolean;
+  footer?: ReactNode;
 }) {
   return (
     <SafeAreaView
@@ -73,6 +83,7 @@ export function Screen({
       >
         {children}
       </ScrollView>
+      {footer && <View style={s.footer}>{footer}</View>}
     </SafeAreaView>
   );
 }
@@ -201,15 +212,15 @@ export function Bar({
 }) {
   return (
     <View style={{ gap: 5 }}>
-      <T muted>
-        {label}: {num(value)}
-        {unit}
-        {target == null ? " · no target" : ` / ${num(target)}${unit}`}
+      <T small>
+        {num(value)}
+        {target == null ? "" : ` / ${num(target)}`}
+        {unit} {label}
       </T>
-      <View style={{ height: 7, backgroundColor: "#e1e5e2", borderRadius: 4 }}>
+      <View style={{ height: 3, backgroundColor: "#e1e5e2", borderRadius: 4 }}>
         <View
           style={{
-            height: 7,
+            height: 3,
             backgroundColor: colors.accent,
             borderRadius: 4,
             width: `${target && value != null ? Math.min(100, Math.max(0, (value / target) * 100)) : 0}%`,
@@ -237,30 +248,118 @@ export function confirmRemoval(action: () => void) {
       ],
     );
 }
-export const num = (n: number | null | undefined) =>
-  n == null ? "—" : String(Math.round(n * 10) / 10);
+export const num = (n: number | null | undefined, decimals = 0) =>
+  n == null
+    ? "—"
+    : n.toLocaleString("en-GB", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: decimals,
+      });
 export const pct = (n: number) => `${num(n * 100)}%`;
+export function TextButton({
+  title,
+  onPress,
+  destructive = false,
+  disabled = false,
+}: {
+  title: string;
+  onPress: () => void;
+  destructive?: boolean;
+  disabled?: boolean;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      disabled={disabled}
+      style={{
+        paddingVertical: 8,
+        paddingHorizontal: 4,
+        opacity: disabled ? 0.45 : 1,
+      }}
+    >
+      <Text
+        style={{
+          fontSize: 14,
+          color: destructive ? colors.error : colors.accent,
+        }}
+      >
+        {title}
+      </Text>
+    </Pressable>
+  );
+}
+export function Chevron() {
+  return (
+    <Text aria-hidden style={{ fontSize: 24, color: "#929a95" }}>
+      ›
+    </Text>
+  );
+}
+export function Tag({ children }: { children: ReactNode }) {
+  return (
+    <Text
+      style={{
+        color: colors.muted,
+        fontSize: 11,
+        lineHeight: 17,
+        backgroundColor: colors.bg,
+        borderRadius: 4,
+        paddingHorizontal: 5,
+        alignSelf: "flex-start",
+        overflow: "hidden",
+      }}
+    >
+      {children}
+    </Text>
+  );
+}
 export const s = StyleSheet.create({
+  footer: {
+    padding: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    backgroundColor: "white",
+  },
+  group: { backgroundColor: "white", borderRadius: 10, overflow: "hidden" },
+  listRow: {
+    padding: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  spread: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 8,
+  },
+  large: {
+    fontSize: 28,
+    lineHeight: 34,
+    fontWeight: "600",
+    color: colors.text,
+  },
   screen: {
     padding: 16,
     paddingBottom: 32,
-    gap: 16,
+    gap: 12,
     width: "100%",
     maxWidth: 760,
     alignSelf: "center",
   },
   card: {
     backgroundColor: "white",
-    borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: 10,
-    padding: 16,
-    gap: 12,
+    padding: 12,
+    gap: 8,
   },
   row: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8 },
   button: {
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 10,
     borderRadius: 7,
     alignItems: "center",
     minHeight: 44,

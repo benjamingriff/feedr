@@ -130,7 +130,7 @@ function Checklist({
                           {[
                             ...item.amounts.map(
                               (a) =>
-                                `${num(a.quantity, a.unit === "g" ? 0 : 6)}${a.unit ? ` ${a.unit}` : ""}`,
+                                `${num(a.quantity, 6)}${a.unit ? ` ${a.unit}` : ""}`,
                             ),
                             ...item.unquantified,
                           ].join(" + ")}

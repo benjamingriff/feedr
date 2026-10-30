@@ -26,7 +26,7 @@ export function Ingredients({ lines }: { lines: IngredientLine[] }) {
             <View key={line.id} style={{ gap: 2 }}>
               <T>
                 {line.raw_text ||
-                  `${num(line.quantity, line.unit === "g" ? 0 : 6)} ${line.unit ?? ""} ${line.ingredient}`}
+                  `${num(line.quantity, 6)} ${line.unit ?? ""} ${line.ingredient}`}
               </T>
               {line.optional && <Tag>Optional</Tag>}
             </View>

@@ -32,12 +32,20 @@ export interface IngredientLine {
   optional: boolean;
 }
 
+/** An ingredient line used in a step, with the amount used there when it differs from the whole line. */
+export interface StepIngredient {
+  line_id: string;
+  quantity: number | null;
+  unit: string | null;
+}
+
 export interface Step {
   id: string;
   position: number;
   text: string;
   section: string | null;
   timer_seconds: number | null;
+  ingredients: StepIngredient[];
 }
 
 export interface RecipeVersion {
@@ -66,7 +74,16 @@ export interface RecipeSummary {
   image_url: string | null;
   source_url: string | null;
   source_name: string | null;
-  versions: { id: string; label: string; servings: number; kcal: number | null; is_original: boolean }[];
+  /** Original first, then oldest to newest. kcal is for the whole batch. */
+  versions: {
+    id: string;
+    label: string;
+    servings: number;
+    kcal: number | null;
+    is_original: boolean;
+    prep_minutes: number | null;
+    cook_minutes: number | null;
+  }[];
   updated_at: string;
 }
 

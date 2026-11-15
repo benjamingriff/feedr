@@ -1,6 +1,6 @@
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
-import type { Plan, Recipe, RecipeVersion, Service, ShoppingList } from '@feedr/core';
+import type { Plan, Recipe, RecipeSummary, RecipeVersion, Service, ShoppingList } from '@feedr/core';
 import { app } from '../src/app.ts';
 import { createAccessToken } from '../src/auth.ts';
 import { db, migrate } from '../src/db.ts';
@@ -164,6 +164,58 @@ test('recipe → version → service → plan → shopping', async () => {
   await call('DELETE', `/versions/${version.id}`, undefined, 400);
   for (const p of withSpare.portions) await call('DELETE', `/portions/${p.id}`);
   await call('GET', `/services/${service.id}`, undefined, 404);
+});
+
+test('step ingredient links are stored with a version and read back', async () => {
+  const recipe = await call<Recipe>(
+    'POST',
+    '/recipes',
+    {
+      title: 'Garlic rice',
+      tags: ['dinner'],
+      original: {
+        servings: 2,
+        prep_minutes: 5,
+        cook_minutes: 15,
+        ingredients: [
+          { ingredient: 'garlic', aisle: 'Produce', quantity: 6, unit: 'clove', raw_text: '6 garlic cloves' },
+          { ingredient: 'basmati rice', aisle: 'Rice & pasta', quantity: 150, unit: 'g', raw_text: '150g basmati rice' },
+        ],
+        steps: [
+          { text: 'Fry 4 cloves of garlic.', ingredients: [{ line: 0, quantity: 4, unit: 'clove' }] },
+          { text: 'Add the rice and the rest of the garlic.', ingredients: [{ line: 1 }, { line: 0, quantity: 2, unit: 'clove' }] },
+          { text: 'Serve.' },
+        ],
+        nutrition: nutrition(900, 20),
+      },
+    },
+    201,
+  );
+  const version = recipe.versions[0]!;
+  const [garlic, rice] = version.ingredients;
+  assert.deepEqual(version.steps.map((s) => s.ingredients), [
+    [{ line_id: garlic!.id, quantity: 4, unit: 'clove' }],
+    // In ingredient order, whatever order they were given in.
+    [
+      { line_id: garlic!.id, quantity: 2, unit: 'clove' },
+      { line_id: rice!.id, quantity: null, unit: null },
+    ],
+    [],
+  ]);
+
+  // Reading the recipe back gives the same links, and the summary carries the minutes.
+  const read = await call<Recipe>('GET', `/recipes/${recipe.id}`);
+  assert.deepEqual(read.versions[0]!.steps, version.steps);
+  const summary = (await call<RecipeSummary[]>('GET', '/recipes?q=garlic rice'))[0]!;
+  assert.deepEqual([summary.versions[0]!.prep_minutes, summary.versions[0]!.cook_minutes], [5, 15]);
+
+  // Steps can be replaced on their own; links then index the stored ingredients.
+  const updated = await call<RecipeVersion>('PATCH', `/versions/${version.id}`, {
+    steps: [{ text: 'Cook the rice.', ingredients: [{ line: 1 }] }],
+  });
+  assert.deepEqual(updated.steps[0]!.ingredients, [{ line_id: rice!.id, quantity: null, unit: null }]);
+  await call('PATCH', `/versions/${version.id}`, { steps: [{ text: 'Cook.', ingredients: [{ line: 2 }] }] }, 400);
+  await call('DELETE', `/recipes/${recipe.id}`, undefined, 204);
 });
 
 test('plan_services plans a batch atomically', async () => {

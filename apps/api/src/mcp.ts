@@ -30,6 +30,12 @@ Model:
 
 Importing: call fetch_recipe_source with the URL, then create_recipe. Published nutrition is usually per serving; multiply by the yield for the whole batch.
 
+Writing a version for the app:
+- Tag every recipe with its meal type: breakfast, lunch or dinner (more than one is fine). The app's cookbook filters on these tags.
+- Link ingredients to steps. Each step takes ingredients: [{ line, quantity?, unit? }], where line is the index of the ingredient in this version's ingredients array, starting at 0. The app's cook mode lists a step's ingredients beside it. Give quantity and unit only when a step uses part of a line, e.g. 4 of the 6 garlic cloves now and 2 in a later step.
+- Refer to each ingredient in the step text by its name or the main word of its name, so the app can mark it.
+- Set timer_seconds on steps with a wait, and prep_minutes and cook_minutes on the version.
+
 Planning a meal:
 1. get_slot_targets for the slot and people to see the calories (and protein) the meal should provide.
 2. Pick a version near the total, or create one with create_recipe_version.
@@ -98,7 +104,7 @@ export function buildMcpServer(user: AuthUser): McpServer {
   server.registerTool(
     'search_recipes',
     {
-      description: 'Find recipes by text or tag. Returns summaries with each version id, label, servings and whole-batch kcal.',
+      description: 'Find recipes by text or tag. Returns summaries with each version id, label, servings, prep and cook minutes and whole-batch kcal.',
       inputSchema: { q: z.string().optional(), tag: z.string().optional() },
       annotations: readOnly,
     },
@@ -130,7 +136,7 @@ export function buildMcpServer(user: AuthUser): McpServer {
     'create_recipe',
     {
       description:
-        'Create a recipe and its original version (as published) in one call. Keep the source_url. Nutrition is for the whole batch.',
+        'Create a recipe and its original version (as published) in one call. Keep the source_url. Nutrition is for the whole batch. Tag the meal type and link each step to the ingredients it uses.',
       inputSchema: RecipeCreate.shape,
     },
     (input) => run(() => svc.createRecipe(u, input)),
@@ -149,7 +155,7 @@ export function buildMcpServer(user: AuthUser): McpServer {
     'create_recipe_version',
     {
       description:
-        'Add a scaled or adapted version: complete ingredients, steps and whole-batch nutrition, scaled with judgement (whole eggs, non-linear spices, adjusted times). Say what changed in notes and set based_on_version_id.',
+        'Add a scaled or adapted version: complete ingredients, steps (each linked to the ingredients it uses) and whole-batch nutrition, scaled with judgement (whole eggs, non-linear spices, adjusted times). Say what changed in notes and set based_on_version_id.',
       inputSchema: { recipe_id: id, ...VersionInput.shape },
     },
     ({ recipe_id, ...input }) => run(() => svc.createVersion(u, recipe_id, input)),
@@ -157,7 +163,8 @@ export function buildMcpServer(user: AuthUser): McpServer {
   server.registerTool(
     'update_recipe_version',
     {
-      description: 'Edit a version. Any of ingredients, steps or nutrition given replaces that part entirely.',
+      description:
+        'Edit a version. Any of ingredients, steps or nutrition given replaces that part entirely. Step ingredient links point at ingredient lines, so when you replace ingredients, send steps too to keep the links.',
       inputSchema: { version_id: id, ...VersionInput.partial().shape },
     },
     ({ version_id, ...input }) => run(() => svc.updateVersion(u, version_id, input)),

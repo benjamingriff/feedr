@@ -3,8 +3,10 @@ import assert from 'node:assert/strict';
 import {
   DEFAULT_SLOT_SPLIT,
   aggregateShopping,
+  defaultVersion,
   dishUpGuide,
   fractionWords,
+  matchIngredientNames,
   normaliseUnit,
   sharesFromTargets,
   simpleRatio,
@@ -159,4 +161,48 @@ test('shopping keeps small quantities exact', () => {
     { quantity: 5, unit: 'tbsp' },
     { quantity: 1.25, unit: 'kg' },
   ]);
+});
+
+test('default version is the newest adapted one, or the original', () => {
+  const original = { id: 'o', is_original: true };
+  const older = { id: 'a', is_original: false };
+  const newer = { id: 'b', is_original: false };
+  assert.equal(defaultVersion([original, older, newer]), newer);
+  assert.equal(defaultVersion([original]), original);
+  assert.equal(defaultVersion([]), undefined);
+});
+
+test('ingredient names are found in step text', () => {
+  const found = (text: string, names: string[]) =>
+    matchIngredientNames(text, names).map((m) => [text.slice(m.start, m.end), names[m.index]]);
+
+  // Case and plurals, either way round.
+  assert.deepEqual(found('Soften the Onions, then add one tomato.', ['onion', 'tomatoes']), [
+    ['Onions', 'onion'],
+    ['tomato', 'tomatoes'],
+  ]);
+  assert.deepEqual(found('Scatter over the berry mix.', ['mixed berries']), [['berry', 'mixed berries']]);
+
+  // The whole name beats its last word, and both beat a first word.
+  assert.deepEqual(found('Stir in the curry powder, then the rice.', ['curry powder', 'basmati rice']), [
+    ['curry powder', 'curry powder'],
+    ['rice', 'basmati rice'],
+  ]);
+  assert.deepEqual(found('Dip the chicken in the egg, then the panko.', ['chicken breasts', 'egg', 'panko breadcrumbs']), [
+    ['chicken', 'chicken breasts'],
+    ['egg', 'egg'],
+    ['panko', 'panko breadcrumbs'],
+  ]);
+  // A first word is only used when nothing better was found, so adjectives don't match by accident.
+  assert.deepEqual(found('Add the chopped onions and the tomatoes.', ['chopped tomatoes', 'onions']), [
+    ['onions', 'onions'],
+    ['tomatoes', 'chopped tomatoes'],
+  ]);
+
+  // Whole words only, and every occurrence.
+  assert.deepEqual(found('Season the eggplant. Beat the egg; add egg.', ['egg']), [
+    ['egg', 'egg'],
+    ['egg', 'egg'],
+  ]);
+  assert.deepEqual(matchIngredientNames('Melt the butter.', ['butter']), [{ start: 9, end: 15, index: 0 }]);
 });

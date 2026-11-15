@@ -5,3 +5,5 @@ export * from './portions.ts';
 export * from './dishup.ts';
 export * from './units.ts';
 export * from './shopping.ts';
+export * from './versions.ts';
+export * from './ingredient-match.ts';

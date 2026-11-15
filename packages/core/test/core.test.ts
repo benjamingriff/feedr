@@ -199,6 +199,9 @@ test('ingredient names are found in step text', () => {
     ['tomatoes', 'chopped tomatoes'],
   ]);
 
+  // A word two names could claim equally is left alone.
+  assert.deepEqual(found('Bake the chicken, then cook the rice.', ['chicken stock', 'chicken breasts', 'basmati rice', 'risotto rice']), []);
+
   // Whole words only, and every occurrence.
   assert.deepEqual(found('Season the eggplant. Beat the egg; add egg.', ['egg']), [
     ['egg', 'egg'],

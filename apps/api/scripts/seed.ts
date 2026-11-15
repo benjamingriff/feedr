@@ -106,13 +106,20 @@ const katsu = await svc.createRecipe(userId, {
         ['butter', 'onions', ['garlic', 6, 'clove'], 'curry powder'],
         12,
       ),
-      step('Heat the oil in a deep frying pan and fry the chicken in two batches, 4 min a side, until golden and cooked through.', ['vegetable oil'], 16),
+      step(
+        'Heat the oil in a deep frying pan and fry the chicken in two batches, 4 min a side, until golden and cooked through.',
+        ['vegetable oil', 'chicken breasts'],
+        16,
+      ),
       step(
         'Stir the flour and the last 2 cloves of garlic into the onions. Add the stock a splash at a time, then simmer until it coats a spoon. Add the honey and blend smooth.',
         ['plain flour', ['garlic', 2, 'clove'], 'chicken stock', 'honey'],
         15,
       ),
-      step('Slice the chicken into strips. Serve on the rice with the sauce spooned over the side, so the crumb stays crisp.'),
+      step('Slice the chicken into strips. Serve on the rice with the sauce spooned over the side, so the crumb stays crisp.', [
+        'chicken breasts',
+        'basmati rice',
+      ]),
     ],
   }),
 });
@@ -151,13 +158,16 @@ const katsuForTwo = await svc.createVersion(
         ['butter', 'onions', ['garlic', 4, 'clove'], 'curry powder'],
         10,
       ),
-      step("Bake the chicken for 20 min until golden and cooked through. Start the sauce while it's in.", [], 20),
+      step("Bake the chicken for 20 min until golden and cooked through. Start the sauce while it's in.", ['chicken breasts'], 20),
       step(
         'Stir the flour and the last 2 cloves of garlic into the onions. Add the stock a splash at a time, then simmer until it coats a spoon. Add the honey and blend smooth.',
         ['plain flour', ['garlic', 2, 'clove'], 'chicken stock', 'honey'],
         15,
       ),
-      step('Slice the chicken into strips. Serve on the rice with the sauce spooned over the side, so the crumb stays crisp.'),
+      step('Slice the chicken into strips. Serve on the rice with the sauce spooned over the side, so the crumb stays crisp.', [
+        'chicken breasts',
+        'basmati rice',
+      ]),
     ],
   }),
 );

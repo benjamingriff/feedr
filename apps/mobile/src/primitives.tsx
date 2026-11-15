@@ -28,6 +28,12 @@ import {
   type TypeRole,
 } from "./theme";
 
+/**
+ * A desktop browser's scrollbar takes width from the page and breaks the 342 content lane, so
+ * scroll views hide it on web. iOS draws its indicator over the content and keeps it.
+ */
+export const WEB = Platform.OS === "web";
+
 // The building blocks from design/README.md's Components section. Screens are composed from
 // these; they should rarely need a raw colour, font or hairline of their own.
 
@@ -71,6 +77,7 @@ export function Screen({
         contentContainerStyle={{ paddingBottom: footer ? 0 : insets.bottom + 56 }}
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets
+        showsVerticalScrollIndicator={!WEB}
         refreshControl={
           onRefresh ? (
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink3} />
@@ -206,7 +213,7 @@ export function PrimaryButton({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityState={{ disabled }}
+      aria-disabled={disabled}
       disabled={disabled}
       onPress={onPress}
       style={[
@@ -247,7 +254,7 @@ export function SquareButton({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityState={{ disabled }}
+      aria-disabled={disabled}
       disabled={disabled}
       onPress={onPress}
       style={{
@@ -283,7 +290,7 @@ export function TextAction({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityState={{ disabled }}
+      aria-disabled={disabled}
       disabled={disabled}
       hitSlop={10}
       onPress={onPress}
@@ -456,7 +463,7 @@ export function Row({
     <Pressable
       accessibilityRole={role}
       accessibilityLabel={label}
-      accessibilityState={checked === undefined ? undefined : { checked }}
+      aria-checked={checked}
       onPress={onPress}
       style={style}
     >
@@ -594,7 +601,7 @@ export const inputStyle: TextStyle = {
   paddingHorizontal: 0,
   minWidth: 0,
   // The browser's focus ring would draw the box the design leaves out.
-  ...(Platform.OS === "web" ? ({ outlineStyle: "none" } as unknown as TextStyle) : {}),
+  ...(WEB ? ({ outlineStyle: "none" } as unknown as TextStyle) : {}),
 };
 
 /** Text shown for copying: a token or a command, in mono, selectable. */
@@ -612,7 +619,7 @@ export function Code({ children }: { children: string }) {
 
 /** Asks before something destructive. The web has no Alert, so it uses the browser's confirm. */
 export function confirmAction(title: string, message: string, action: string, onConfirm: () => void) {
-  if (Platform.OS === "web") {
+  if (WEB) {
     if (window.confirm(`${title}\n\n${message}`)) onConfirm();
     return;
   }

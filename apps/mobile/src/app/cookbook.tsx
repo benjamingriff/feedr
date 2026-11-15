@@ -62,7 +62,7 @@ function FilterTabs({ recipes, tab, onChange }: { recipes: RecipeSummary[]; tab:
           <Pressable
             key={t}
             accessibilityRole="tab"
-            accessibilityState={{ selected: active }}
+            aria-selected={active}
             hitSlop={6}
             onPress={() => onChange(t)}
             style={

@@ -93,8 +93,8 @@ export default function DishUp() {
                 <Text variant="label" style={{ paddingBottom: 12 }}>
                   {[
                     `${pct(meal.share)} of the dish`,
-                    meal.grams != null && `${num(meal.grams)} g`,
-                    meal.fraction,
+                    // The plain-words size is for dishing up by eye, before there's a weight.
+                    meal.grams == null ? meal.fraction : `${num(meal.grams)} g`,
                     meal.ratio && `Split ${meal.ratio}`,
                   ]
                     .filter(Boolean)

@@ -16,6 +16,7 @@ import {
   StateLine,
   Text,
   TopBar,
+  WEB,
 } from "../../primitives";
 import { IngredientRow, prepLine, splitNote, stepAmount, stepIngredients, stepNumber, stepPieces } from "../../recipe-parts";
 import { useApiQuery } from "../../store";
@@ -95,7 +96,11 @@ function Cooking({ recipe, version, serviceId }: { recipe: Recipe; version: Reci
           <View key={s.id} style={{ flex: 1, height: 3, backgroundColor: i <= index ? colors.accent : colors.line }} />
         ))}
       </Gutter>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: GUTTER, paddingTop: 28, paddingBottom: 24 }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        showsVerticalScrollIndicator={!WEB}
+        contentContainerStyle={{ paddingHorizontal: GUTTER, paddingTop: 28, paddingBottom: 24 }}
+      >
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 16, paddingBottom: 18 }}>
           <Chip label={`STEP ${stepNumber(index)} / ${String(steps.length).padStart(2, "0")}`} />
           <Text variant="chip" numberOfLines={1} style={{ flexShrink: 1 }}>

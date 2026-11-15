@@ -3,7 +3,7 @@
 A personal recipe, cooking and meal-planning app for iPhone. Agents create recipes and plans over MCP; the app is for reading recipes, cooking, checking the week and dishing up.
 
 - `apps/api`: Hono REST API and MCP server (`/mcp`) over one service layer, Postgres via Kysely
-- `apps/mobile`: Expo Router app (runs in Expo Go)
+- `apps/mobile`: Expo Router app (runs in Expo Go), built to the design in [`design/`](design/README.md)
 - `packages/core`: shared schemas, types and the portion, dish-up and shopping maths
 
 See [PROPOSAL.md](PROPOSAL.md) for the design.
@@ -18,7 +18,7 @@ cp .env.example .env
 docker compose up -d postgres
 npm run db:migrate
 npm run account:create -- "Your name"      # prints userId and a personal token, once
-npm run seed -- <userId>                    # optional sample people, recipes and this week's plan
+npm run seed -- <userId>                    # optional: two people, nine recipes and this week's plan
 npm run dev:api                             # http://0.0.0.0:4100
 ```
 
@@ -34,6 +34,25 @@ npm run dev:mobile
 
 Scan the QR code with the Camera app to open it in Expo Go. On the Connect screen, enter `http://<your computer's LAN IP>:4100` and your token. The phone and computer need to be on the same network (or use Tailscale).
 
+To run it in a browser, use `npm run dev:mobile:web` and connect to `http://localhost:4100`.
+
+There is no tab bar. Home shows tonight's dinner, with a button straight into cook mode, above an index of the four sections:
+
+```
+Home ─┬─ Meal plan ── Recipe ── Cook mode ── Dish-up
+      ├─ Cookbook ─── Recipe ── Cook mode
+      ├─ Shopping list
+      └─ People
+```
+
+- **Meal plan** is the week, day by day, with who is eating what. "+ Add dinner" opens the cookbook to pick a recipe for that meal.
+- **Cookbook** lists recipes with search and meal-type filters. Agents write the recipes; the app only reads them.
+- **Cook mode** shows one step at a time with that step's ingredients and a timer. Finishing a planned meal leads to **Dish-up**, which turns the cooked weight into grams per plate.
+- **Shopping list** is the week's ingredients by aisle. Ticks are kept on the phone.
+- **People** holds each person's targets, agent tokens and the connection.
+
+The app follows the system's light or dark appearance.
+
 ## Connect an agent (MCP)
 
 ```bash
@@ -41,7 +60,7 @@ claude mcp add --transport http feedr http://localhost:4100/mcp \
   --header "Authorization: Bearer feedr_…"
 ```
 
-Then, for example: "Import https://… into feedr and plan it for dinner on Monday for both of us, then leftovers for Tuesday lunch." The server's MCP instructions explain versions, whole-batch nutrition and portions to the agent.
+Then, for example: "Import https://… into feedr and plan it for dinner on Monday for both of us, then leftovers for Tuesday lunch." The server's MCP instructions explain versions, whole-batch nutrition and portions to the agent, and ask it to tag recipes with a meal type and link each step to the ingredients it uses.
 
 `FEEDR_TOKEN=feedr_… npm run smoke:mcp` walks the main tools with the official MCP client against a running API.
 

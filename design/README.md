@@ -1,5 +1,8 @@
 # Feedr mobile design spec
 
+For build decisions where this spec is silent (more than one person, versions, data
+changes, the screens with no design), see [BUILD.md](BUILD.md).
+
 The source designs live in Paper (file "Feedr"). Build from this file and the PNGs in
 `screens/`. The values below are exact: they were read from the Paper file, not from the
 images. Use the PNGs to check how things look, never to measure.
@@ -238,8 +241,8 @@ If nothing is planned for tonight, hide the Tonight block rather than showing it
   "← 17–23 Nov →", with ink3 arrows in 14 mono and the range in 12 mono caps ink2.
 - The head is "This week" with "N meals left to plan · X kcal a day".
 - Below that come the day sections.
-- The kcal shown are per serving. Choosing the per-person or per-serving basis is
-  still an open question.
+- The kcal shown are one person's portions. When an account has several people, see
+  "People on the plan" in BUILD.md.
 
 **Cookbook.** The title is "Cookbook" with "N recipes, kept up to date by your agent."
 Below it are the filter tabs (All, Breakfast, Lunch, Dinner, with counts) and the
@@ -272,8 +275,6 @@ cookbook rows. A row opens the recipe.
 
 ## Data gaps
 
-- Cook mode's "4 of 6, 2 for step 05" needs per-step ingredient amounts. `recipe_steps`
-  has no link to ingredients yet. Until it does, show the step's ingredients without the
-  split, or leave that line out.
-- The plan needs kcal per planned meal and per day. Nutrition is stored per recipe
-  version, so that gives per-serving kcal.
+- BUILD.md's "Data changes" section fills these gaps: step-ingredient links with per-step
+  amounts, minutes on recipe summaries, and meal types from tags. Portion kcal comes from
+  `/plan`.

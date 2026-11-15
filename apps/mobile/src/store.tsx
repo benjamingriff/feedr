@@ -8,7 +8,11 @@ import {
 import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import type { Me } from "@feedr/core";
 
 type Connection = {
@@ -157,7 +161,7 @@ export function StoreProvider({
       connection.auth === "clerk" ? await clerk?.getToken() : connection.token;
     if (!token)
       throw new Error(
-        "Your session has expired. Disconnect and sign in again in People.",
+        "Your session has expired. Disconnect in People and sign in again.",
       );
     return request<T>(connection.url, token, path, body, method);
   }
@@ -182,12 +186,21 @@ export function useStore() {
   if (!value) throw new Error("Store missing");
   return value;
 }
-export function useApiQuery<T>(key: readonly unknown[], path: string) {
+/**
+ * A GET against the connected API, cached per connection. `enabled: false` holds the request
+ * until its inputs are known; `keepPrevious` shows the last result while a new key loads.
+ */
+export function useApiQuery<T>(
+  key: readonly unknown[],
+  path: string,
+  options: { enabled?: boolean; keepPrevious?: boolean } = {},
+) {
   const { api, connection } = useStore();
   return useQuery({
     queryKey: [connection?.url, connection?.userId, ...key],
     queryFn: () => api<T>(path),
-    enabled: !!connection,
+    enabled: !!connection && (options.enabled ?? true),
+    placeholderData: options.keepPrevious ? keepPreviousData : undefined,
     retry: 1,
   });
 }

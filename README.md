@@ -10,31 +10,22 @@ See [PROPOSAL.md](PROPOSAL.md) for the design.
 
 ## Run locally
 
-Requires Node 24 and Docker.
+Requires Node 24, Docker and jq. Run the setup wizard and follow it:
 
 ```bash
-npm install
-cp .env.example .env
-docker compose up -d postgres
-npm run db:migrate
-npm run account:create -- "Your name"      # prints userId and a personal token, once
-npm run seed -- <userId>                    # optional: two people, nine recipes and this week's plan
-npm run dev:api                             # http://0.0.0.0:4100
+./scripts/setup.sh
 ```
 
-Only the token's SHA-256 hash is stored. Run `npm run account:create -- "Token name" <userId>` for another token for the same account, or create one in the app under People → Agent access.
+It installs packages, starts Postgres and runs the migrations. It then uses the Clerk CLI to create or reuse a Clerk app called "feedr", set it to email-code sign-in and write its keys to `.env` and `apps/mobile/.env.local`. It also writes the API address your phone should use, creates your login and offers to load demo data. Re-running it is safe, because values that are already saved are kept.
 
-To run the API in Docker as well: `docker compose up -d --build`. It listens on port 4100 on all interfaces so your phone can reach it; every route except `/health` needs a token.
-
-## App on your iPhone
+Then start the API and the app:
 
 ```bash
-npm run dev:mobile
+npm run dev:api        # http://0.0.0.0:4100, or: docker compose up -d --build api
+npm run dev:mobile     # scan the QR code with the Camera app to open it in Expo Go
 ```
 
-Scan the QR code with the Camera app to open it in Expo Go. On the Connect screen, enter `http://<your computer's LAN IP>:4100` and your token. The phone and computer need to be on the same network (or use Tailscale).
-
-To run it in a browser, use `npm run dev:mobile:web` and connect to `http://localhost:4100`.
+Sign in with your email and the code Clerk sends you. If your phone isn't on the same network as this computer, start the app with `npm run start -w @feedr/mobile -- --tunnel` and use a Tailscale address for the API. To run it in a browser, use `npm run dev:mobile:web`.
 
 There is no tab bar. Home shows tonight's dinner, with a button straight into cook mode, above an index of the four sections:
 
@@ -64,9 +55,9 @@ Then, for example: "Import https://… into feedr and plan it for dinner on Mond
 
 `FEEDR_TOKEN=feedr_… npm run smoke:mcp` walks the main tools with the official MCP client against a running API.
 
-## Clerk (optional)
+## Personal tokens
 
-Personal tokens always work. To sign in to the app with Clerk, set `CLERK_SECRET_KEY` in `.env` (API) and `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` for the app. The first Clerk sign-in creates a feedr user, and that user can create agent tokens in the app.
+Agents connect with personal tokens, and the app accepts them too. Create one in the app under People → Agent access, or from the command line: `npm run account:create -- "Your name"` makes a new account and prints its first token once, and `npm run account:create -- "Token name" <userId>` adds a token to an existing account. Only the token's SHA-256 hash is stored.
 
 ## Checks
 

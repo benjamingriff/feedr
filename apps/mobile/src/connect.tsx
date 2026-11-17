@@ -80,9 +80,13 @@ function EmailSignIn({ url }: { url: string }) {
 /** The first screen: where the API is and how to sign in to it. */
 export function Connect() {
   const { connect, clerk, error: storedError } = useStore();
-  const [url, setUrl] = useState(Platform.OS === "web" ? "http://localhost:4100" : "");
+  // scripts/setup.sh writes EXPO_PUBLIC_API_URL, so most people never type the URL.
+  const [url, setUrl] = useState(
+    process.env.EXPO_PUBLIC_API_URL ?? (Platform.OS === "web" ? "http://localhost:4100" : ""),
+  );
   const [token, setToken] = useState("");
-  const [withEmail, setWithEmail] = useState(false);
+  // Lead with email sign-in when Clerk is configured; the personal token is the fallback.
+  const [withEmail, setWithEmail] = useState(!!clerk);
   const { busy, error, run } = useAction();
   return (
     <Screen>

@@ -12,7 +12,7 @@ npm run dev:mobile
 npm run dev:mobile:web -- --port 8082
 ```
 
-Open it in an Expo Go release that supports SDK 58. Run `./scripts/setup.sh` from the repo root first: it writes `.env.local` here with the Clerk publishable key and `EXPO_PUBLIC_API_URL`, so the Connect screen arrives with the API address filled in and leads with email sign-in. A `feedr_…` personal token still works through "Use a personal token". `localhost` only works when the browser and the API run on the same computer.
+Open it in an Expo Go release that supports SDK 58. Run `./scripts/setup.sh` from the repo root first: it writes `.env.local` here with the Clerk publishable key and `EXPO_PUBLIC_API_URL`, so the Connect screen arrives with the API address filled in and leads with "Continue with Google". A `feedr_…` personal token still works through "Use a personal token". `localhost` only works when the browser and the API run on the same computer.
 
 ## Navigation
 
@@ -57,7 +57,7 @@ Connect isn't a route. The root layout shows it until there is a saved connectio
 - **Timers** run only while cook mode is open. Each step keeps its own, so going back to a step shows its countdown. There is no background alarm.
 - **Storage.** A personal connection is kept in SecureStore on iOS and in AsyncStorage on web. Shopping ticks are kept in AsyncStorage per server, account and week. Disconnecting clears the connection and the query cache, and leaves the ticks.
 - **Fonts.** Hanken Grotesk and Geist Mono are loaded from `@expo-google-fonts` before the splash screen hides. Underline offsets only apply on web, because React Native can't move an underline on iOS.
-- **Clerk.** Email-code sign-in, set up by `scripts/setup.sh` (keys in `.env.local`, see `.env.example`). Without a publishable key the app falls back to personal tokens only. Native Clerk client sync is off because the app uses no Clerk native components.
+- **Clerk.** Google sign-in through `useSSO` (a browser flow, so it works in Expo Go), set up by `scripts/setup.sh` (keys in `.env.local`, see `.env.example`). The wizard allowlists the Expo Go redirect `exp://<LAN IP>:8081/--/sso-callback` in Clerk. Without a publishable key the app falls back to personal tokens only. Native Clerk client sync is off because the app uses no Clerk native components.
 
 ## Checks
 

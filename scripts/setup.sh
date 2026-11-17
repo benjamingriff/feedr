@@ -199,20 +199,30 @@ finish() {
 # ──────────────────────────────────────────────────────────────────────────
 
 
-# feedr local setup: Postgres, a Clerk app for email-code sign-in, the keys for
-# the API and the phone app, your login, and optional demo data.
-# Run from anywhere: ./scripts/setup.sh. Safe to re-run; saved values are kept.
+# feedr local setup: tools, Postgres, a Clerk app with Google sign-in, the keys
+# for the API and the phone app, then the API, your first sign-in and demo data.
+# Run it from anywhere: ./scripts/setup.sh. Safe to re-run: finished steps are
+# detected and skipped, and saved values are kept.
 
 run_wizard() {
 
-TOTAL_STAGES=9
+TOTAL_STAGES=10
 
 cd "$(dirname "$0")/.."
 ROOT_ENV=.env
 MOBILE_ENV=apps/mobile/.env.local
 ENV_FILE=$ROOT_ENV
+STARTED_AT=$(date +%s)
 
-die() { warn "$1"; exit 1; }
+# ── Helpers for clear stage screens ────────────────────────────────────────
+# what "…": what this stage does and why, shown first on every stage.
+what() { printf '  %sWhat this does:%s %s\n' "$BOLD" "$RESET" "$1"; }
+# you "…": what you need to do, or that you needn't do anything.
+you()  { printf '  %sYour part:%s %s\n\n' "$BOLD" "$RESET" "$1"; }
+ok()   { printf '  %s✓%s %s\n' "$GREEN" "$RESET" "$1"; }
+# cmd "…": a command for you to run yourself, on its own line.
+cmd()  { printf '\n      %s%s%s\n\n' "$BOLD" "$1" "$RESET"; }
+die()  { printf '\n'; warn "$1"; printf '\n'; exit 1; }
 
 # The repo needs Node 24. Use it from PATH, or through mise when PATH has another version.
 RUN=()
@@ -225,78 +235,102 @@ clerk_cli() {
   else run npx --yes clerk@2 "$@"; fi
 }
 
-banner "feedr setup"
+api_up() { curl -fsS --max-time 2 http://localhost:4100/health >/dev/null 2>&1; }
+
+# The Clerk user who signed in most recently, as JSON (empty if nobody has).
+latest_sign_in() {
+  clerk_cli users list --app "$CLERK_APP_ID" --order-by -last_sign_in_at --limit 1 --json \
+    | jq -c '.data[0] | select(. != null and .last_sign_in_at != null)
+             | {id, name: (.first_name // "Me"), email: .email_addresses[0].email_address}'
+}
+
+# ── Intro ──────────────────────────────────────────────────────────────────
+_clear
+printf '\n%s%s  feedr setup%s\n\n' "$BOLD" "$BLUE" "$RESET"
+say "This gets feedr running on your phone, signed in with your Google account."
+say "It takes about five minutes. The 10 stages:"
+printf '\n'
+note "   1  Tools and packages       6  Address your phone uses for the API"
+note "   2  Database                 7  Google sign-in"
+note "   3  Clerk login              8  Start the API"
+note "   4  Clerk app                9  Open the app and sign in"
+note "   5  Clerk keys              10  Demo data"
+printf '\n'
+say "Clerk handles sign-in. This wizard does almost everything itself; when it"
+say "needs you, it says exactly what to do and waits."
+note "Stop any time with Ctrl-C. Re-running skips what's already done."
+printf '\n'
+pause "Press Enter to start."
 
 # ── 1. Tools ───────────────────────────────────────────────────────────────
 stage "Tools and packages"
+what "checks for the tools feedr needs, then installs its npm packages."
+you "nothing, unless something is missing (it tells you what to install)."
 if [[ "$(node_major)" != 24 ]] && command -v mise >/dev/null 2>&1; then RUN=(mise exec node@24 --); fi
-[[ "$(node_major)" == 24 ]] || die "Node 24 is required. Install it (mise use node@24, or nvm install 24) and re-run."
-command -v jq >/dev/null 2>&1 || die "jq is required. Install it (brew install jq, or your package manager) and re-run."
-docker info >/dev/null 2>&1 || die "Docker isn't running. Start Docker and re-run."
-say "Node 24, jq and Docker are ready. Installing packages…"
+[[ "$(node_major)" == 24 ]] || die "Node 24 is needed. Install it (mise use node@24, or nvm install 24), then re-run."
+ok "Node 24"
+command -v jq >/dev/null 2>&1 || die "jq is needed. Install it (brew install jq, or your package manager), then re-run."
+ok "jq"
+docker info >/dev/null 2>&1 || die "Docker isn't running. Start Docker, then re-run."
+ok "Docker is running"
+say "Installing packages (about a minute the first time)…"
 run npm install --no-audit --no-fund --loglevel=error
-printf '  %s✓ packages installed%s\n' "$GREEN" "$RESET"
-pause
+ok "Packages installed"
+printf '\n'; pause
 
 # ── 2. Database ────────────────────────────────────────────────────────────
 stage "Database"
-if [[ ! -f "$ROOT_ENV" ]]; then
-  cp .env.example "$ROOT_ENV"
-  printf '  %s✓ created%s %s from .env.example\n' "$GREEN" "$RESET" "$ROOT_ENV"
-fi
-say "Starting Postgres in Docker and applying migrations…"
+what "starts Postgres in Docker and creates feedr's tables."
+you "nothing."
+if [[ -f "$ROOT_ENV" ]]; then ok "$ROOT_ENV exists"
+else cp .env.example "$ROOT_ENV"; ok "Created $ROOT_ENV from .env.example"; fi
 docker compose up -d --wait postgres >/dev/null
+ok "Postgres is running (port 55433)"
 run npm run -s db:migrate
-printf '  %s✓ database ready%s\n' "$GREEN" "$RESET"
-pause
+ok "Tables are up to date"
+printf '\n'; pause
 
-# ── 3. Clerk account ───────────────────────────────────────────────────────
-stage "Clerk account"
+# ── 3. Clerk login ─────────────────────────────────────────────────────────
+stage "Clerk login"
+what "logs the Clerk command-line tool in to your Clerk account, so this"
+say  "                wizard can set up sign-in for you."
 clerk_email=$(clerk_cli whoami --json 2>/dev/null | jq -r '.email // empty' 2>/dev/null || true)
 if [[ -n "$clerk_email" ]]; then
-  say "The Clerk CLI is logged in as $clerk_email."
+  you "nothing."
+  ok "Already logged in as $clerk_email"
 else
-  say "Log the Clerk CLI in to your Clerk account. A browser window opens;"
-  say "sign in (or sign up) there, then come back here."
+  you "a browser opens. Sign in to Clerk (or sign up, it's free), then come back here."
   clerk_cli auth login
+  ok "Logged in"
 fi
-pause
+printf '\n'; pause
 
 # ── 4. Clerk app ───────────────────────────────────────────────────────────
 stage "Clerk app"
+what "finds the Clerk app called \"feedr\", or creates it. Each app has its own"
+say  "                users and sign-in settings."
 CLERK_APP_ID=$(_existing CLERK_APP_ID || true)
 if [[ -z "$CLERK_APP_ID" ]]; then
   CLERK_APP_ID=$(clerk_cli apps list --json \
     | jq -r '[.[] | select((.name | ascii_downcase) == "feedr")][0].application_id // empty')
 fi
 if [[ -n "$CLERK_APP_ID" ]]; then
-  say "Using the Clerk app feedr ($CLERK_APP_ID)."
+  you "nothing."
+  ok "Using the Clerk app feedr ($CLERK_APP_ID)"
 else
-  say "Your Clerk account has no app called feedr yet."
-  confirm "Create it now?" || die "feedr needs a Clerk app. Re-run when you're ready."
+  you "say yes to create it."
+  confirm "Create a Clerk app called feedr?" || die "feedr needs a Clerk app. Re-run when you're ready."
   CLERK_APP_ID=$(clerk_cli apps create feedr --json | jq -r '.application_id // .id')
+  ok "Created the Clerk app feedr ($CLERK_APP_ID)"
 fi
 write_env CLERK_APP_ID "$CLERK_APP_ID"
-pause
+printf '\n'; pause
 
-# ── 5. Sign-in method ──────────────────────────────────────────────────────
-stage "Sign-in method"
-say "The app signs in with a code sent to your email. This sets the feedr"
-say "Clerk app (development instance) to email codes and turns passwords off,"
-say "so sign-in finishes in one step."
-if confirm "Apply this to $CLERK_APP_ID?"; then
-  clerk_cli config patch --app "$CLERK_APP_ID" --yes --json \
-    '{"auth_password":{"enabled":false},"auth_email":{"used_for_sign_in":true,"sign_in_strategies":["email_code"],"used_for_sign_up":true,"verification_strategies":["email_code"]}}' \
-    >/dev/null
-  printf '  %s✓ email-code sign-in on, passwords off%s\n' "$GREEN" "$RESET"
-else
-  SKIPPED+=("Clerk sign-in: turn on email verification codes and turn off passwords in the Clerk dashboard")
-fi
-pause
-
-# ── 6. Keys ────────────────────────────────────────────────────────────────
-stage "Keys"
-say "Pulling the development keys from Clerk. Nothing to paste."
+# ── 5. Keys ────────────────────────────────────────────────────────────────
+stage "Clerk keys"
+what "copies feedr's two Clerk keys into place. The API uses the secret key to"
+say  "                check who is signed in; the phone app uses the publishable key."
+you "nothing. The keys go straight into files and are never shown."
 pulled=$(mktemp)
 clerk_cli env pull --app "$CLERK_APP_ID" --file "$pulled" >/dev/null
 secret_key=$(ENV_FILE=$pulled _existing CLERK_SECRET_KEY || true)
@@ -306,73 +340,155 @@ rm -f "$pulled"
 write_env CLERK_SECRET_KEY "$secret_key"
 ENV_FILE=$MOBILE_ENV write_env EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY "$publishable_key"
 unset secret_key publishable_key
-pause
+printf '\n'; pause
 
-# ── 7. API address ─────────────────────────────────────────────────────────
-stage "API address for your phone"
+# ── 6. API address ─────────────────────────────────────────────────────────
+stage "Address your phone uses for the API"
+what "saves the address the phone app uses to reach the API on this computer,"
+say  "                so you never type it."
 lan=$(ip -4 route get 1.1.1.1 2>/dev/null | sed -n 's/.* src \([0-9.]*\).*/\1/p' || true)
 [[ -n "$lan" ]] || lan=$(ipconfig getifaddr en0 2>/dev/null || true)
+[[ -n "$lan" ]] || die "Couldn't find this computer's Wi-Fi address. Check you're connected to a network."
 tailnet=$(tailscale ip -4 2>/dev/null | head -n1 || true)
-say "Your phone reaches the API on port 4100 at one of these:"
-[[ -n "$lan" ]] && step "1  http://$lan:4100   same Wi-Fi as this computer"
-[[ -n "$tailnet" ]] && step "2  http://$tailnet:4100   Tailscale, works anywhere"
-note "Type 1 or 2, or a full URL."
-api_choice=""
-ENV_FILE=$MOBILE_ENV ask api_choice "API URL:" || true
-api_url=$(ENV_FILE=$MOBILE_ENV _existing EXPO_PUBLIC_API_URL || true)
-case "$api_choice" in
-  1) api_url="http://$lan:4100" ;;
-  2) api_url="http://$tailnet:4100" ;;
-  "") [[ -n "$api_url" ]] || api_url="http://$lan:4100" ;;
-  *) api_url="$api_choice" ;;
-esac
+saved=$(ENV_FILE=$MOBILE_ENV _existing EXPO_PUBLIC_API_URL || true)
+if [[ -z "$tailnet" ]]; then
+  you "nothing. Keep your phone on the same Wi-Fi as this computer."
+  api_url="http://$lan:4100"
+else
+  you "pick how your phone reaches this computer."
+  step "1  http://$lan:4100        same Wi-Fi as this computer (simplest)"
+  step "2  http://$tailnet:4100    Tailscale, works from anywhere"
+  [[ -n "$saved" ]] && note "Saved now: $saved"
+  printf '\n'
+  api_choice=""
+  read -r -p "  Type 1 or 2 [1]: " api_choice || true
+  if [[ "$api_choice" == 2 ]]; then api_url="http://$tailnet:4100"; else api_url="http://$lan:4100"; fi
+fi
 ENV_FILE=$MOBILE_ENV write_env EXPO_PUBLIC_API_URL "$api_url"
-pause
+printf '\n'; pause
 
-# ── 8. Your login ──────────────────────────────────────────────────────────
-stage "Your login"
-say "You sign in to the app with this email. Clerk sends the code there."
-owner_email="" owner_name=""
-ask owner_email "Your email:"
-ask owner_name "Your first name:"
-clerk_user_id=$(clerk_cli users list --app "$CLERK_APP_ID" --email-address "$owner_email" --json \
-  | jq -r '.data[0].id // empty')
-if [[ -n "$clerk_user_id" ]]; then
-  say "$owner_email already has a Clerk login."
+# ── 7. Google sign-in ──────────────────────────────────────────────────────
+stage "Google sign-in"
+what "turns on \"Sign in with Google\" for the feedr Clerk app, using Clerk's"
+say  "                shared Google login for development (nothing to set up at Google),"
+say  "                and allows Expo Go to receive the result."
+google=$(clerk_cli config pull --app "$CLERK_APP_ID" --keys connection_oauth_google 2>/dev/null \
+  | jq -r '.connection_oauth_google | "\(.enabled) \(.authenticatable)"')
+if [[ "$google" == "true true" ]]; then
+  you "nothing."
+  ok "Google sign-in is on"
 else
-  clerk_user_id=$(clerk_cli users create --app "$CLERK_APP_ID" --email "$owner_email" \
-    --first-name "$owner_name" --yes --json | jq -r '.id // .data.id')
-  printf '  %s✓ created%s Clerk login for %s\n' "$GREEN" "$RESET" "$owner_email"
+  you "say yes to turn it on."
+  if confirm "Turn on Google sign-in for the feedr Clerk app?"; then
+    clerk_cli config patch --app "$CLERK_APP_ID" --yes \
+      --json '{"connection_oauth_google":{"enabled":true,"authenticatable":true}}' >/dev/null
+    ok "Google sign-in is on"
+  else
+    SKIPPED+=("Turn on Google: Clerk dashboard → Configure → SSO connections → Google")
+  fi
 fi
-# Call the workspace script directly: the root alias would swallow --clerk as an npm option.
-feedr_user_id=$(run npm run -s account -w @feedr/api -- "$owner_name" --clerk "$clerk_user_id" \
-  | sed -n '/^{/,/^}/p' | jq -r .userId)
-printf '  %s✓ feedr account%s %s\n' "$GREEN" "$RESET" "$feedr_user_id"
-if confirm "Load demo data (two people, nine recipes, this week's plan)? Only do this once."; then
-  run npm run -s seed -w @feedr/api -- "$feedr_user_id"
-  printf '  %s✓ demo data loaded%s\n' "$GREEN" "$RESET"
+# After Google, Clerk sends the browser back to Expo Go at this address
+# (Metro on this computer's Wi-Fi address, port 8081). Clerk must allow it.
+redirect="exp://$lan:8081/--/sso-callback"
+if clerk_cli api --app "$CLERK_APP_ID" /redirect_urls | jq -e --arg u "$redirect" 'any(.[]; .url == $u)' >/dev/null; then
+  ok "Expo Go can receive the sign-in ($redirect)"
+else
+  clerk_cli api --app "$CLERK_APP_ID" /redirect_urls --yes -d "{\"url\":\"$redirect\"}" >/dev/null
+  ok "Allowed Expo Go to receive the sign-in ($redirect)"
 fi
-pause
+note "This works with your phone on the same Wi-Fi, without Expo's --tunnel."
+printf '\n'; pause
 
-# ── 9. Start and sign in ───────────────────────────────────────────────────
-stage "Start and sign in"
-if curl -fsS --max-time 2 http://localhost:4100/health >/dev/null 2>&1; then
-  warn "An API is already running on port 4100. Restart it so it picks up the Clerk key:"
-  note "  npm run dev:api (stop it with Ctrl-C first), or docker compose up -d --build api"
-elif confirm "Start the API in Docker now?"; then
-  docker compose up -d --build --wait api >/dev/null
-  printf '  %s✓ API running%s on port 4100\n' "$GREEN" "$RESET"
+# ── 8. Start the API ───────────────────────────────────────────────────────
+stage "Start the API"
+what "starts feedr's API on port 4100. It must start after stage 5, so it"
+say  "                has the Clerk secret key."
+if api_up; then
+  you "only if you started the API before running this wizard: stop it and start"
+  say "           it again so it picks up the Clerk key. Otherwise, nothing."
+  ok "The API is answering on http://localhost:4100"
 else
-  SKIPPED+=("Start the API: npm run dev:api (or docker compose up -d --build api)")
+  you "choose where it runs."
+  step "1  In Docker, in the background (simplest)"
+  step "2  In a terminal window of your own, with live logs"
+  printf '\n'
+  api_where=""
+  read -r -p "  Type 1 or 2 [1]: " api_where || true
+  if [[ "$api_where" == 2 ]]; then
+    say "Open a new terminal window in this folder and run:"
+    cmd "npm run dev:api"
+    say "Leave it running. This wizard carries on once the API answers."
+  else
+    say "Building and starting the API container (a minute or two the first time)…"
+    docker compose up -d --build api >/dev/null
+  fi
+  printf '  Waiting for the API'
+  for _ in $(seq 1 180); do api_up && break; printf '.'; sleep 1; done
+  printf '\n'
+  api_up || die "The API didn't answer on http://localhost:4100. Check its logs, then re-run."
+  ok "The API is answering on http://localhost:4100"
 fi
-say ""
-say "Then, in another terminal:"
-step "npm run dev:mobile   (off your Wi-Fi: npm run start -w @feedr/mobile -- --tunnel)"
-step "Open it in Expo Go, enter $owner_email, and type the code Clerk emails you."
-pause "Press Enter to finish."
+printf '\n'; pause
+
+# ── 9. Sign in on your phone ───────────────────────────────────────────────
+stage "Open the app and sign in"
+what "you sign in to the app with Google. Your first sign-in creates your"
+say  "                feedr account."
+signed_in=$(latest_sign_in || true)
+if [[ -n "$signed_in" ]]; then
+  you "nothing."
+  ok "Already signed in as $(jq -r .email <<<"$signed_in")"
+else
+  you "follow these steps."
+  step "Open a new terminal window in this folder and run:"
+  cmd "npm run dev:mobile"
+  step "Scan the QR code it shows with your iPhone's Camera. It opens in Expo Go."
+  step "On the Connect screen the API address is already filled in."
+  step "Tap \"Continue with Google\" and choose your Google account."
+  step "You land on the Home screen. It's empty until stage 10."
+  printf '\n'
+  while :; do
+    pause "Press Enter when you can see the Home screen."
+    signed_in=$(latest_sign_in || true)
+    [[ -n "$signed_in" ]] && break
+    warn "Clerk hasn't seen a sign-in yet. Finish signing in on your phone."
+    confirm "Check again?" || break
+  done
+  if [[ -n "$signed_in" ]]; then ok "Signed in as $(jq -r .email <<<"$signed_in")"
+  else SKIPPED+=("Sign in on your phone, then re-run this wizard to load demo data"); fi
+fi
+printf '\n'; pause
+
+# ── 10. Demo data ──────────────────────────────────────────────────────────
+stage "Demo data"
+what "fills your account with sample data so every screen has something on"
+say  "                it: two people, nine recipes and this week's meal plan."
+if [[ -z "$signed_in" ]]; then
+  you "nothing for now. Sign in first (stage 9), then re-run this wizard."
+else
+  # Finds the feedr account the API made at sign-in (or makes it). The workspace
+  # script is called directly because the root alias would swallow --clerk.
+  feedr_user_id=$(run npm run -s account -w @feedr/api -- "$(jq -r .name <<<"$signed_in")" \
+    --clerk "$(jq -r .id <<<"$signed_in")" | sed -n '/^{/,/^}/p' | jq -r .userId)
+  recipes=$(docker compose exec -T postgres psql -U feedr -d feedr -Atc \
+    "select count(*) from recipes where user_id = '$feedr_user_id'" 2>/dev/null || echo "?")
+  if [[ "$recipes" =~ ^[1-9] ]]; then
+    you "nothing."
+    ok "Your account already has $recipes recipes"
+  else
+    you "say yes to load it, or no to start empty."
+    if confirm "Load the demo data into your account?"; then
+      run npm run -s seed -w @feedr/api -- "$feedr_user_id"
+      ok "Demo data loaded. Pull down on the Home screen to refresh."
+    fi
+  fi
+fi
+printf '\n'; pause "Press Enter to finish."
 
 finish
-note "Phone app values (publishable key, API URL) are in $MOBILE_ENV."
+note "Phone app settings (publishable key, API address) are in $MOBILE_ENV."
+note "Agents connect with a personal token: create one in the app under People."
+note "Started $(( ($(date +%s) - STARTED_AT) / 60 )) min ago."
 printf '\n'
 }
 

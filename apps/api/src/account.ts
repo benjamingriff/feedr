@@ -4,7 +4,7 @@ import { db, migrate } from './db.ts';
 // npm run account:create -- "Your name"                       → new user + token
 // npm run account:create -- "Token name" <userId>             → new token for an existing user
 // npm run account:create -- "Your name" --clerk <clerkUserId> → the user for a Clerk login, no token
-//   (used by scripts/setup.sh so demo data can be seeded before the first sign-in)
+//   (finds the account the API made at first sign-in, or makes it; scripts/setup.sh uses it to load demo data)
 await migrate();
 const name = process.argv[2] || 'Me';
 

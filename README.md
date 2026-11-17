@@ -10,22 +10,22 @@ See [PROPOSAL.md](PROPOSAL.md) for the design.
 
 ## Run locally
 
-Requires Node 24, Docker and jq. Run the setup wizard and follow it:
+Requires Node 24, Docker, jq and an iPhone with Expo Go. Run the setup wizard and follow it:
 
 ```bash
 ./scripts/setup.sh
 ```
 
-It installs packages, starts Postgres and runs the migrations. It then uses the Clerk CLI to create or reuse a Clerk app called "feedr", set it to email-code sign-in and write its keys to `.env` and `apps/mobile/.env.local`. It also writes the API address your phone should use, creates your login and offers to load demo data. Re-running it is safe, because values that are already saved are kept.
+It takes about five minutes and says at every stage what it's doing and what, if anything, you need to do. It installs packages and sets up Postgres, then uses the Clerk CLI to create a Clerk app called "feedr" with Google sign-in, writing the keys to `.env` and `apps/mobile/.env.local`. It saves the address your phone uses for the API, starts the API, and waits while you sign in with Google on your phone. Finally it offers to load demo data. Re-running it is safe: finished steps are detected and skipped.
 
-Then start the API and the app:
+Day to day, once setup is done:
 
 ```bash
-npm run dev:api        # http://0.0.0.0:4100, or: docker compose up -d --build api
+npm run dev:api        # or: docker compose up -d api
 npm run dev:mobile     # scan the QR code with the Camera app to open it in Expo Go
 ```
 
-Sign in with your email and the code Clerk sends you. If your phone isn't on the same network as this computer, start the app with `npm run start -w @feedr/mobile -- --tunnel` and use a Tailscale address for the API. To run it in a browser, use `npm run dev:mobile:web`.
+Google sign-in needs your phone on the same Wi-Fi as this computer, without Expo's `--tunnel`, because Clerk only sends the sign-in back to the Expo Go address the wizard allowed. To run the app in a browser, use `npm run dev:mobile:web`.
 
 There is no tab bar. Home shows tonight's dinner, with a button straight into cook mode, above an index of the four sections:
 

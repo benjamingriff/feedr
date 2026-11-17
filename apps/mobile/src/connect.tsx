@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Platform, View } from "react-native";
-import { useSignIn } from "@clerk/expo";
-import { ErrorLine, Field, Gutter, PageHead, PrimaryButton, Screen, SectionHeader, TextAction, TopBar } from "./primitives";
+import { Platform } from "react-native";
+import { useSSO } from "@clerk/expo";
+import { ErrorLine, Field, Gutter, PageHead, PrimaryButton, Screen, Text, TextAction, TopBar } from "./primitives";
 import { useStore } from "./store";
 
 /** Runs an async action for a form, tracking whether it's busy and what went wrong. */
@@ -22,57 +22,49 @@ function useAction() {
   return { busy, error, run };
 }
 
-/** Email-code sign-in with Clerk, then a connection that uses the Clerk session instead of a token. */
-function EmailSignIn({ url }: { url: string }) {
-  const { signIn, fetchStatus } = useSignIn();
+/**
+ * Google sign-in through Clerk's browser flow (works in Expo Go), then a connection that
+ * uses the Clerk session instead of a personal token. The first sign-in creates the feedr
+ * account on the API.
+ */
+function GoogleSignIn({ url }: { url: string }) {
+  const { startSSOFlow } = useSSO();
   const { clerk, connect } = useStore();
-  const [email, setEmail] = useState("");
-  const [code, setCode] = useState("");
-  const [sent, setSent] = useState(false);
   const { busy, error, run } = useAction();
-  const waiting = busy || fetchStatus === "fetching";
-
+  // Signed in to Clerk already (e.g. the API was unreachable last time): just connect.
   if (clerk?.signedIn)
     return (
       <>
-        <PrimaryButton label="Connect" disabled={busy || !url} onPress={() => void run(() => connect(url))} />
+        <PrimaryButton
+          label={busy ? "Connecting…" : "Connect"}
+          disabled={busy || !url}
+          style={{ marginTop: 28 }}
+          onPress={() => void run(() => connect(url))}
+        />
         <ErrorLine error={error} />
       </>
     );
+
   return (
     <>
-      <Field
-        label="Email"
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
-        autoCapitalize="none"
-        autoCorrect={false}
-        style={{ paddingTop: 0 }}
-      />
-      {sent && (
-        <Field label="Email code" value={code} onChangeText={setCode} keyboardType="number-pad" autoComplete="one-time-code" />
-      )}
-      <ErrorLine error={error} />
       <PrimaryButton
-        label={sent ? "Verify and connect" : "Send code"}
-        disabled={waiting || !url || (sent ? !code : !email)}
+        label={busy ? "Signing in…" : "Continue with Google"}
+        disabled={busy || !url}
         style={{ marginTop: 28 }}
         onPress={() =>
           void run(async () => {
-            if (!sent) {
-              const result = await signIn.emailCode.sendCode({ emailAddress: email.trim() });
-              if (result.error) throw new Error(result.error.message);
-              return setSent(true);
+            const { createdSessionId, setActive, signUp } = await startSSOFlow({ strategy: "oauth_google" });
+            if (createdSessionId && setActive) {
+              await setActive({ session: createdSessionId });
+              await connect(url);
+            } else if (signUp?.status === "missing_requirements") {
+              throw new Error(`Clerk needs more details to finish sign-up: ${signUp.missingFields.join(", ")}.`);
             }
-            const result = await signIn.emailCode.verifyCode({ code: code.trim() });
-            if (result.error) throw new Error(result.error.message);
-            if (signIn.status !== "complete") throw new Error("This account needs another sign-in step. Use a personal token.");
-            const finished = await signIn.finalize();
-            if (finished.error) throw new Error(finished.error.message);
+            // Otherwise the browser was closed: nothing to do.
           })
         }
       />
+      <ErrorLine error={error} />
     </>
   );
 }
@@ -85,13 +77,13 @@ export function Connect() {
     process.env.EXPO_PUBLIC_API_URL ?? (Platform.OS === "web" ? "http://localhost:4100" : ""),
   );
   const [token, setToken] = useState("");
-  // Lead with email sign-in when Clerk is configured; the personal token is the fallback.
-  const [withEmail, setWithEmail] = useState(!!clerk);
+  // Lead with Google when Clerk is configured; the personal token is the fallback.
+  const [withToken, setWithToken] = useState(!clerk);
   const { busy, error, run } = useAction();
   return (
     <Screen>
       <TopBar />
-      <PageHead title="Connect" lede="Point feedr at your API." />
+      <PageHead title="Connect" lede="Sign in to your feedr API." />
       <Gutter>
         <Field
           label="API URL"
@@ -103,12 +95,7 @@ export function Connect() {
           keyboardType="url"
           style={{ paddingTop: 0 }}
         />
-        {withEmail ? (
-          <View style={{ paddingTop: 36 }}>
-            <SectionHeader title="Sign in with email" gap={14} />
-            <EmailSignIn url={url} />
-          </View>
-        ) : (
+        {withToken ? (
           <>
             <Field
               label="Personal token"
@@ -127,12 +114,20 @@ export function Connect() {
               onPress={() => void run(() => connect(url, token))}
             />
           </>
+        ) : (
+          <>
+            <GoogleSignIn url={url} />
+            <ErrorLine error={storedError} />
+            <Text variant="secondary" style={{ paddingTop: 16 }}>
+              Your first sign-in creates your feedr account.
+            </Text>
+          </>
         )}
         {clerk && (
           <TextAction
-            label={withEmail ? "Use a personal token →" : "Sign in with email →"}
+            label={withToken ? "Sign in with Google →" : "Use a personal token →"}
             style={{ marginTop: 20 }}
-            onPress={() => setWithEmail(!withEmail)}
+            onPress={() => setWithToken(!withToken)}
           />
         )}
       </Gutter>

@@ -38,7 +38,13 @@ function Tonight({ dish, solo }: { dish: Dish; solo: boolean }) {
       <Text variant="label" style={{ paddingTop: 6, paddingBottom: 20 }}>
         {version ? [time != null && minutes(time), `Serves ${version.servings}`].filter(Boolean).join(" · ") : " "}
       </Text>
-      {service.error ? <QueryState query={service} /> : recipe.error ? <QueryState query={recipe} /> : null}
+      {/* A retry for whichever detail failed with nothing cached; a stale error with data needs none. */}
+      {[service, recipe]
+        .filter((q) => q.error && q.data === undefined)
+        .slice(0, 1)
+        .map((q, i) => (
+          <QueryState key={i} query={q} />
+        ))}
       <PrimaryButton
         label={version ? `Start cooking · ${version.steps.length} steps` : "Start cooking"}
         disabled={!version}

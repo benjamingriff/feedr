@@ -396,6 +396,24 @@ else
   clerk_cli api --app "$CLERK_APP_ID" /redirect_urls --yes -d "{\"url\":\"$redirect\"}" >/dev/null
   ok "Allowed Expo Go to receive the sign-in ($redirect)"
 fi
+# Start a test Google sign-in the way the phone does, so a bad Clerk setting shows up
+# here instead of as a vague error on the phone. The Frontend API host is encoded in
+# the publishable key.
+fapi=$(ENV_FILE=$MOBILE_ENV _existing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY | cut -d_ -f3 | base64 --decode 2>/dev/null | tr -d '$' || true)
+headers=$(mktemp)
+curl -fsS -D "$headers" -o /dev/null -X POST "https://$fapi/v1/client?_is_native=true" 2>/dev/null || true
+client=$(grep -i '^authorization:' "$headers" | cut -d' ' -f2- | tr -d '\r' || true)
+rm -f "$headers"
+probe=$(curl -sS -X POST "https://$fapi/v1/client/sign_ins?_is_native=true" -H "Authorization: $client" \
+  --data-urlencode strategy=oauth_google --data-urlencode "redirect_url=$redirect" 2>/dev/null \
+  | jq -r 'if .errors then "\(.errors[0].long_message) (\(.errors[0].code))" else "ok" end' 2>/dev/null || echo "no answer from Clerk")
+if [[ "$probe" == ok ]]; then
+  ok "Test sign-in reached Google"
+else
+  warn "Clerk refused a test sign-in: $probe"
+  note "Check the feedr app in the Clerk dashboard (Configure → User & authentication)."
+  SKIPPED+=("Fix the Clerk sign-in settings: $probe")
+fi
 note "This works with your phone on the same Wi-Fi, without Expo's --tunnel."
 printf '\n'; pause
 

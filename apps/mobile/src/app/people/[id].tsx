@@ -36,9 +36,10 @@ function PersonForm({ person }: { person?: Person }) {
   const [kcal, setKcal] = useState(person?.daily_kcal.toString() ?? "2000");
   const [protein, setProtein] = useState(person?.daily_protein_g?.toString() ?? "");
   const split = person?.slot_split ?? DEFAULT_SLOT_SPLIT;
-  // The split is edited as whole percentages and stored as fractions.
+  // The split is edited as percentages and stored as fractions. toFixed drops float noise
+  // (30.000000000000004) without rounding a stored 1/3 away from adding up to 100.
   const [percent, setPercent] = useState(
-    Object.fromEntries(SLOTS.map((slot) => [slot, String(Math.round(split[slot] * 100))])) as Record<Slot, string>,
+    Object.fromEntries(SLOTS.map((slot) => [slot, String(+(split[slot] * 100).toFixed(6))])) as Record<Slot, string>,
   );
   const total = SLOTS.reduce((sum, slot) => sum + Number(percent[slot]), 0);
 

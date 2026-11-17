@@ -98,16 +98,23 @@ export function stepAmount(step: Step, line: IngredientLine) {
  * its own amount for the line.
  */
 export function splitNote(step: Step, line: IngredientLine, version: RecipeVersion) {
-  const mine = step.ingredients.find((i) => i.line_id === line.id)?.quantity;
-  if (mine == null || line.quantity == null) return "";
+  const mine = step.ingredients.find((i) => i.line_id === line.id);
+  if (mine?.quantity == null || line.quantity == null) return "";
   const others = version.steps.flatMap((other) =>
     other.id === step.id
       ? []
       : other.ingredients
           .filter((i) => i.line_id === line.id && i.quantity != null)
-          .map((i) => `${i.quantity} for step ${stepNumber(other.position)}`),
+          .map((i) => ({ ...i, step: stepNumber(other.position) })),
   );
-  return ` · ${[`${mine} of ${line.quantity}`, ...others].join(", ")}`;
+  // Bare numbers when every amount is in the line's unit ("4 of 6"); otherwise units on
+  // all of them ("100 g of 1 kg"), so different units are never compared as numbers.
+  const sameUnit = [mine, ...others].every((i) => (i.unit ?? line.unit) === line.unit);
+  const show = (q: number, unit: string | null) => (sameUnit ? String(q) : amount(q, unit ?? line.unit));
+  return ` · ${[
+    `${show(mine.quantity, mine.unit)} of ${show(line.quantity, line.unit)}`,
+    ...others.map((i) => `${show(i.quantity!, i.unit)} for step ${i.step}`),
+  ].join(", ")}`;
 }
 
 /** "03" for the step at position 2. */

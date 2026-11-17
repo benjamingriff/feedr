@@ -46,8 +46,9 @@ function Checkbox({ ticked }: { ticked: boolean }) {
   );
 }
 
-/** Amounts in different unit families are joined: "200 g + 2 tins". */
-const itemAmount = (item: ShoppingItem) => item.amounts.map((a) => amount(a.quantity, a.unit)).join(" + ");
+/** Amounts in different unit families are joined, then any that couldn't be added up: "200 g + a handful". */
+const itemAmount = (item: ShoppingItem) =>
+  [...item.amounts.map((a) => amount(a.quantity, a.unit)), ...item.unquantified].join(" + ");
 
 /**
  * The week's shopping, grouped by aisle. `week` is the Monday to show; it defaults to this week.

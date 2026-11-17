@@ -168,10 +168,14 @@ export default function RecipeScreen() {
 
   const recipe = query.data;
   const versions = recipe?.versions ?? [];
-  // A planned recipe waits for its service, so it doesn't flash the default version first.
+  // A planned recipe shows the planned version, so it waits for its service (and shows its
+  // error) rather than falling back to the default version.
   const planned = serviceId ? service.data?.version_id : undefined;
-  const version =
-    versions.find((v) => v.id === (chosen ?? planned)) ?? (serviceId && service.isPending ? undefined : defaultVersion(versions));
+  const version = chosen
+    ? versions.find((v) => v.id === chosen)
+    : serviceId
+      ? service.data && (versions.find((v) => v.id === planned) ?? defaultVersion(versions))
+      : defaultVersion(versions);
   const next = version && versions[(versions.indexOf(version) + 1) % versions.length];
   const time = version && totalMinutes(version);
   const kcal = version?.nutrition?.kcal;
@@ -186,6 +190,7 @@ export default function RecipeScreen() {
     >
       <TopBar left={<BackLink label={serviceId ? "Plan" : "Recipes"} fallback={serviceId ? "/plan" : "/cookbook"} />} />
       <QueryState query={query} />
+      {serviceId && recipe && <QueryState query={service} />}
       {recipe && version && (
         <>
           <Gutter style={{ paddingTop: 24, paddingBottom: 32, borderBottomWidth: 1, borderBottomColor: colors.line }}>

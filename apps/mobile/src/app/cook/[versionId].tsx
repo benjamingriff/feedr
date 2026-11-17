@@ -29,6 +29,10 @@ type Timer = { endsAt: number | null; left: number };
  * The timer chip. Tap to start, tap again to pause; it reads "Done" in accent at zero.
  * The countdown is measured against the clock, so a busy screen can't make it drift.
  */
+/** "12 min", "45 sec", "1 min 30 sec": whole minutes stay short, and seconds are never rounded away. */
+const timerLength = (s: number) =>
+  s % 60 === 0 ? minutes(s / 60) : s < 60 ? `${s} sec` : `${minutes(Math.floor(s / 60))} ${s % 60} sec`;
+
 function TimerChip({ seconds, timer, onChange }: { seconds: number; timer?: Timer; onChange: (timer: Timer) => void }) {
   const [now, setNow] = useState(() => Date.now());
   const left = !timer ? seconds : timer.endsAt == null ? timer.left : Math.max(0, Math.ceil((timer.endsAt - now) / 1000));
@@ -40,7 +44,7 @@ function TimerChip({ seconds, timer, onChange }: { seconds: number; timer?: Time
   }, [running]);
 
   const label = !timer
-    ? `◷ Timer · ${minutes(Math.round(seconds / 60))}`
+    ? `◷ Timer · ${timerLength(seconds)}`
     : left === 0
       ? "◷ Done"
       : `◷ ${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
@@ -97,6 +101,7 @@ function Cooking({ recipe, version, serviceId }: { recipe: Recipe; version: Reci
         ))}
       </Gutter>
       <ScrollView
+        key={index}
         style={{ flex: 1 }}
         showsVerticalScrollIndicator={!WEB}
         contentContainerStyle={{ paddingHorizontal: GUTTER, paddingTop: 28, paddingBottom: 24 }}

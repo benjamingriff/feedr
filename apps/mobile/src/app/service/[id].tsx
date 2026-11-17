@@ -47,7 +47,7 @@ export default function DishUp() {
   const save = useMutation({
     mutationFn: () => {
       const grams = weight.trim() ? Number(weight) : null;
-      if (grams !== null && !(grams > 0)) throw new Error("Enter the weight in grams, or leave it blank to clear it.");
+      if (grams !== null && !(Number.isFinite(grams) && grams > 0)) throw new Error("Enter the weight in grams, or leave it blank to clear it.");
       return api<Service>(`/services/${id}`, { cooked_weight_g: grams }, "PATCH");
     },
     onSuccess: () => {
@@ -59,10 +59,11 @@ export default function DishUp() {
     mutationFn: (portionId: string) => api<{ service: Service | null }>(`/portions/${portionId}`, undefined, "DELETE"),
     onSuccess: ({ service: left }) => {
       if (left) return void client.invalidateQueries();
-      // Removing the last portion removes the service: leave, and don't refetch what's gone.
-      if (router.canGoBack()) router.back();
-      else router.replace("/plan");
-      void client.invalidateQueries({ predicate: (q) => !q.queryKey.includes(id) });
+      // Removing the last portion removes the service. Go to the plan, past any recipe or cook
+      // screen that still points at it, and drop it from the cache rather than refetch it.
+      router.dismissTo("/plan");
+      client.removeQueries({ predicate: (q) => q.queryKey.includes(id) });
+      void client.invalidateQueries();
     },
   });
 

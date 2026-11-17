@@ -453,6 +453,10 @@ stage "Open the app and sign in"
 what "you sign in to the app with Google. Your first sign-in creates your"
 say  "                feedr account."
 signed_in=$(latest_sign_in || true)
+# The latest sign-in may be someone else in the household, so check before skipping.
+if [[ -n "$signed_in" ]] && ! confirm "The last sign-in was $(jq -r .email <<<"$signed_in"). Is that you?"; then
+  signed_in=""
+fi
 if [[ -n "$signed_in" ]]; then
   you "nothing."
   ok "Already signed in as $(jq -r .email <<<"$signed_in")"

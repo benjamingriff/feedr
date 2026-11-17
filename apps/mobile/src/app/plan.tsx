@@ -128,7 +128,7 @@ function DaySection({ day, solo, onLayout }: { day: DayMeals; solo: boolean; onL
       {day.slots.flatMap((slot) =>
         slot.dishes.length ? (
           slot.dishes.map((dish, i) => (
-            <MealRow key={dish.serviceId} slot={slot.slot} dish={dish} first={i === 0} rule={row++ > 0} solo={solo} />
+            <MealRow key={`${slot.slot}:${dish.serviceId}`} slot={slot.slot} dish={dish} first={i === 0} rule={row++ > 0} solo={solo} />
           ))
         ) : (
           <EmptyRow key={slot.slot} slot={slot.slot} date={day.date} rule={row++ > 0} solo={solo} />

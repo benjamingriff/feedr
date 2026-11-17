@@ -38,9 +38,12 @@ function PersonForm({ person }: { person?: Person }) {
   const split = person?.slot_split ?? DEFAULT_SLOT_SPLIT;
   // The split is edited as percentages and stored as fractions. toFixed drops float noise
   // (30.000000000000004) without rounding a stored 1/3 away from adding up to 100.
-  const [percent, setPercent] = useState(
-    Object.fromEntries(SLOTS.map((slot) => [slot, String(+(split[slot] * 100).toFixed(6))])) as Record<Slot, string>,
+  const [initialPercent] = useState(
+    () => Object.fromEntries(SLOTS.map((slot) => [slot, String(+(split[slot] * 100).toFixed(6))])) as Record<Slot, string>,
   );
+  const [percent, setPercent] = useState(initialPercent);
+  // An agent can store a split that doesn't add up to 100%; editing only the name mustn't trip over it.
+  const splitEdited = !person || SLOTS.some((slot) => percent[slot] !== initialPercent[slot]);
   const total = SLOTS.reduce((sum, slot) => sum + Number(percent[slot]), 0);
 
   const done = async () => {
@@ -53,7 +56,7 @@ function PersonForm({ person }: { person?: Person }) {
       if (!name.trim()) throw new Error("Enter a name.");
       const dailyKcal = Number(kcal);
       if (!Number.isInteger(dailyKcal) || dailyKcal <= 0) throw new Error("Daily kcal must be a whole number above zero.");
-      if (SLOTS.some((slot) => !percent[slot].trim() || !(Number(percent[slot]) >= 0)) || Math.abs(total - 100) > 0.001)
+      if (splitEdited && (SLOTS.some((slot) => !percent[slot].trim() || !(Number(percent[slot]) >= 0)) || Math.abs(total - 100) > 0.001))
         throw new Error(`The slot split must add up to 100%. It adds up to ${Number.isFinite(total) ? total : "?"}%.`);
       return api<Person>(
         person ? `/people/${person.id}` : "/people",
@@ -62,7 +65,7 @@ function PersonForm({ person }: { person?: Person }) {
           weight_kg: optionalNumber(weight, "Weight") || null,
           daily_kcal: dailyKcal,
           daily_protein_g: optionalNumber(protein, "Daily protein"),
-          slot_split: Object.fromEntries(SLOTS.map((slot) => [slot, Number(percent[slot]) / 100])),
+          ...(splitEdited && { slot_split: Object.fromEntries(SLOTS.map((slot) => [slot, Number(percent[slot]) / 100])) }),
         },
         person ? "PATCH" : "POST",
       );

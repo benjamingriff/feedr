@@ -201,6 +201,9 @@ test('ingredient names are found in step text', () => {
 
   // A word two names could claim equally is left alone.
   assert.deepEqual(found('Bake the chicken, then cook the rice.', ['chicken stock', 'chicken breasts', 'basmati rice', 'risotto rice']), []);
+  // So is a whole name two lines share, such as butter for the sauce and butter for the chicken.
+  assert.deepEqual(found('Melt the butter.', ['butter', 'butter', 'flour']), []);
+  assert.deepEqual(found('Add the onions.', ['onion', 'onions']), []);
 
   // Whole words only, and every occurrence.
   assert.deepEqual(found('Season the eggplant. Beat the egg; add egg.', ['egg']), [

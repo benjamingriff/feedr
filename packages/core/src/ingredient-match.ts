@@ -24,8 +24,8 @@ function words(text: string) {
  * cook mode. Matching ignores case and plurals. A name matches as a whole ("curry powder"),
  * by its last word ("basmati rice" → "rice") or, when the ingredient isn't found any other
  * way, by its first word ("chicken breasts" → "chicken"). Whole names win over single words.
- * A single word that two names could claim equally ("chicken" with both chicken stock and
- * chicken breasts) is left unmarked. Ranges never overlap and come back in text order.
+ * A word two names could claim equally ("chicken" with both chicken stock and chicken
+ * breasts, or "butter" when two lines are both butter) is left unmarked. Ranges never overlap and come back in text order.
  */
 export function matchIngredientNames(text: string, names: string[]): NameMatch[] {
   const tokens = words(text);
@@ -48,7 +48,7 @@ export function matchIngredientNames(text: string, names: string[]): NameMatch[]
 
   candidates.sort((a, b) => a.rank - b.rank || b.end - b.start - (a.end - a.start) || a.index - b.index || a.start - b.start);
   const ambiguous = (c: (typeof candidates)[number]) =>
-    c.rank > 0 && candidates.some((o) => o.rank === c.rank && o.start === c.start && o.index !== c.index);
+    candidates.some((o) => o.rank === c.rank && o.start === c.start && o.end === c.end && o.index !== c.index);
   const taken: (NameMatch & { rank: number })[] = [];
   for (const c of candidates) {
     if (ambiguous(c)) continue;

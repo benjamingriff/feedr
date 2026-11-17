@@ -25,7 +25,7 @@ npm run dev:api        # or: docker compose up -d api
 npm run dev:mobile     # scan the QR code with the Camera app to open it in Expo Go
 ```
 
-Google sign-in needs your phone on the same Wi-Fi as this computer, without Expo's `--tunnel`, because Clerk only sends the sign-in back to the Expo Go address the wizard allowed. To run the app in a browser, use `npm run dev:mobile:web`.
+Google sign-in needs your phone on the same Wi-Fi as this computer, without Expo's `--tunnel`, because Clerk only sends the sign-in back to the Expo Go address the wizard allowed. The app talks to the API over plain HTTP, so on a network you don't control, anyone else on it can read your session or token: use the Tailscale address there, which is encrypted. To run the app in a browser, use `npm run dev:mobile:web`.
 
 There is no tab bar. Home shows tonight's dinner, with a button straight into cook mode, above an index of the four sections:
 

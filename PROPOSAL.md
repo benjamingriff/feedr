@@ -43,7 +43,7 @@ Days, weeks and shopping lists are calculated, not stored. A shopping list combi
 
 ## Running
 
-Postgres and the API in Docker on your machine. Claude Code connects to `localhost:4100/mcp`; the Expo app on your phone connects over the LAN or Tailscale.
+Postgres and the API in Docker on your machine. Claude Code connects to `localhost:4100/mcp`; the Expo app on your phone connects over the LAN or Tailscale. The API is plain HTTP, so on the LAN anyone else on the network can read the session or token; Tailscale is encrypted, so use it on networks you don't control.
 
 ## Later
 

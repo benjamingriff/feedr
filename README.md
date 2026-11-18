@@ -59,7 +59,7 @@ Then, for example: "Import https://… into feedr and plan it for dinner on Mond
 
 ## Personal tokens
 
-Agents connect with personal tokens. The app itself signs in with Apple or Google. Create one in the app under People → Agent access, or from the command line: `npm run account:create -- "Your name"` makes a new account and prints its first token once, and `npm run account:create -- "Token name" <userId>` adds a token to an existing account. Only the token's SHA-256 hash is stored.
+Agents connect with personal tokens; the app itself signs in with Apple or Google. Create a token for your account in the app under People → Agent access. From the command line, `npm run account:create -- "Token name" <userId>` adds a token to an existing account, and `npm run account:create -- "Your name"` makes a new account and prints its first token once. That new account has no Apple or Google login, so the app can't open it, and what an agent adds there won't show in the app. Only the token's SHA-256 hash is stored.
 
 ## Checks
 

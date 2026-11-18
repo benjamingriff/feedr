@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Image, Pressable, Text as RNText, View } from "react-native";
+import { AccessibilityInfo, Image, Pressable, Text as RNText, View } from "react-native";
 import { useSSO } from "@clerk/expo";
 import { ErrorLine, Gutter, PageHead, PrimaryButton, Screen, StateLine, Text, TopBar } from "./primitives";
 import { API_URL, useStore } from "./store";
@@ -115,6 +115,8 @@ function SocialSignIn() {
 
   function signIn(next: Brand) {
     setBrand(next);
+    // The buttons only dim, so tell screen reader users the press started something.
+    AccessibilityInfo.announceForAccessibility(`Signing in with ${brands[next].name}`);
     void run(async () => {
       // Signed out, so any saved account is from a session that ended outside Sign out (it
       // expired, say). Forget it, so this sign-in can't reopen it before /me answers.

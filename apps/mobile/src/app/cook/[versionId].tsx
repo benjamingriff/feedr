@@ -1,147 +1,237 @@
 import { useEffect, useState } from "react";
-import { Text, View } from "react-native";
-import { useLocalSearchParams } from "expo-router";
+import { Pressable, ScrollView, View } from "react-native";
+import { router, useLocalSearchParams } from "expo-router";
 import { useKeepAwake } from "expo-keep-awake";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Recipe, RecipeVersion, Step } from "@feedr/core";
+import { capitalise, minutes } from "../../format";
+import {
+  BrandMark,
+  Chip,
+  Gutter,
+  PrimaryButton,
+  QueryState,
+  SectionHeader,
+  SquareButton,
+  StateLine,
+  Text,
+  TopBar,
+  WEB,
+} from "../../primitives";
+import { IngredientRow, prepLine, splitNote, stepAmount, stepIngredients, stepNumber, stepPieces } from "../../recipe-parts";
 import { useApiQuery } from "../../store";
-import { Ingredients } from "../../recipe-content";
-import { Button, Card, QueryState, Row, Screen, T } from "../../ui";
-function Timer({ seconds }: { seconds: number }) {
-  const [remaining, setRemaining] = useState(seconds);
-  const [deadline, setDeadline] = useState<number | null>(null);
+import { GUTTER, mono, sans, underline, useColors } from "../../theme";
+
+/** A step's countdown: `endsAt` while running, `left` seconds while paused or finished. */
+type Timer = { endsAt: number | null; left: number };
+
+/**
+ * The timer chip. Tap to start, tap again to pause; it reads "Done" in accent at zero.
+ * The countdown is measured against the clock, so a busy screen can't make it drift.
+ */
+/** "12 min", "45 sec", "1 min 30 sec": whole minutes stay short, and seconds are never rounded away. */
+const timerLength = (s: number) =>
+  s % 60 === 0 ? minutes(s / 60) : s < 60 ? `${s} sec` : `${minutes(Math.floor(s / 60))} ${s % 60} sec`;
+
+function TimerChip({ seconds, timer, onChange }: { seconds: number; timer?: Timer; onChange: (timer: Timer) => void }) {
+  const [now, setNow] = useState(() => Date.now());
+  const left = !timer ? seconds : timer.endsAt == null ? timer.left : Math.max(0, Math.ceil((timer.endsAt - now) / 1000));
+  const running = timer?.endsAt != null && left > 0;
   useEffect(() => {
-    if (deadline == null) return;
-    const tick = () => {
-      const left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
-      setRemaining(left);
-      if (!left) setDeadline(null);
-    };
-    tick();
-    const interval = setInterval(tick, 250);
+    if (!running) return;
+    const interval = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(interval);
-  }, [deadline]);
+  }, [running]);
+
+  const label = !timer
+    ? `◷ Timer · ${timerLength(seconds)}`
+    : left === 0
+      ? "◷ Done"
+      : `◷ ${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
   return (
-    <Card>
-      <T title>
-        {remaining === 0
-          ? "Timer finished"
-          : `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, "0")}`}
-      </T>
-      <Row>
-        <Button
-          title={deadline ? "Pause timer" : "Start timer"}
-          disabled={!remaining}
-          onPress={() =>
-            setDeadline(deadline ? null : Date.now() + remaining * 1000)
-          }
-        />
-        <Button
-          title="Reset timer"
-          secondary
+    <Chip
+      kind="timer"
+      label={label}
+      active={!!timer && left === 0}
+      onPress={() => {
+        if (left === 0) return;
+        const pressed = Date.now();
+        setNow(pressed);
+        onChange(running ? { endsAt: null, left } : { endsAt: pressed + left * 1000, left });
+      }}
+    />
+  );
+}
+
+function Cooking({ recipe, version, serviceId }: { recipe: Recipe; version: RecipeVersion; serviceId?: string }) {
+  useKeepAwake("feedr-cook", { suppressDeactivateWarnings: true });
+  const colors = useColors();
+  const insets = useSafeAreaInsets();
+  const [index, setIndex] = useState(0);
+  // The ingredient line highlighted in "For this step".
+  const [active, setActive] = useState<string | null>(null);
+  // Kept per step, so going back to a step shows its timer still running.
+  const [timers, setTimers] = useState<Record<string, Timer>>({});
+
+  const steps = version.steps;
+  const step: Step | undefined = steps[index];
+  const go = (to: number) => {
+    setIndex(to);
+    setActive(null);
+  };
+  const close = () => (router.canGoBack() ? router.back() : router.replace("/"));
+
+  if (!step)
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: insets.top }}>
+        <CookBar onClose={close} />
+        <StateLine text="This version has no steps" />
+      </View>
+    );
+
+  const { lines, terms } = stepIngredients(step, version);
+  const isLast = index === steps.length - 1;
+
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: insets.top }}>
+      <CookBar onClose={close} />
+      <Gutter style={{ flexDirection: "row", gap: 4 }}>
+        {steps.map((s, i) => (
+          <View key={s.id} style={{ flex: 1, height: 3, backgroundColor: i <= index ? colors.accent : colors.line }} />
+        ))}
+      </Gutter>
+      <ScrollView
+        key={index}
+        style={{ flex: 1 }}
+        showsVerticalScrollIndicator={!WEB}
+        contentContainerStyle={{ paddingHorizontal: GUTTER, paddingTop: 28, paddingBottom: 24 }}
+      >
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 16, paddingBottom: 18 }}>
+          <Chip label={`STEP ${stepNumber(index)} / ${String(steps.length).padStart(2, "0")}`} />
+          <Text variant="chip" numberOfLines={1} style={{ flexShrink: 1 }}>
+            {recipe.title}
+          </Text>
+        </View>
+        <Text variant="cookStep">
+          {stepPieces(step.text, terms).map((piece, i) => {
+            if (piece.duration)
+              return (
+                <Text key={i} variant="cookStep" style={{ fontFamily: sans[600] }}>
+                  {piece.text}
+                </Text>
+              );
+            if (!piece.term) return piece.text;
+            const { line } = piece.term;
+            const on = active === line.id;
+            return (
+              <Text
+                key={i}
+                variant="cookStep"
+                accessibilityRole="button"
+                accessibilityLabel={`${piece.text}: ${on ? "hide" : "show"} in the ingredients`}
+                onPress={() => setActive(on ? null : line.id)}
+              >
+                <Text variant="cookStep" color={on ? "accent" : "ink"} style={underline(on ? "solid" : "dotted", 5)}>
+                  {piece.text}
+                </Text>
+                <Text variant="cookStep" color="accent" style={{ fontFamily: mono[400], fontSize: 17 }}>
+                  {on ? "−" : "+"}
+                </Text>
+              </Text>
+            );
+          })}
+        </Text>
+        {step.timer_seconds != null && (
+          <View style={{ paddingTop: 14 }}>
+            <TimerChip
+              seconds={step.timer_seconds}
+              timer={timers[step.id]}
+              onChange={(timer) => setTimers({ ...timers, [step.id]: timer })}
+            />
+          </View>
+        )}
+        {lines.length > 0 && (
+          <View style={{ paddingTop: 28 }}>
+            <SectionHeader title="For this step" meta={`${lines.length} of ${version.ingredients.length}`} gap={10} />
+            {lines.map((line, i) => {
+              const on = active === line.id;
+              const prep = prepLine(line);
+              const note = on ? splitNote(step, line, version) : "";
+              return (
+                <IngredientRow
+                  key={line.id}
+                  quantity={stepAmount(step, line)}
+                  name={capitalise(line.ingredient)}
+                  highlight={on}
+                  last={i === lines.length - 1}
+                  detail={
+                    prep || note ? (
+                      <>
+                        {prep}
+                        {!!note && (
+                          <Text variant="secondary" color="ink2">
+                            {prep ? note : note.replace(/^ · /, "")}
+                          </Text>
+                        )}
+                      </>
+                    ) : undefined
+                  }
+                />
+              );
+            })}
+          </View>
+        )}
+      </ScrollView>
+      <Gutter style={{ flexDirection: "row", gap: 10, paddingTop: 12, paddingBottom: Math.max(40, insets.bottom + 6) }}>
+        <SquareButton glyph="←" label="Previous step" disabled={index === 0} onPress={() => go(index - 1)} />
+        <PrimaryButton
+          tall
+          style={{ flex: 1 }}
+          label={isLast ? (serviceId ? "Finish · Dish up" : "Finish") : `Next · Step ${stepNumber(index + 1)}`}
           onPress={() => {
-            setDeadline(null);
-            setRemaining(seconds);
+            if (!isLast) return go(index + 1);
+            // Finishing a planned meal swaps cook mode for its dish-up screen.
+            if (serviceId) router.replace({ pathname: "/service/[id]", params: { id: serviceId } });
+            else close();
           }}
         />
-      </Row>
-    </Card>
+      </Gutter>
+    </View>
   );
 }
-function Cooking({
-  version,
-  title,
-}: {
-  version: RecipeVersion;
-  title: string;
-}) {
-  useKeepAwake("feedr-cook", { suppressDeactivateWarnings: true });
-  const [index, setIndex] = useState(0);
-  const [ingredients, setIngredients] = useState(false);
-  const steps = [...version.steps].sort((a, b) => a.position - b.position);
-  const step: Step | undefined = steps[index];
-  return (
-    <Screen
-      footer={
-        step ? (
-          <View style={{ flexDirection: "row", gap: 12 }}>
-            <View style={{ flex: 1 }}>
-              <Button
-                title="Prev"
-                secondary
-                disabled={index === 0}
-                onPress={() => setIndex(index - 1)}
-              />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Button
-                title="Next"
-                disabled={index === steps.length - 1}
-                onPress={() => setIndex(index + 1)}
-              />
-            </View>
-          </View>
-        ) : undefined
-      }
-    >
-      <T title>{title}</T>
-      <T muted>{version.label}</T>
-      <Button
-        title={ingredients ? "Hide ingredients" : "Show ingredients"}
-        secondary
-        onPress={() => setIngredients(!ingredients)}
-      />
-      {ingredients && <Ingredients lines={version.ingredients} />}
-      {step ? (
-        <>
-          <Card>
-            <T title>
-              Step {index + 1} of {steps.length}
-            </T>
-            {!!step.section && <T muted>{step.section}</T>}
-            <Text style={{ fontSize: 25, lineHeight: 36, color: "#202522" }}>
-              {step.text}
-            </Text>
-          </Card>
-          {step.timer_seconds != null && (
-            <Timer key={step.id} seconds={step.timer_seconds} />
-          )}
 
-          {index === steps.length - 1 && (
-            <T muted>Last step. Enjoy your meal.</T>
-          )}
-        </>
-      ) : (
-        <T muted>No cooking steps for this version.</T>
-      )}
-      <T muted>
-        Keep this screen open while cooking. Timers run on this screen; no
-        background notification is sent.
-      </T>
-    </Screen>
+function CookBar({ onClose }: { onClose: () => void }) {
+  return (
+    <TopBar
+      left={<BrandMark label="Cook" />}
+      right={
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Close cook mode"
+          hitSlop={12}
+          onPress={onClose}
+          style={{ paddingTop: 6, paddingBottom: 4 }}
+        >
+          <Text variant="label">Close ✕</Text>
+        </Pressable>
+      }
+    />
   );
 }
+
+/** Cook mode: one step at a time, full screen, with the screen kept awake. */
 export default function CookScreen() {
-  const { versionId, recipeId } = useLocalSearchParams<{
-    versionId: string;
-    recipeId: string;
-  }>();
-  const query = useApiQuery<Recipe>(
-    ["recipe", recipeId],
-    `/recipes/${recipeId}`,
-  );
+  const { versionId, recipeId, serviceId } = useLocalSearchParams<{ versionId: string; recipeId: string; serviceId?: string }>();
+  const colors = useColors();
+  const insets = useSafeAreaInsets();
+  const query = useApiQuery<Recipe>(["recipe", recipeId], `/recipes/${recipeId}`);
   const version = query.data?.versions.find((v) => v.id === versionId);
-  if (version && query.data)
-    return (
-      <Cooking key={version.id} title={query.data.title} version={version} />
-    );
+  if (query.data && version) return <Cooking key={version.id} recipe={query.data} version={version} serviceId={serviceId} />;
   return (
-    <Screen>
-      <QueryState
-        pending={query.isPending}
-        error={query.error}
-        retry={() => void query.refetch()}
-      />
-      {query.data && !version && <T>Recipe version not found.</T>}
-    </Screen>
+    <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: insets.top }}>
+      <CookBar onClose={() => (router.canGoBack() ? router.back() : router.replace("/"))} />
+      <QueryState query={query} />
+      {query.data && <StateLine text="That version is no longer in the recipe" />}
+    </View>
   );
 }

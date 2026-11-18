@@ -6,7 +6,7 @@ A personal ReciMe-style app. Agents (Claude Code or any MCP client) import recip
 
 - **Agents use judgement; the server does arithmetic.** Scaling a recipe is a cooking decision (whole eggs, spices that don't scale linearly, bigger pans, longer times), so agents write scaled recipes. The server only does maths that really is linear: splitting a finished dish, day and week totals, and combining shopping lists.
 - **Calories size the portions.** Protein is shown against each person's target; meeting it is the agent's job when choosing or adapting a version.
-- **Prototype scope.** Plain styling, no warnings or guards beyond input validation.
+- **Prototype scope.** No warnings or guards beyond input validation. The app follows the design in [`design/`](design/README.md).
 
 ## Model
 
@@ -18,6 +18,7 @@ A personal ReciMe-style app. Agents (Claude Code or any MCP client) import recip
 | `recipe_versions` | What you actually cook. The original is the recipe as published; agents add scaled or adapted versions with notes on what changed. Each version owns its own ingredients, steps and nutrition, because step text often contains amounts and times. |
 | `ingredients` | Canonical names per user, with aisle, so shopping lists combine. |
 | `recipe_ingredients`, `recipe_steps` | Belong to a version. |
+| `step_ingredients` | Which ingredient lines a step uses, with the amount when a step uses only part of a line. Cook mode lists them beside the step. |
 | `nutrition` | One row per version for the **whole batch**: kcal, protein, carbs, fat, saturates, fibre, sugar, salt, plus `extra` for micronutrients later. Source is `from_source` or `agent_estimate`. |
 | `services` | One version cooked on a date, with an optional cooked weight. |
 | `portions` | A share of a service: person, date, slot and `target_kcal`. Unassigned portions are leftovers. |
@@ -38,12 +39,12 @@ Days, weeks and shopping lists are calculated, not stored. A shopping list combi
 
 - **MCP** (`/mcp`, stateless Streamable HTTP, bearer token): people and slot targets; recipes and versions (create, update, archive); services and portions (plan, add leftovers, move, remove); `get_plan` with per-person totals against targets; `get_shopping_list` (read-only). The server instructions teach agents the model and how to scale.
 - **REST** for the app: the same service layer.
-- **App** tabs: Plan (week strip, day per person with kcal and protein against targets), Recipes (search, detail with version picker, cook mode), Shopping (week list by aisle with local ticks), People (targets, slot split, agent tokens).
+- **App**: Home (tonight's dinner and an index) is the root of one stack, with no tab bar. From it: Meal plan (a week of days, who eats what, and adding meals from the cookbook), Cookbook (search, meal-type filters, recipe pages and cook mode), Shopping list (the week by aisle with local ticks) and People (targets, slot split, agent tokens). Dish-up follows cooking a planned meal.
 
 ## Running
 
-Postgres and the API in Docker on your machine. Claude Code connects to `localhost:4100/mcp`; the Expo app on your phone connects over the LAN or Tailscale.
+Postgres and the API in Docker on your machine. Claude Code connects to `localhost:4100/mcp`; the Expo app on your phone connects over the LAN or Tailscale. The API is plain HTTP, so on the LAN anyone else on the network can read the session or token; Tailscale is encrypted, so use it on networks you don't control.
 
 ## Later
 
-Visual design, hosting, Clerk OAuth for claude.ai connectors, a pantry, photos, Apple Health, more micronutrients.
+Hosting, Clerk OAuth for claude.ai connectors, a pantry, photos, Apple Health, more micronutrients.

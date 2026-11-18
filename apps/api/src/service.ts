@@ -176,7 +176,7 @@ async function ownedVersion(trx: Db, userId: string, versionId: string) {
 async function loadVersions(trx: Db, versionIds: string[]): Promise<Map<string, RecipeVersion>> {
   const out = new Map<string, RecipeVersion>();
   if (!versionIds.length) return out;
-  const [versions, ingredients, steps, nutrition] = await Promise.all([
+  const [versions, ingredients, steps, stepIngredients, nutrition] = await Promise.all([
     trx.selectFrom('recipe_versions').selectAll().where('id', 'in', versionIds).execute(),
     trx
       .selectFrom('recipe_ingredients as ri')
@@ -187,6 +187,13 @@ async function loadVersions(trx: Db, versionIds: string[]): Promise<Map<string, 
       .orderBy('ri.position')
       .execute(),
     trx.selectFrom('recipe_steps').selectAll().where('version_id', 'in', versionIds).orderBy('position').execute(),
+    trx
+      .selectFrom('step_ingredients as si')
+      .innerJoin('recipe_ingredients as ri', 'ri.id', 'si.ingredient_line_id')
+      .select(['si.step_id', 'si.ingredient_line_id as line_id', 'si.quantity', 'si.unit'])
+      .where('ri.version_id', 'in', versionIds)
+      .orderBy('ri.position')
+      .execute(),
     trx.selectFrom('nutrition').selectAll().where('version_id', 'in', versionIds).execute(),
   ]);
   for (const v of versions) {
@@ -241,6 +248,9 @@ async function loadVersions(trx: Db, versionIds: string[]): Promise<Map<string, 
           text: s.text,
           section: s.section,
           timer_seconds: s.timer_seconds,
+          ingredients: stepIngredients
+            .filter((i) => i.step_id === s.id)
+            .map(({ line_id, quantity, unit }) => ({ line_id, quantity, unit })),
         })),
     });
   }
@@ -277,7 +287,7 @@ async function writeVersionContents(
   if (input.steps) {
     await trx.deleteFrom('recipe_steps').where('version_id', '=', versionId).execute();
     if (input.steps.length) {
-      await trx
+      const stepRows = await trx
         .insertInto('recipe_steps')
         .values(
           input.steps.map((s, i) => ({
@@ -288,10 +298,40 @@ async function writeVersionContents(
             timer_seconds: s.timer_seconds ?? null,
           })),
         )
+        .returning(['id', 'position'])
         .execute();
+      await writeStepIngredients(trx, versionId, input.steps, stepRows);
     }
   }
   if (input.nutrition) await writeNutrition(trx, versionId, input.nutrition);
+}
+
+/** Links steps to the version's ingredient lines. `line` is an index into the lines as they are stored now. */
+async function writeStepIngredients(
+  trx: Db,
+  versionId: string,
+  steps: VersionInput['steps'],
+  stepRows: { id: string; position: number }[],
+) {
+  if (!steps.some((s) => s.ingredients?.length)) return;
+  const lines = await trx
+    .selectFrom('recipe_ingredients')
+    .select('id')
+    .where('version_id', '=', versionId)
+    .orderBy('position')
+    .execute();
+  const links = steps.flatMap((step, position) => {
+    const stepId = stepRows.find((r) => r.position === position)!.id;
+    // Keyed by line, so naming a line twice in one step keeps the last amount.
+    const byLine = new Map<string, { step_id: string; ingredient_line_id: string; quantity: number | null; unit: string | null }>();
+    for (const link of step.ingredients ?? []) {
+      const line = lines[link.line];
+      if (!line) throw new InvalidError(`Step ${position + 1} links ingredient ${link.line}, but there are ${lines.length} ingredients`);
+      byLine.set(line.id, { step_id: stepId, ingredient_line_id: line.id, quantity: link.quantity ?? null, unit: link.unit ?? null });
+    }
+    return [...byLine.values()];
+  });
+  await trx.insertInto('step_ingredients').values(links).execute();
 }
 
 async function writeNutrition(trx: Db, versionId: string, n: NutritionInput) {
@@ -377,7 +417,7 @@ export async function searchRecipes(
   const versions = await db
     .selectFrom('recipe_versions as v')
     .leftJoin('nutrition as n', 'n.version_id', 'v.id')
-    .select(['v.id', 'v.recipe_id', 'v.label', 'v.servings', 'v.is_original', 'n.kcal'])
+    .select(['v.id', 'v.recipe_id', 'v.label', 'v.servings', 'v.is_original', 'v.prep_minutes', 'v.cook_minutes', 'n.kcal'])
     .where(
       'v.recipe_id',
       'in',
@@ -390,7 +430,7 @@ export async function searchRecipes(
     ...recipeFields(r),
     versions: versions
       .filter((v) => v.recipe_id === r.id)
-      .map((v) => ({ id: v.id, label: v.label, servings: v.servings, kcal: v.kcal, is_original: v.is_original })),
+      .map(({ recipe_id: _, ...v }) => v),
   }));
 }
 
@@ -466,7 +506,10 @@ export async function createVersion(userId: string, recipeId: string, input: Ver
   });
 }
 
-/** Replaces whichever parts are given. Ingredients and steps are replaced as whole lists. */
+/**
+ * Replaces whichever parts are given. Ingredients and steps are replaced as whole lists.
+ * Step links point at ingredient lines, so replacing ingredients without steps drops the links.
+ */
 export async function updateVersion(
   userId: string,
   versionId: string,

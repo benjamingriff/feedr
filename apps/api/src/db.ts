@@ -78,6 +78,7 @@ export interface DB {
     section: string | null;
     timer_seconds: number | null;
   };
+  step_ingredients: { step_id: string; ingredient_line_id: string; quantity: number | null; unit: string | null };
   nutrition: {
     version_id: string;
     kcal: number;

@@ -54,10 +54,20 @@ export const IngredientLineInput = z.object({
 });
 export type IngredientLineInput = z.infer<typeof IngredientLineInput>;
 
+export const StepIngredientInput = z.object({
+  line: z.number().int().nonnegative().describe("Index into this version's ingredients array, starting at 0"),
+  quantity: z.number().positive().nullish().describe('Amount used in this step, when the step uses only part of the line'),
+  unit: z.string().nullish(),
+});
+
 export const StepInput = z.object({
   text: z.string().min(1),
   section: z.string().nullish(),
   timer_seconds: z.number().int().positive().nullish(),
+  ingredients: z
+    .array(StepIngredientInput)
+    .optional()
+    .describe('The ingredient lines this step uses. The app lists them beside the step in cook mode.'),
 });
 
 export const VersionInput = z.object({

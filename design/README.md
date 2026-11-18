@@ -49,7 +49,7 @@ patterns below for it.
 
 | Token | Light | Dark | Use |
 |---|---|---|---|
-| `bg` | `#faf9f5` | `#141413` | Screen background; text on accent buttons |
+| `bg` | `#faf9f5` | `#141413` | Screen background |
 | `bgRaised` | `#f1efe8` | `#22211f` | Popovers (not used on current screens) |
 | `ink` | `#141413` | `#faf9f5` | Titles, item names, primary text |
 | `ink2` | `#4c4b45` | `#b0aea5` | Body copy, quantities, back link |
@@ -58,6 +58,16 @@ patterns below for it.
 | `accent` | `#c15f3c` | `#d97757` | Brand square, numbers, aisle and section labels, primary button, today, ticks |
 
 Accent tint (the highlighted ingredient row in cook mode) is `accent` at 9% opacity.
+
+These are the **Clay** palette, the default. People can switch to Basil, Cobalt, Yolk or
+Beetroot, and pin light or dark, from the Appearance settings; every palette's values live in
+`apps/mobile/src/theme.ts`. Two roles sit beside `accent` so a palette's fill colour can differ
+from its text colour (Yolk's yellow can't be read on white):
+
+| Token | Use |
+|---|---|
+| `accentFill` | Primary button, brand square, ticked checkbox, cook-mode progress. Defaults to `accent`. |
+| `onAccent` | Text and arrows on `accentFill`. Defaults to `bg`. |
 
 The status bar style is dark-content in light mode and light-content in dark mode.
 
@@ -86,7 +96,7 @@ Mono labels are always uppercase and use `0.02em` tracking, unless a row says ot
 | Index subline (Home) | sans | 15 / 22 | 400 | – | ink3 |
 | Quantity | mono | 14 / 22 | 400 | – | ink2 |
 | Section heading ("Ingredients", "Tonight") | mono caps | 13 / 16 | 500 | 0.02em | ink |
-| Button label | mono caps | 13 / 16 | 500 | 0.04em | bg |
+| Button label | mono caps | 13 / 16 | 500 | 0.04em | onAccent |
 | Day kcal total | mono | 13 / 16 | 500 | 0.02em | ink (ink3 when incomplete) |
 | Meal kcal | mono | 13 / 16 | 400 | – | ink2 |
 | Label / meta | mono caps | 12 / 16 | 400 | 0.02em | ink3 |
@@ -119,10 +129,10 @@ appears only in cook mode, as "■ Cook". No screen shows the word "Feedr".
 **Back link.** "← Home" in 12 mono caps ink2, with padding 6 top and 4 bottom so the tap
 target is larger.
 
-**Primary button.** Accent fill, height 52 (56 in the cook-mode footer), padding 20 at the
+**Primary button.** `accentFill` fill, height 52 (56 in the cook-mode footer), padding 20 at the
 sides, and a row with `space-between`.
-- Left: the label in 13 mono caps, weight 500, 0.04em tracking, colour `bg`.
-- Right: "→" in 18 mono, colour `bg`.
+- Left: the label in 13 mono caps, weight 500, 0.04em tracking, colour `onAccent`.
+- Right: "→" in 18 mono, colour `onAccent`.
 
 **Secondary square button** (cook mode back). 56×56, 1px `line` border, "←" in 18 mono
 ink2, centred.
@@ -158,7 +168,7 @@ ink2, centred.
 " · ", and the checkbox slot at the end.
 - Unticked: a 20×20 box with a 1px ink3 outline.
 - Ticked:
-  - the box is filled with accent and holds a 13/600 "✓" in `bg`;
+  - the box is filled with `accentFill` and holds a 13/600 "✓" in `onAccent`;
   - the quantity and name become ink3 with a line-through;
   - the recipe line stays as it is.
 - Ticked items stay where they are, so the list doesn't jump while you shop.

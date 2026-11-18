@@ -153,7 +153,7 @@ export function BrandMark({ label }: { label: string }) {
   const colors = useColors();
   return (
     <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-      <View style={{ width: 12, height: 12, backgroundColor: colors.accent }} />
+      <View style={{ width: 12, height: 12, backgroundColor: colors.accentFill }} />
       <Text variant="label" color="ink2">
         {label}
       </Text>
@@ -223,14 +223,14 @@ export function PrimaryButton({
           flexDirection: "row",
           alignItems: "center",
           justifyContent: "space-between",
-          backgroundColor: colors.accent,
+          backgroundColor: colors.accentFill,
           opacity: disabled ? 0.5 : 1,
         },
         style,
       ]}
     >
       <Text variant="button">{label}</Text>
-      <Text variant="arrow" color="bg">
+      <Text variant="arrow" color="onAccent">
         →
       </Text>
     </Pressable>

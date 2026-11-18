@@ -78,7 +78,7 @@ export function ModePicker() {
   const colors = useColors();
   const { mode, setMode } = useAppearance();
   return (
-    <View accessibilityRole="radiogroup" style={{ flexDirection: "row", borderWidth: 1, borderColor: colors.line }}>
+    <View accessibilityRole="radiogroup" accessibilityLabel="Mode" style={{ flexDirection: "row", borderWidth: 1, borderColor: colors.line }}>
       {modes.map((option, i) => {
         const on = option === mode;
         return (
@@ -138,7 +138,7 @@ export function PalettePicker() {
   const colors = useColors();
   const { palette, setPalette } = useAppearance();
   return (
-    <View accessibilityRole="radiogroup">
+    <View accessibilityRole="radiogroup" accessibilityLabel="Colour">
       {paletteNames.map((name, i) => {
         const on = name === palette;
         return (
@@ -174,7 +174,7 @@ export function PalettePicker() {
                   borderColor: on ? colors.accent : colors.ink3,
                 }}
               >
-                {on && <View style={{ width: 8, height: 8, backgroundColor: colors.accentFill }} />}
+                {on && <View style={{ width: 8, height: 8, backgroundColor: colors.accent }} />}
               </View>
             </View>
           </Pressable>

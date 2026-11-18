@@ -55,12 +55,13 @@ patterns below for it.
 | `ink2` | `#4c4b45` | `#b0aea5` | Body copy, quantities, back link |
 | `ink3` | `#7b7a72` | `#87867f` | Secondary lines, mono labels, checkbox outline, ticked items |
 | `line` | `#1414131c` | `#faf9f51c` | Hairlines, chip outlines |
-| `accent` | `#c15f3c` | `#d97757` | Brand square, numbers, aisle and section labels, primary button, today, ticks |
+| `accent` | `#c15f3c` | `#d97757` | Numbers, aisle and section labels, today, cook-mode progress |
 
 Accent tint (the highlighted ingredient row in cook mode) is `accent` at 9% opacity.
 
 These are the **Clay** palette, the default. People can switch to Basil, Cobalt, Yolk or
-Beetroot, and pin light or dark, from the Appearance settings; every palette's values live in
+Beetroot, and pin light or dark, from the Appearance settings (`/appearance`; nothing links to it
+yet, so open it by URL until the account screen does). Every palette's values live in
 `apps/mobile/src/theme.ts`. Two roles sit beside `accent` so a palette's fill colour can differ
 from its text colour (Yolk's yellow can't be read on white):
 

@@ -72,7 +72,7 @@ export const palettes = {
       bgRaised: "#ebefe7",
       ink: "#142019",
       ink2: "#46524a",
-      ink3: "#6b7770",
+      ink3: "#65716a",
       line: "#1420191f",
       accent: "#2f6b3f",
     }),

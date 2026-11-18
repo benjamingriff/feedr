@@ -136,7 +136,7 @@ export function StoreProvider({
     const auth = personalToken !== undefined ? "token" : "clerk";
     const token = personalToken?.trim() ?? (await clerk?.getToken());
     if (!token)
-      throw new Error("Enter a personal token or sign in with Google.");
+      throw new Error("Enter a personal token or sign in with Apple or Google.");
     const me = await request<Me>(url, token, "/me");
     const c: Connection = {
       url,

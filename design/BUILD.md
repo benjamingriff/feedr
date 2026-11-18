@@ -185,11 +185,17 @@ the design language:
 - **Connection.** A section showing the API URL in mono ink3, with a `TextAction`
   "Disconnect".
 
-**Connect**.
-- **Page head.** "Connect" with the lede "Point feedr at your API."
-- **Fields.** Hairline-ruled fields for the API URL and the personal token.
-- **Actions.** A `PrimaryButton` "Connect". Sign-in with Clerk is a `TextAction` when it's
-  configured.
+**Sign in** (Connect).
+- **Page head.** "Sign in" with the lede "Your meal plan, cookbook and shopping list, kept up
+  to date by your agent."
+- **Actions.** When Clerk is configured, "Continue with Apple" and "Continue with Google",
+  stacked 12 apart. These are the one exception to the tokens and type roles: Apple and Google
+  set the logo, colours, fonts and proportions, and Apple is there to meet the App Store's
+  login rule (guideline 4.8). Both are 44 high, full width, white with a 1px `#747775` stroke, square
+  corners, logos on one axis. Progress shows as a mono caps line under them, since the brands'
+  titles can't change. Without Clerk, or through the "Use a personal token" `TextAction`, a
+  personal token field and a `PrimaryButton` "Connect" take their place.
+- **Fields.** A hairline-ruled API URL field below the actions, filled in by the setup wizard.
 
 ## Data changes
 

@@ -199,7 +199,7 @@ finish() {
 # ──────────────────────────────────────────────────────────────────────────
 
 
-# feedr local setup: tools, Postgres, a Clerk app with Google sign-in, the keys
+# feedr local setup: tools, Postgres, a Clerk app with Apple and Google sign-in, the keys
 # for the API and the phone app, then the API, your first sign-in and demo data.
 # Run it from anywhere: ./scripts/setup.sh. Safe to re-run: finished steps are
 # detected and skipped, and saved values are kept.
@@ -247,11 +247,11 @@ latest_sign_in() {
 # ── Intro ──────────────────────────────────────────────────────────────────
 _clear
 printf '\n%s%s  feedr setup%s\n\n' "$BOLD" "$BLUE" "$RESET"
-say "This gets feedr running on your phone, signed in with your Google account."
+say "This gets feedr running on your phone, signed in with your Apple or Google account."
 say "It takes about five minutes. The 10 stages:"
 printf '\n'
 note "   1  Tools and packages       6  Address your phone uses for the API"
-note "   2  Database                 7  Google sign-in"
+note "   2  Database                 7  Apple and Google sign-in"
 note "   3  Clerk login              8  Start the API"
 note "   4  Clerk app                9  Open the app and sign in"
 note "   5  Clerk keys              10  Demo data"
@@ -367,27 +367,28 @@ fi
 ENV_FILE=$MOBILE_ENV write_env EXPO_PUBLIC_API_URL "$api_url"
 printf '\n'; pause
 
-# ── 7. Google sign-in ──────────────────────────────────────────────────────
-stage "Google sign-in"
-what "turns on \"Sign in with Google\" for the feedr Clerk app, using Clerk's"
-say  "                shared Google login for development (nothing to set up at Google),"
-say  "                and allows Expo Go to receive the result."
-google=$(clerk_cli config pull --app "$CLERK_APP_ID" --keys connection_oauth_google 2>/dev/null \
-  | jq -r '.connection_oauth_google | "\(.enabled) \(.authenticatable)"')
-if [[ "$google" == "true true" ]]; then
-  you "nothing."
-  ok "Google sign-in is on"
-else
-  you "say yes to turn it on."
-  if confirm "Turn on Google sign-in for the feedr Clerk app?"; then
+# ── 7. Apple and Google sign-in ────────────────────────────────────────────
+stage "Apple and Google sign-in"
+what "turns on \"Sign in with Apple\" and \"Sign in with Google\" for the feedr"
+say  "                Clerk app, using Clerk's shared logins for development (nothing to"
+say  "                set up at Apple or Google), and allows Expo Go to receive the result."
+say  "                Apple is there to meet the App Store's login rule (guideline 4.8)."
+you "say yes to turn on any that are off. Otherwise, nothing."
+for provider in apple google; do
+  label=$([[ $provider == apple ]] && echo Apple || echo Google)
+  state=$(clerk_cli config pull --app "$CLERK_APP_ID" --keys "connection_oauth_$provider" 2>/dev/null \
+    | jq -r --arg k "connection_oauth_$provider" '.[$k] | "\(.enabled) \(.authenticatable)"')
+  if [[ "$state" == "true true" ]]; then
+    ok "$label sign-in is on"
+  elif confirm "Turn on $label sign-in for the feedr Clerk app?"; then
     clerk_cli config patch --app "$CLERK_APP_ID" --yes \
-      --json '{"connection_oauth_google":{"enabled":true,"authenticatable":true}}' >/dev/null
-    ok "Google sign-in is on"
+      --json "{\"connection_oauth_$provider\":{\"enabled\":true,\"authenticatable\":true}}" >/dev/null
+    ok "$label sign-in is on"
   else
-    SKIPPED+=("Turn on Google: Clerk dashboard → Configure → SSO connections → Google")
+    SKIPPED+=("Turn on $label: Clerk dashboard → Configure → SSO connections → $label")
   fi
-fi
-# After Google, Clerk sends the browser back to Expo Go at this address
+done
+# After sign-in, Clerk sends the browser back to Expo Go at this address
 # (Metro on this computer's Wi-Fi address, port 8081). Clerk must allow it.
 redirect="exp://$lan:8081/--/sso-callback"
 if clerk_cli api --app "$CLERK_APP_ID" /redirect_urls | jq -e --arg u "$redirect" 'any(.[]; .url == $u)' >/dev/null; then
@@ -396,24 +397,27 @@ else
   clerk_cli api --app "$CLERK_APP_ID" /redirect_urls --yes -d "{\"url\":\"$redirect\"}" >/dev/null
   ok "Allowed Expo Go to receive the sign-in ($redirect)"
 fi
-# Start a test Google sign-in the way the phone does, so a bad Clerk setting shows up
-# here instead of as a vague error on the phone. The Frontend API host is encoded in
-# the publishable key.
+# Start a test sign-in with each provider the way the phone does, so a bad Clerk setting
+# shows up here instead of as a vague error on the phone. The Frontend API host is encoded
+# in the publishable key.
 fapi=$(ENV_FILE=$MOBILE_ENV _existing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY | cut -d_ -f3 | base64 --decode 2>/dev/null | tr -d '$' || true)
 headers=$(mktemp)
 curl -fsS -D "$headers" -o /dev/null -X POST "https://$fapi/v1/client?_is_native=true" 2>/dev/null || true
 client=$(grep -i '^authorization:' "$headers" | cut -d' ' -f2- | tr -d '\r' || true)
 rm -f "$headers"
-probe=$(curl -sS -X POST "https://$fapi/v1/client/sign_ins?_is_native=true" -H "Authorization: $client" \
-  --data-urlencode strategy=oauth_google --data-urlencode "redirect_url=$redirect" 2>/dev/null \
-  | jq -r 'if .errors then "\(.errors[0].long_message) (\(.errors[0].code))" else "ok" end' 2>/dev/null || echo "no answer from Clerk")
-if [[ "$probe" == ok ]]; then
-  ok "Test sign-in reached Google"
-else
-  warn "Clerk refused a test sign-in: $probe"
-  note "Check the feedr app in the Clerk dashboard (Configure → User & authentication)."
-  SKIPPED+=("Fix the Clerk sign-in settings: $probe")
-fi
+for provider in apple google; do
+  label=$([[ $provider == apple ]] && echo Apple || echo Google)
+  probe=$(curl -sS -X POST "https://$fapi/v1/client/sign_ins?_is_native=true" -H "Authorization: $client" \
+    --data-urlencode "strategy=oauth_$provider" --data-urlencode "redirect_url=$redirect" 2>/dev/null \
+    | jq -r 'if .errors then "\(.errors[0].long_message) (\(.errors[0].code))" else "ok" end' 2>/dev/null || echo "no answer from Clerk")
+  if [[ "$probe" == ok ]]; then
+    ok "Test sign-in reached $label"
+  else
+    warn "Clerk refused a test $label sign-in: $probe"
+    note "Check the feedr app in the Clerk dashboard (Configure → User & authentication)."
+    SKIPPED+=("Fix the Clerk $label sign-in settings: $probe")
+  fi
+done
 note "This works with your phone on the same Wi-Fi, without Expo's --tunnel."
 printf '\n'; pause
 
@@ -450,7 +454,7 @@ printf '\n'; pause
 
 # ── 9. Sign in on your phone ───────────────────────────────────────────────
 stage "Open the app and sign in"
-what "you sign in to the app with Google. Your first sign-in creates your"
+what "you sign in to the app with Apple or Google. Your first sign-in creates your"
 say  "                feedr account."
 signed_in=$(latest_sign_in || true)
 # The latest sign-in may be someone else in the household, so check before skipping.
@@ -465,8 +469,8 @@ else
   step "Open a new terminal window in this folder and run:"
   cmd "npm run dev:mobile"
   step "Scan the QR code it shows with your iPhone's Camera. It opens in Expo Go."
-  step "On the Connect screen the API address is already filled in."
-  step "Tap \"Continue with Google\" and choose your Google account."
+  step "On the Sign in screen the API address is already filled in."
+  step "Tap \"Continue with Apple\" or \"Continue with Google\" and choose your account."
   step "You land on the Home screen. It's empty until stage 10."
   printf '\n'
   while :; do

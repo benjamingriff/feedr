@@ -469,7 +469,6 @@ else
   step "Open a new terminal window in this folder and run:"
   cmd "npm run dev:mobile"
   step "Scan the QR code it shows with your iPhone's Camera. It opens in Expo Go."
-  step "On the Sign in screen the API address is already filled in."
   step "Tap \"Continue with Apple\" or \"Continue with Google\" and choose your account."
   step "You land on the Home screen. It's empty until stage 10."
   printf '\n'

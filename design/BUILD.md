@@ -154,7 +154,7 @@ Supporting rules:
 **Shopping list.** Follow the design.
 - The week comes from a `week` param (its Monday) and defaults to the current week. The
   range in the top bar isn't tappable.
-- Ticks stay in AsyncStorage, keyed by connection and week.
+- Ticks stay in AsyncStorage, keyed by API, account and week.
 - Ticked rows stay in place.
 - The "Clear ticks" text action is disabled when nothing is ticked.
 
@@ -182,8 +182,7 @@ the design language:
   `TextAction`.
 - **Agent access.** A section with a `PrimaryButton` "Create token". Once a token exists,
   show the token and the `claude mcp add` command in mono, with copy actions.
-- **Connection.** A section showing the API URL in mono ink3, with a `TextAction`
-  "Disconnect".
+- **Account.** A section headed "Account" / "Signed in", with a `TextAction` "Sign out".
 
 **Sign in** (Connect).
 - **Page head.** "Sign in" with the lede "Your meal plan, cookbook and shopping list, kept up
@@ -193,9 +192,12 @@ the design language:
   set the logo, colours, fonts and proportions, and Apple is there to meet the App Store's
   login rule (guideline 4.8). Both are 44 high, full width, white with a 1px `#747775` stroke, square
   corners, logos on one axis. Progress shows as a mono caps line under them, since the brands'
-  titles can't change. Without Clerk, or through the "Use a personal token" `TextAction`, a
-  personal token field and a `PrimaryButton` "Connect" take their place.
-- **Fields.** A hairline-ruled API URL field below the actions, filled in by the setup wizard.
+  titles can't change. Under them: "Your first sign-in creates your feedr account."
+- **No fields.** The API address and Clerk key come from the build's environment
+  (`EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY`), so local dev and production
+  builds each point at their own API. The app has no personal-token sign-in; tokens are for
+  agents. A build missing either value shows one state line, "Sign-in isn't available right
+  now", in place of the buttons.
 
 ## Data changes
 

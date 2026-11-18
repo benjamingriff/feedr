@@ -18,7 +18,7 @@ const clerkKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 // Hold the splash screen until the fonts are in, so text never shows in a fallback face.
 void SplashScreen.preventAutoHideAsync();
 
-/** Connect until there's a connection; then one stack with Home at its root and no native headers. */
+/** Sign in until there's a signed-in account; then one stack with Home at its root and no native headers. */
 function Gate() {
   const { ready, connection } = useStore();
   const colors = useColors();

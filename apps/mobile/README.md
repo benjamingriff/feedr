@@ -12,7 +12,7 @@ npm run dev:mobile
 npm run dev:mobile:web -- --port 8082
 ```
 
-Open it in an Expo Go release that supports SDK 58. Run `./scripts/setup.sh` from the repo root first: it writes `.env.local` here with the Clerk publishable key and `EXPO_PUBLIC_API_URL`, so the Sign in screen arrives with the API address filled in and leads with "Continue with Apple" and "Continue with Google". A `feedr_…` personal token still works through "Use a personal token". `localhost` only works when the browser and the API run on the same computer.
+Open it in an Expo Go release that supports SDK 58. Run `./scripts/setup.sh` from the repo root first: it writes `.env.local` here with the Clerk publishable key and `EXPO_PUBLIC_API_URL`, which the app bakes in when Metro bundles it (restart with `--clear` after changing them). The Sign in screen has nothing to type: just "Continue with Apple" and "Continue with Google". A production build sets the same two variables to the production Clerk key and `https://` API in its build environment.
 
 ## Navigation
 
@@ -36,9 +36,9 @@ Home ─┬─ Meal plan ─┬─ Recipe ─┬─ Cook mode ── Dish-up
 | `/cook/[versionId]` | Cook mode, a full-screen modal: one step at a time, its ingredients and a timer. Takes `recipeId` and an optional `serviceId`. |
 | `/service/[id]` | Dish-up: the cooked weight and the grams for each plate. |
 | `/shopping` | Shopping list for the week in `week` (its Monday), or this week. |
-| `/people`, `/people/[id]` | People, agent tokens and the connection; the person form (`new` adds one). |
+| `/people`, `/people/[id]` | People, agent tokens and sign out; the person form (`new` adds one). |
 
-Sign in (`src/connect.tsx`) isn't a route. The root layout shows it until there is a saved connection.
+Sign in (`src/connect.tsx`) isn't a route. The root layout shows it until there is a signed-in account.
 
 ## Structure
 
@@ -46,7 +46,7 @@ Sign in (`src/connect.tsx`) isn't a route. The root layout shows it until there 
 - `src/primitives.tsx`: the components from the design (`Text`, `TopBar`, `BackLink`, `PageHead`, `PrimaryButton`, `Row` and its lanes, and so on). Screens are built from these, not from raw styles.
 - `src/recipe-parts.tsx`: what the recipe page and cook mode share: ingredient rows, a step's ingredients and where they are named in its text.
 - `src/plan.ts`: turns `/plan` into days, slots and dishes, each listing who eats it.
-- `src/store.tsx`, `src/connect.tsx`: the API client, the connection and sign-in.
+- `src/store.tsx`, `src/connect.tsx`: the API client, the signed-in account and sign-in.
 - `src/ticks.ts`, `src/dates.ts`, `src/format.ts`: shopping ticks, date helpers and display formatting.
 
 ## Things to know
@@ -55,9 +55,9 @@ Sign in (`src/connect.tsx`) isn't a route. The root layout shows it until there 
 - **Versions.** The cookbook and pick mode use the default version: the newest adapted one, or the original. A recipe with several versions has a text action that cycles through them.
 - **Ingredient terms.** Steps mark the ingredients they are linked to. A step with no links falls back to matching ingredient names in its text.
 - **Timers** run only while cook mode is open. Each step keeps its own, so going back to a step shows its countdown. There is no background alarm.
-- **Storage.** A personal connection is kept in SecureStore on iOS and in AsyncStorage on web. Shopping ticks are kept in AsyncStorage per server, account and week. Disconnecting clears the connection and the query cache, and leaves the ticks.
+- **Storage.** The signed-in account id is kept in SecureStore on iOS and in AsyncStorage on web; the session itself is Clerk's. Shopping ticks are kept in AsyncStorage per API, account and week. Signing out clears the account, the session and the query cache, and leaves the ticks.
 - **Fonts.** Hanken Grotesk and Geist Mono are loaded from `@expo-google-fonts` before the splash screen hides, with Google Sans Medium for the Google button only. Underline offsets only apply on web, because React Native can't move an underline on iOS.
-- **Clerk.** Apple and Google sign-in through `useSSO` (a browser flow, so it works in Expo Go), set up by `scripts/setup.sh` (keys in `.env.local`, see `.env.example`). The wizard allowlists the Expo Go redirect `exp://<LAN IP>:8081/--/sso-callback` in Clerk. Without a publishable key the app falls back to personal tokens only. Native Clerk client sync is off because the app uses no Clerk native components.
+- **Clerk.** Apple and Google sign-in through `useSSO` (a browser flow, so it works in Expo Go), set up by `scripts/setup.sh` (keys in `.env.local`, see `.env.example`). The wizard allowlists the Expo Go redirect `exp://<LAN IP>:8081/--/sso-callback` in Clerk. Without a publishable key or `EXPO_PUBLIC_API_URL` the Sign in screen says sign-in isn't available. Personal tokens are for agents only; the app doesn't sign in with them. Native Clerk client sync is off because the app uses no Clerk native components.
 - **Sign-in buttons.** feedr offers Sign in with Apple alongside Google to meet the App Store's login rule (guideline 4.8), and both companies set rules for custom buttons. "Continue with Apple" and "Continue with Google" follow them: logos from Apple's and Google's own kits (`assets/sign-in`), the brands' fixed colours and fonts, an Apple title at 43% of the 44 height, and the same size and weight for both. They are the one place the app's tokens and type roles don't apply; the comment on `BrandButton` lists each rule.
 
 ## Checks

@@ -27,6 +27,8 @@ npm run dev:mobile     # scan the QR code with the Camera app to open it in Expo
 
 Apple and Google sign-in need your phone on the same Wi-Fi as this computer, without Expo's `--tunnel`, because Clerk only sends the sign-in back to the Expo Go address the wizard allowed. The app talks to the API over plain HTTP, so on a network you don't control, anyone else on it can read your session or token: use the Tailscale address there, which is encrypted. To run the app in a browser, use `npm run dev:mobile:web`.
 
+The app has no settings screen for where the API lives. It reads `EXPO_PUBLIC_API_URL` and `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` when Metro bundles it: from `apps/mobile/.env.local` locally, and from the build environment for a production build, which uses the production `https://` API and Clerk key.
+
 There is no tab bar. Home shows tonight's dinner, with a button straight into cook mode, above an index of the four sections:
 
 ```
@@ -40,7 +42,7 @@ Home ─┬─ Meal plan ── Recipe ── Cook mode ── Dish-up
 - **Cookbook** lists recipes with search and meal-type filters. Agents write the recipes; the app only reads them.
 - **Cook mode** shows one step at a time with that step's ingredients and a timer. Finishing a planned meal leads to **Dish-up**, which turns the cooked weight into grams per plate.
 - **Shopping list** is the week's ingredients by aisle. Ticks are kept on the phone.
-- **People** holds each person's targets, agent tokens and the connection.
+- **People** holds each person's targets, agent tokens and sign out.
 
 The app follows the system's light or dark appearance.
 
@@ -57,7 +59,7 @@ Then, for example: "Import https://… into feedr and plan it for dinner on Mond
 
 ## Personal tokens
 
-Agents connect with personal tokens, and the app accepts them too. Create one in the app under People → Agent access, or from the command line: `npm run account:create -- "Your name"` makes a new account and prints its first token once, and `npm run account:create -- "Token name" <userId>` adds a token to an existing account. Only the token's SHA-256 hash is stored.
+Agents connect with personal tokens. The app itself signs in with Apple or Google. Create one in the app under People → Agent access, or from the command line: `npm run account:create -- "Your name"` makes a new account and prints its first token once, and `npm run account:create -- "Token name" <userId>` adds a token to an existing account. Only the token's SHA-256 hash is stored.
 
 ## Checks
 

@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { Image, Platform, Pressable, Text as RNText, View } from "react-native";
+import { Image, Pressable, Text as RNText, View } from "react-native";
 import { useSSO } from "@clerk/expo";
-import { ErrorLine, Field, Gutter, PageHead, PrimaryButton, Screen, Text, TextAction, TopBar } from "./primitives";
-import { useStore } from "./store";
+import { ErrorLine, Gutter, PageHead, PrimaryButton, Screen, StateLine, Text, TopBar } from "./primitives";
+import { API_URL, useStore } from "./store";
 import { sans } from "./theme";
 
 /** Runs an async action for a form, tracking whether it's busy and what went wrong. */
@@ -96,24 +96,19 @@ function BrandButton({ brand, onPress, disabled }: { brand: Brand; onPress: () =
 }
 
 /**
- * Apple or Google sign-in through Clerk's browser flow (works in Expo Go), then a connection that
- * uses the Clerk session instead of a personal token. The first sign-in creates the feedr account
- * on the API.
+ * Apple or Google sign-in through Clerk's browser flow (works in Expo Go), then the feedr account
+ * for that session. The first sign-in creates the account on the API.
  */
-function SocialSignIn({ url }: { url: string }) {
+function SocialSignIn() {
   const { startSSOFlow } = useSSO();
-  const { clerk, connect } = useStore();
+  const { clerk, connect, disconnect } = useStore();
   const { busy, error, run } = useAction();
   const [brand, setBrand] = useState<Brand>("apple");
-  // Signed in to Clerk already (e.g. the API was unreachable last time): just connect.
+  // Signed in to Clerk already (e.g. feedr was unreachable last time): just finish.
   if (clerk?.signedIn)
     return (
       <>
-        <PrimaryButton
-          label={busy ? "Connecting…" : "Connect"}
-          disabled={busy || !url}
-          onPress={() => void run(() => connect(url))}
-        />
+        <PrimaryButton label={busy ? "Signing in…" : "Continue"} disabled={busy} onPress={() => void run(connect)} />
         <ErrorLine error={error} />
       </>
     );
@@ -121,12 +116,15 @@ function SocialSignIn({ url }: { url: string }) {
   function signIn(next: Brand) {
     setBrand(next);
     void run(async () => {
+      // Signed out, so any saved account is from a session that ended outside Sign out (it
+      // expired, say). Forget it, so this sign-in can't reopen it before /me answers.
+      await disconnect();
       const { createdSessionId, setActive, signUp } = await startSSOFlow({ strategy: brands[next].strategy });
       if (createdSessionId && setActive) {
         await setActive({ session: createdSessionId });
-        await connect(url);
+        await connect();
       } else if (signUp?.status === "missing_requirements") {
-        throw new Error(`Clerk needs more details to finish sign-up: ${signUp.missingFields.join(", ")}.`);
+        throw new Error(`We need a few more details to finish sign-up: ${signUp.missingFields.join(", ")}.`);
       }
       // Otherwise the browser was closed: nothing to do.
     });
@@ -136,8 +134,8 @@ function SocialSignIn({ url }: { url: string }) {
   return (
     <>
       <View style={{ gap: 12 }}>
-        <BrandButton brand="apple" disabled={busy || !url} onPress={() => signIn("apple")} />
-        <BrandButton brand="google" disabled={busy || !url} onPress={() => signIn("google")} />
+        <BrandButton brand="apple" disabled={busy} onPress={() => signIn("apple")} />
+        <BrandButton brand="google" disabled={busy} onPress={() => signIn("google")} />
       </View>
       {busy && (
         <Text variant="label" style={{ paddingTop: 16 }}>
@@ -149,69 +147,27 @@ function SocialSignIn({ url }: { url: string }) {
   );
 }
 
-/** The first screen: how to sign in, and where the API is. */
+/**
+ * The first screen. The API address and Clerk key come from the build's environment, so
+ * there is nothing to type here. A build missing either can't sign anyone in, and says so.
+ */
 export function Connect() {
-  const { connect, clerk, error: storedError } = useStore();
-  // scripts/setup.sh writes EXPO_PUBLIC_API_URL, so most people never type the URL.
-  const [url, setUrl] = useState(
-    process.env.EXPO_PUBLIC_API_URL ?? (Platform.OS === "web" ? "http://localhost:4100" : ""),
-  );
-  const [token, setToken] = useState("");
-  // Lead with Apple and Google when Clerk is configured; the personal token is the fallback.
-  const [withToken, setWithToken] = useState(!clerk);
-  const { busy, error, run } = useAction();
+  const { clerk, error } = useStore();
   return (
     <Screen>
       <TopBar />
       <PageHead title="Sign in" lede="Your meal plan, cookbook and shopping list, kept up to date by your agent." />
-      <Gutter>
-        {withToken ? (
-          <>
-            <Field
-              label="Personal token"
-              placeholder="feedr_…"
-              value={token}
-              onChangeText={setToken}
-              autoCapitalize="none"
-              autoCorrect={false}
-              secureTextEntry
-              style={{ paddingTop: 0 }}
-            />
-            <ErrorLine error={error ?? storedError} />
-            <PrimaryButton
-              label={busy ? "Connecting…" : "Connect"}
-              disabled={busy || !url || !token.trim()}
-              style={{ marginTop: 28 }}
-              onPress={() => void run(() => connect(url, token))}
-            />
-          </>
-        ) : (
-          <>
-            <SocialSignIn url={url} />
-            <ErrorLine error={storedError} />
-            <Text variant="secondary" style={{ paddingTop: 16 }}>
-              Your first sign-in creates your feedr account.
-            </Text>
-          </>
-        )}
-        <Field
-          label="API URL"
-          placeholder="http://192.168.1.10:4100"
-          value={url}
-          onChangeText={setUrl}
-          autoCapitalize="none"
-          autoCorrect={false}
-          keyboardType="url"
-          style={{ marginTop: 36 }}
-        />
-        {clerk && (
-          <TextAction
-            label={withToken ? "Sign in with Apple or Google →" : "Use a personal token →"}
-            style={{ marginTop: 24 }}
-            onPress={() => setWithToken(!withToken)}
-          />
-        )}
-      </Gutter>
+      {clerk && API_URL ? (
+        <Gutter>
+          <SocialSignIn />
+          <ErrorLine error={error} />
+          <Text variant="secondary" style={{ paddingTop: 16 }}>
+            Your first sign-in creates your feedr account.
+          </Text>
+        </Gutter>
+      ) : (
+        <StateLine text="Sign-in isn’t available right now" />
+      )}
     </Screen>
   );
 }

@@ -22,18 +22,18 @@ import {
   TextAction,
   TopBar,
 } from "../../primitives";
-import { useApiQuery, useStore } from "../../store";
+import { API_URL, useApiQuery, useStore } from "../../store";
 
 /** Creates a token for an agent and shows it once, with the command that connects Claude to the MCP server. */
 function AgentAccess() {
-  const { api, connection } = useStore();
+  const { api } = useStore();
   const [token, setToken] = useState("");
   const [copied, setCopied] = useState<"token" | "command" | null>(null);
   const create = useMutation({
     mutationFn: () => api<{ token: string }>("/me/tokens", { name: "Agent token" }),
     onSuccess: (result) => setToken(result.token),
   });
-  const command = `claude mcp add --transport http feedr ${connection?.url}/mcp --header "Authorization: Bearer ${token}"`;
+  const command = `claude mcp add --transport http feedr ${API_URL}/mcp --header "Authorization: Bearer ${token}"`;
   const copy = (what: "token" | "command") =>
     void Clipboard.setStringAsync(what === "token" ? token : command).then(() => setCopied(what));
 
@@ -67,9 +67,9 @@ function AgentAccess() {
   );
 }
 
-/** Who you cook for, plus agent tokens and the API connection. */
+/** Who you cook for, plus agent tokens and signing out. */
 export default function People() {
-  const { connection, disconnect } = useStore();
+  const { disconnect } = useStore();
   const query = useApiQuery<Person[]>(["people"], "/people");
   const people = query.data ?? [];
   return (
@@ -110,11 +110,8 @@ export default function People() {
       </Gutter>
       <AgentAccess />
       <Gutter style={{ paddingTop: 44 }}>
-        <SectionHeader ruled title="Connection" meta={connection?.auth === "clerk" ? "Signed in" : "Personal token"} />
-        <View style={{ paddingVertical: 14 }}>
-          <Code>{connection?.url ?? ""}</Code>
-        </View>
-        <TextAction label={connection?.auth === "clerk" ? "Sign out" : "Disconnect"} onPress={() => void disconnect()} />
+        <SectionHeader ruled title="Account" meta="Signed in" />
+        <TextAction label="Sign out" style={{ marginTop: 14 }} onPress={() => void disconnect()} />
       </Gutter>
     </Screen>
   );

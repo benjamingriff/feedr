@@ -2,6 +2,7 @@ import { Platform, useColorScheme, type TextStyle } from "react-native";
 import { GeistMono_400Regular } from "@expo-google-fonts/geist-mono/400Regular";
 import { GeistMono_400Regular_Italic } from "@expo-google-fonts/geist-mono/400Regular_Italic";
 import { GeistMono_500Medium } from "@expo-google-fonts/geist-mono/500Medium";
+import { GoogleSans_500Medium } from "@expo-google-fonts/google-sans/500Medium";
 import { HankenGrotesk_400Regular } from "@expo-google-fonts/hanken-grotesk/400Regular";
 import { HankenGrotesk_500Medium } from "@expo-google-fonts/hanken-grotesk/500Medium";
 import { HankenGrotesk_600SemiBold } from "@expo-google-fonts/hanken-grotesk/600SemiBold";
@@ -43,6 +44,8 @@ export const fonts = {
   GeistMono_400Regular,
   GeistMono_400Regular_Italic,
   GeistMono_500Medium,
+  /** Only for the "Continue with Google" button, which Google's branding rules set in Google Sans. */
+  GoogleSans_500Medium,
   HankenGrotesk_400Regular,
   HankenGrotesk_500Medium,
   HankenGrotesk_600SemiBold,

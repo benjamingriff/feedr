@@ -15,19 +15,15 @@ import {
 } from "@tanstack/react-query";
 import type { Me } from "@feedr/core";
 
-type Connection = {
-  url: string;
-  token?: string;
-  auth: "token" | "clerk";
-  userId: string;
-};
+/** The signed-in feedr account. The session itself is Clerk's. */
+type Connection = { userId: string };
 export type ClerkSession = {
   loaded: boolean;
   signedIn: boolean;
   getToken: () => Promise<string | null>;
   signOut: () => Promise<void>;
 };
-const key = "feedr.connection.v1";
+const key = "feedr.connection.v2";
 const storage = {
   get: () =>
     Platform.OS === "web"
@@ -42,7 +38,7 @@ const storage = {
       ? AsyncStorage.removeItem(key)
       : SecureStore.deleteItemAsync(key),
 };
-export function apiUrl(value: string) {
+function apiUrl(value: string) {
   const url = value.trim().replace(/\/+$/, "");
   let parsed: URL;
   try {
@@ -60,6 +56,21 @@ export function apiUrl(value: string) {
     throw new Error("Use a plain http:// or https:// API URL.");
   return url;
 }
+
+/**
+ * The API this build talks to: `EXPO_PUBLIC_API_URL`, which Expo bakes in when it bundles the
+ * app. Local dev points it at this computer (scripts/setup.sh writes it to .env.local); a
+ * production build sets the production https:// address. Null when unset or invalid, and
+ * sign-in is then unavailable.
+ */
+export const API_URL = (() => {
+  try {
+    return apiUrl(process.env.EXPO_PUBLIC_API_URL ?? "");
+  } catch {
+    return null;
+  }
+})();
+
 async function request<T>(
   url: string,
   token: string,
@@ -82,9 +93,7 @@ async function request<T>(
         signal: controller.signal,
       });
     } catch {
-      throw new Error(
-        `Could not reach ${url}. Check the API address and network. On iPhone use your computer’s LAN address, not localhost.`,
-      );
+      throw new Error("Couldn’t reach feedr. Check your connection and try again.");
     }
     const data: unknown =
       response.status === 204 ? undefined : await response.json();
@@ -104,7 +113,7 @@ type Store = {
   ready: boolean;
   error: string;
   clerk?: ClerkSession;
-  connect: (url: string, token?: string) => Promise<void>;
+  connect: () => Promise<void>;
   disconnect: () => Promise<void>;
   api: <T>(path: string, body?: unknown, method?: string) => Promise<T>;
 };
@@ -127,23 +136,16 @@ export function StoreProvider({
         if (raw) setConnection(JSON.parse(raw) as Connection);
       })
       .catch(() =>
-        setError("Could not read saved connection. Please reconnect."),
+        setError("Couldn’t restore your sign-in. Please sign in again."),
       )
       .finally(() => setReady(true));
   }, []);
-  async function connect(input: string, personalToken?: string) {
-    const url = apiUrl(input);
-    const auth = personalToken !== undefined ? "token" : "clerk";
-    const token = personalToken?.trim() ?? (await clerk?.getToken());
-    if (!token)
-      throw new Error("Enter a personal token or sign in with Google.");
-    const me = await request<Me>(url, token, "/me");
-    const c: Connection = {
-      url,
-      auth,
-      userId: me.id,
-      ...(auth === "token" ? { token } : {}),
-    };
+  /** Finds the feedr account for the Clerk session; the first sign-in creates it. */
+  async function connect() {
+    const token = await clerk?.getToken();
+    if (!API_URL || !token) throw new Error("Please sign in again.");
+    const me = await request<Me>(API_URL, token, "/me");
+    const c: Connection = { userId: me.id };
     await storage.set(JSON.stringify(c));
     client.clear();
     setConnection(c);
@@ -156,19 +158,15 @@ export function StoreProvider({
     if (clerk?.signedIn) await clerk.signOut();
   }
   async function api<T>(path: string, body?: unknown, method?: string) {
-    if (!connection) throw new Error("Connect to your API first.");
-    const token =
-      connection.auth === "clerk" ? await clerk?.getToken() : connection.token;
-    if (!token)
-      throw new Error(
-        "Your session has expired. Disconnect in People and sign in again.",
-      );
-    return request<T>(connection.url, token, path, body, method);
+    const token = await clerk?.getToken();
+    if (!API_URL || !connection || !token) throw new Error("Please sign in again.");
+    return request<T>(API_URL, token, path, body, method);
   }
   return (
     <Context.Provider
       value={{
-        connection,
+        // A saved account only counts while its Clerk session lasts and the build has an API.
+        connection: clerk?.signedIn && API_URL ? connection : null,
         ready: ready && (!clerk || clerk.loaded),
         error,
         clerk,
@@ -197,7 +195,7 @@ export function useApiQuery<T>(
 ) {
   const { api, connection } = useStore();
   return useQuery({
-    queryKey: [connection?.url, connection?.userId, ...key],
+    queryKey: [connection?.userId, ...key],
     queryFn: () => api<T>(path),
     enabled: !!connection && (options.enabled ?? true),
     placeholderData: options.keepPrevious ? keepPreviousData : undefined,

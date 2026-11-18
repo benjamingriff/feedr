@@ -16,7 +16,7 @@ Requires Node 24, Docker, jq and an iPhone with Expo Go. Run the setup wizard an
 ./scripts/setup.sh
 ```
 
-It takes about five minutes and says at every stage what it's doing and what, if anything, you need to do. It installs packages and sets up Postgres, then uses the Clerk CLI to create a Clerk app called "feedr" with Google sign-in, writing the keys to `.env` and `apps/mobile/.env.local`. It saves the address your phone uses for the API, starts the API, and waits while you sign in with Google on your phone. Finally it offers to load demo data. Re-running it is safe: finished steps are detected and skipped.
+It takes about five minutes and says at every stage what it's doing and what, if anything, you need to do. It installs packages and sets up Postgres, then uses the Clerk CLI to create a Clerk app called "feedr" with Apple and Google sign-in, writing the keys to `.env` and `apps/mobile/.env.local`. It saves the address your phone uses for the API, starts the API, and waits while you sign in with Apple or Google on your phone. Finally it offers to load demo data. Re-running it is safe: finished steps are detected and skipped.
 
 Day to day, once setup is done:
 
@@ -25,7 +25,9 @@ npm run dev:api        # or: docker compose up -d api
 npm run dev:mobile     # scan the QR code with the Camera app to open it in Expo Go
 ```
 
-Google sign-in needs your phone on the same Wi-Fi as this computer, without Expo's `--tunnel`, because Clerk only sends the sign-in back to the Expo Go address the wizard allowed. The app talks to the API over plain HTTP, so on a network you don't control, anyone else on it can read your session or token: use the Tailscale address there, which is encrypted. To run the app in a browser, use `npm run dev:mobile:web`.
+Apple and Google sign-in need your phone on the same Wi-Fi as this computer, without Expo's `--tunnel`, because Clerk only sends the sign-in back to the Expo Go address the wizard allowed. The app talks to the API over plain HTTP, so on a network you don't control, anyone else on it can read your session or token: use the Tailscale address there, which is encrypted. To run the app in a browser, use `npm run dev:mobile:web`.
+
+The app has no settings screen for where the API lives. It reads `EXPO_PUBLIC_API_URL` and `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` when Metro bundles it: from `apps/mobile/.env.local` locally, and from the build environment for a production build, which uses the production `https://` API and Clerk key.
 
 There is no tab bar. Home shows tonight's dinner, with a button straight into cook mode, above an index of the four sections:
 
@@ -40,7 +42,7 @@ Home ─┬─ Meal plan ── Recipe ── Cook mode ── Dish-up
 - **Cookbook** lists recipes with search and meal-type filters. Agents write the recipes; the app only reads them.
 - **Cook mode** shows one step at a time with that step's ingredients and a timer. Finishing a planned meal leads to **Dish-up**, which turns the cooked weight into grams per plate.
 - **Shopping list** is the week's ingredients by aisle. Ticks are kept on the phone.
-- **People** holds each person's targets, agent tokens and the connection.
+- **People** holds each person's targets, agent tokens and sign out.
 
 The app follows the system's light or dark appearance.
 
@@ -57,7 +59,7 @@ Then, for example: "Import https://… into feedr and plan it for dinner on Mond
 
 ## Personal tokens
 
-Agents connect with personal tokens, and the app accepts them too. Create one in the app under People → Agent access, or from the command line: `npm run account:create -- "Your name"` makes a new account and prints its first token once, and `npm run account:create -- "Token name" <userId>` adds a token to an existing account. Only the token's SHA-256 hash is stored.
+Agents connect with personal tokens; the app itself signs in with Apple or Google. Create a token for your account in the app under People → Agent access. From the command line, `npm run account:create -- "Token name" <userId>` adds a token to an existing account, and `npm run account:create -- "Your name"` makes a new account and prints its first token once. That new account has no Apple or Google login, so the app can't open it, and what an agent adds there won't show in the app. Only the token's SHA-256 hash is stored.
 
 ## Checks
 

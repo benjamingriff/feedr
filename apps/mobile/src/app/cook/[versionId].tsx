@@ -97,7 +97,7 @@ function Cooking({ recipe, version, serviceId }: { recipe: Recipe; version: Reci
       <CookBar onClose={close} />
       <Gutter style={{ flexDirection: "row", gap: 4 }}>
         {steps.map((s, i) => (
-          <View key={s.id} style={{ flex: 1, height: 3, backgroundColor: i <= index ? colors.accentFill : colors.line }} />
+          <View key={s.id} style={{ flex: 1, height: 3, backgroundColor: i <= index ? colors.accent : colors.line }} />
         ))}
       </Gutter>
       <ScrollView

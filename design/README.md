@@ -66,7 +66,7 @@ from its text colour (Yolk's yellow can't be read on white):
 
 | Token | Use |
 |---|---|
-| `accentFill` | Primary button, brand square, ticked checkbox, cook-mode progress. Defaults to `accent`. |
+| `accentFill` | Primary button, brand square, ticked checkbox. Defaults to `accent`. |
 | `onAccent` | Text and arrows on `accentFill`. Defaults to `bg`. |
 
 The status bar style is dark-content in light mode and light-content in dark mode.

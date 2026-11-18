@@ -51,9 +51,10 @@ export function AppearanceProvider({ children, onReady }: { children: ReactNode;
     if (appearance) onReady?.();
   }, [appearance, onReady]);
   // On iOS and Android, pin the native scheme too, so keyboards and alerts match the app.
+  const mode = appearance?.mode;
   useEffect(() => {
-    if (appearance && !WEB) RNAppearance.setColorScheme(appearance.mode === "system" ? "auto" : appearance.mode);
-  }, [appearance]);
+    if (mode && !WEB) RNAppearance.setColorScheme(mode === "system" ? "auto" : mode);
+  }, [mode]);
 
   const value = useMemo(() => {
     const current = appearance ?? defaultAppearance;

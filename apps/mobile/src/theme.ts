@@ -19,7 +19,7 @@ export type Colors = {
   line: string;
   /** Accent text, numbers and rules. */
   accent: string;
-  /** Solid accent areas: the primary button, brand square, ticks and cook-mode progress. */
+  /** Solid accent areas: the primary button, brand square and ticks. */
   accentFill: string;
   /** Text and glyphs drawn on `accentFill`. */
   onAccent: string;

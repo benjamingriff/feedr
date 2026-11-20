@@ -76,16 +76,24 @@ jobs:
             echo "::error::A build for fingerprint $hash is already running. Run Release again once it finishes."
             exit 1
           else
-            build_id=$(eas build --platform ios --profile production --auto-submit --non-interactive --wait --json | jq -er '.[0].id')
+            # --wait also waits for the TestFlight submission, and exits non-zero if either fails.
+            status=0
+            builds=$(eas build --platform ios --profile production --auto-submit --non-interactive --wait --json) || status=$?
+            build_id=$(jq -r '.[0] | select(.status == "FINISHED") | .id' <<<"$builds" 2>/dev/null || true)
             echo "kind=TestFlight build" >> "$GITHUB_OUTPUT"
-            {
-              echo "Built fingerprint \`$hash\` (build \`$build_id\`) and sent it to TestFlight."
-              echo
-              echo "If the build never reaches TestFlight, the submission failed. Don't rerun Release: it would see"
-              echo "the finished build and publish an update instead. Submit this build again:"
-              echo
-              echo "    cd apps/mobile && npx eas-cli@latest submit --platform ios --profile production --id $build_id"
-            } >> "$GITHUB_STEP_SUMMARY"
+            if [ "$status" -eq 0 ]; then
+              echo "Built fingerprint \`$hash\` (build \`$build_id\`) and submitted it to TestFlight." >> "$GITHUB_STEP_SUMMARY"
+            elif [ -n "$build_id" ]; then
+              # Rerunning Release would now find the finished build and publish an update instead.
+              {
+                echo "Build \`$build_id\` finished but its TestFlight submission failed. Don't rerun Release."
+                echo "Submit the build again:"
+                echo
+                echo "    cd apps/mobile && npx eas-cli@latest submit --platform ios --profile production --id $build_id"
+              } >> "$GITHUB_STEP_SUMMARY"
+              echo "::error::Build $build_id finished but its submission failed. See the summary for the command to resubmit."
+            fi
+            exit "$status"
           fi
 
       - name: Tag the release

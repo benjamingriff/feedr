@@ -287,8 +287,11 @@ ok "Docker is running"
 say "Installing packages (about a minute the first time)…"
 pnpm_cli install --reporter=silent
 ok "Packages installed"
-# Day to day you type pnpm in this folder yourself. With mise, that needs mise in your shell.
+# Day to day you type pnpm in this folder yourself. With mise, that needs mise in your shell;
+# until then, the commands this wizard shows you go through mise exec.
+PNPM=pnpm
 if ! (pnpm --version 2>/dev/null | grep -q '^11\.'); then
+  PNPM="mise exec -- pnpm"
   warn "pnpm 11 isn't on your PATH in this folder. Add mise to your shell: https://mise.jdx.dev/getting-started.html"
   SKIPPED+=("Get pnpm 11 on your PATH here (mise activate in your shell rc), or prefix commands with: mise exec --")
 fi
@@ -454,7 +457,7 @@ else
   read -r -p "  Type 1 or 2 [1]: " api_where || true
   if [[ "$api_where" == 2 ]]; then
     say "Open a new terminal window in this folder and run:"
-    cmd "pnpm dev:api"
+    cmd "$PNPM dev:api"
     say "Leave it running. This wizard carries on once the API answers."
   else
     say "Building and starting the API container (a minute or two the first time)…"
@@ -483,7 +486,7 @@ if [[ -n "$signed_in" ]]; then
 else
   you "follow these steps."
   step "Open a new terminal window in this folder and run:"
-  cmd "pnpm dev:mobile"
+  cmd "$PNPM dev:mobile"
   step "Scan the QR code it shows with your iPhone's Camera. It opens in Expo Go."
   step "Tap \"Continue with Apple\" or \"Continue with Google\" and choose your account."
   step "You land on the Home screen. It's empty until stage 10."

@@ -79,11 +79,17 @@ jobs:
             # --wait also waits for the TestFlight submission, and exits non-zero if either fails.
             status=0
             builds=$(eas build --platform ios --profile production --auto-submit --non-interactive --wait --json) || status=$?
-            build_id=$(jq -r '.[0] | select(.status == "FINISHED") | .id' <<<"$builds" 2>/dev/null || true)
+            build_id=$(jq -r '.[0].id // empty' <<<"$builds" 2>/dev/null || true)
             echo "kind=TestFlight build" >> "$GITHUB_OUTPUT"
+            # The status in that JSON can be from before the wait, so ask EAS for the build as it is now.
+            finished=false
+            if [ -n "$build_id" ]; then
+              current=$(eas build:view "$build_id" --json 2>/dev/null | jq -r '.status // empty' || true)
+              [ "$current" = FINISHED ] && finished=true
+            fi
             if [ "$status" -eq 0 ]; then
               echo "Built fingerprint \`$hash\` (build \`$build_id\`) and submitted it to TestFlight." >> "$GITHUB_STEP_SUMMARY"
-            elif [ -n "$build_id" ]; then
+            elif [ "$finished" = true ]; then
               # Rerunning Release would now find the finished build and publish an update instead.
               {
                 echo "Build \`$build_id\` finished but its TestFlight submission failed. Don't rerun Release."

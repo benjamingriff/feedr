@@ -8,6 +8,8 @@ From the repository root:
 npm install
 npm run dev:api
 npm run dev:mobile
+# or through Expo's tunnel, when a firewall blocks the phone (needs `npx expo login`):
+npm run dev:mobile:tunnel
 # or, in a browser:
 npm run dev:mobile:web -- --port 8082
 ```

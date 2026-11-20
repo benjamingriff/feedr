@@ -23,9 +23,10 @@ Day to day, once setup is done:
 ```bash
 npm run dev:api        # or: docker compose up -d api
 npm run dev:mobile     # scan the QR code with the Camera app to open it in Expo Go
+npm run dev:mobile:tunnel  # the same through Expo's tunnel, when a firewall blocks the phone (needs `npx expo login`)
 ```
 
-Apple and Google sign-in need your phone on the same Wi-Fi as this computer, without Expo's `--tunnel`, because Clerk only sends the sign-in back to the Expo Go address the wizard allowed. The app talks to the API over plain HTTP, so on a network you don't control, anyone else on it can read your session or token: use the Tailscale address there, which is encrypted. To run the app in a browser, use `npm run dev:mobile:web`.
+Your phone still needs to reach the API on this computer (port 4100); the tunnel only carries the app. The app talks to the API over plain HTTP, so on a network you don't control, anyone else on it can read your session or token: use the Tailscale address there, which is encrypted. To run the app in a browser, use `npm run dev:mobile:web`.
 
 The app has no settings screen for where the API lives. It reads `EXPO_PUBLIC_API_URL` and `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` when Metro bundles it: from `apps/mobile/.env.local` locally, and from the build environment for a production build, which uses the production `https://` API and Clerk key.
 

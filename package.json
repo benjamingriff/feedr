@@ -12,6 +12,7 @@
   "scripts": {
     "dev:api": "npm run dev -w @feedr/api",
     "dev:mobile": "npm run start -w @feedr/mobile",
+    "dev:mobile:tunnel": "npm run tunnel -w @feedr/mobile",
     "db:migrate": "npm run migrate -w @feedr/api",
     "account:create": "npm run account -w @feedr/api",
     "seed": "npm run seed -w @feedr/api",

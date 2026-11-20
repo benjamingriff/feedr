@@ -130,7 +130,7 @@ export function BackLink({
   flush = false,
 }: {
   label: string;
-  fallback?: "/" | "/plan" | "/cookbook" | "/people";
+  fallback?: "/" | "/plan" | "/cookbook" | "/people" | "/account";
   flush?: boolean;
 }) {
   return (
@@ -627,4 +627,29 @@ export function confirmAction(title: string, message: string, action: string, on
     { text: "Cancel", style: "cancel" },
     { text: action, style: "destructive", onPress: onConfirm },
   ]);
+}
+
+/** A square on/off switch: an outlined track with a knob, filled `accentFill` when on. */
+export function Toggle({ value, onChange, label }: { value: boolean; onChange: (next: boolean) => void; label: string }) {
+  const colors = useColors();
+  return (
+    <Pressable
+      accessibilityRole="switch"
+      accessibilityLabel={label}
+      aria-checked={value}
+      hitSlop={10}
+      onPress={() => onChange(!value)}
+      style={{
+        width: 40,
+        height: 22,
+        padding: 2,
+        borderWidth: 1,
+        borderColor: value ? colors.accentFill : colors.ink3,
+        backgroundColor: value ? colors.accentFill : "transparent",
+        alignItems: value ? "flex-end" : "flex-start",
+      }}
+    >
+      <View style={{ width: 16, height: 16, backgroundColor: value ? colors.onAccent : colors.ink3 }} />
+    </Pressable>
+  );
 }

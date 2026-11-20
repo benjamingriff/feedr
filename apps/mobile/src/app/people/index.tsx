@@ -1,75 +1,23 @@
-import { useState } from "react";
-import { View } from "react-native";
 import { router } from "expo-router";
-import { useMutation } from "@tanstack/react-query";
-import * as Clipboard from "expo-clipboard";
 import type { Person } from "@feedr/core";
 import { num } from "../../format";
 import {
   ArrowLane,
   BackLink,
-  Code,
-  ErrorLine,
   Fill,
   Gutter,
   PageHead,
-  PrimaryButton,
   QueryState,
   Row,
   Screen,
-  SectionHeader,
   Text,
   TextAction,
   TopBar,
 } from "../../primitives";
-import { API_URL, useApiQuery, useStore } from "../../store";
+import { useApiQuery } from "../../store";
 
-/** Creates a token for an agent and shows it once, with the command that connects Claude to the MCP server. */
-function AgentAccess() {
-  const { api } = useStore();
-  const [token, setToken] = useState("");
-  const [copied, setCopied] = useState<"token" | "command" | null>(null);
-  const create = useMutation({
-    mutationFn: () => api<{ token: string }>("/me/tokens", { name: "Agent token" }),
-    onSuccess: (result) => setToken(result.token),
-  });
-  const command = `claude mcp add --transport http feedr ${API_URL}/mcp --header "Authorization: Bearer ${token}"`;
-  const copy = (what: "token" | "command") =>
-    void Clipboard.setStringAsync(what === "token" ? token : command).then(() => setCopied(what));
-
-  return (
-    <Gutter style={{ paddingTop: 44 }}>
-      <SectionHeader ruled title="Agent access" meta="MCP" />
-      <Text variant="note" style={{ paddingVertical: 14 }}>
-        {token
-          ? "Save this token now. It's shown once and can't be read again."
-          : "A token lets an agent add recipes and plan meals for you."}
-      </Text>
-      {!token && (
-        <PrimaryButton label={create.isPending ? "Creating…" : "Create token"} disabled={create.isPending} onPress={() => create.mutate()} />
-      )}
-      <ErrorLine error={create.error} />
-      {!!token && (
-        <View style={{ gap: 20 }}>
-          <View style={{ gap: 8 }}>
-            <Text variant="label">Token</Text>
-            <Code>{token}</Code>
-            <TextAction label={copied === "token" ? "Copied" : "Copy token"} onPress={() => copy("token")} />
-          </View>
-          <View style={{ gap: 8 }}>
-            <Text variant="label">Connect Claude</Text>
-            <Code>{command}</Code>
-            <TextAction label={copied === "command" ? "Copied" : "Copy command"} onPress={() => copy("command")} />
-          </View>
-        </View>
-      )}
-    </Gutter>
-  );
-}
-
-/** Who you cook for, plus agent tokens and signing out. */
+/** Who you cook for. Agent tokens and signing out live on Account. */
 export default function People() {
-  const { disconnect } = useStore();
   const query = useApiQuery<Person[]>(["people"], "/people");
   const people = query.data ?? [];
   return (
@@ -107,11 +55,6 @@ export default function People() {
             onPress={() => router.push({ pathname: "/people/[id]", params: { id: "new" } })}
           />
         )}
-      </Gutter>
-      <AgentAccess />
-      <Gutter style={{ paddingTop: 44 }}>
-        <SectionHeader ruled title="Account" meta="Signed in" />
-        <TextAction label="Sign out" style={{ marginTop: 14 }} onPress={() => void disconnect()} />
       </Gutter>
     </Screen>
   );

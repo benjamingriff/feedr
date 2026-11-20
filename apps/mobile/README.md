@@ -24,7 +24,10 @@ Home ─┬─ Meal plan ─┬─ Recipe ─┬─ Cook mode ── Dish-up
       │             └─ Cookbook (pick mode)
       ├─ Cookbook ─── Recipe ── Cook mode
       ├─ Shopping list
-      └─ People ───── Person
+      ├─ People ───── Person
+      └─ Account ─┬─ Appearance
+                  ├─ Invite to your home
+                  └─ Delete account
 ```
 
 | Route | Screen |
@@ -36,7 +39,10 @@ Home ─┬─ Meal plan ─┬─ Recipe ─┬─ Cook mode ── Dish-up
 | `/cook/[versionId]` | Cook mode, a full-screen modal: one step at a time, its ingredients and a timer. Takes `recipeId` and an optional `serviceId`. |
 | `/service/[id]` | Dish-up: the cooked weight and the grams for each plate. |
 | `/shopping` | Shopping list for the week in `week` (its Monday), or this week. |
-| `/people`, `/people/[id]` | People, agent tokens and sign out; the person form (`new` adds one). |
+| `/people`, `/people/[id]` | People; the person form (`new` adds one). |
+| `/account` | Account: profile, your home, settings, agent tokens, sign out and delete. Households, the cooking and reminder settings, export and delete are mocks for now. |
+| `/appearance` | Colour palette and light or dark mode, opened from Account. |
+| `/account/invite`, `/account/delete` | Invite someone to your home (a mock); confirm deleting the account. |
 
 Sign in (`src/connect.tsx`) isn't a route. The root layout shows it until there is a signed-in account.
 
@@ -45,6 +51,7 @@ Sign in (`src/connect.tsx`) isn't a route. The root layout shows it until there 
 - `src/theme.ts`: the light and dark tokens, the type roles and the lane widths. Everything follows the system appearance.
 - `src/primitives.tsx`: the components from the design (`Text`, `TopBar`, `BackLink`, `PageHead`, `PrimaryButton`, `Row` and its lanes, and so on). Screens are built from these, not from raw styles.
 - `src/recipe-parts.tsx`: what the recipe page and cook mode share: ingredient rows, a step's ingredients and where they are named in its text.
+- `src/account-parts.tsx`: the account monogram and settings row that Account and its screens share.
 - `src/plan.ts`: turns `/plan` into days, slots and dishes, each listing who eats it.
 - `src/store.tsx`, `src/connect.tsx`: the API client, the signed-in account and sign-in.
 - `src/ticks.ts`, `src/dates.ts`, `src/format.ts`: shopping ticks, date helpers and display formatting.

@@ -42,9 +42,10 @@ Home ─┬─ Meal plan ── Recipe ── Cook mode ── Dish-up
 - **Cookbook** lists recipes with search and meal-type filters. Agents write the recipes; the app only reads them.
 - **Cook mode** shows one step at a time with that step's ingredients and a timer. Finishing a planned meal leads to **Dish-up**, which turns the cooked weight into grams per plate.
 - **Shopping list** is the week's ingredients by aisle. Ticks are kept on the phone.
-- **People** holds each person's targets, agent tokens and sign out.
+- **People** holds each person's targets.
+- **Account** shows who's signed in and holds the settings, agent tokens, sign out and account deletion. Shared homes are mocked there for now.
 
-The app follows the system's light or dark appearance.
+The app follows the system's light or dark appearance unless you pin one, and offers five colour palettes, under Account → Colour and mode.
 
 ## Connect an agent (MCP)
 
@@ -59,7 +60,7 @@ Then, for example: "Import https://… into feedr and plan it for dinner on Mond
 
 ## Personal tokens
 
-Agents connect with personal tokens; the app itself signs in with Apple or Google. Create a token for your account in the app under People → Agent access. From the command line, `npm run account:create -- "Token name" <userId>` adds a token to an existing account, and `npm run account:create -- "Your name"` makes a new account and prints its first token once. That new account has no Apple or Google login, so the app can't open it, and what an agent adds there won't show in the app. Only the token's SHA-256 hash is stored.
+Agents connect with personal tokens; the app itself signs in with Apple or Google. Create a token for your account in the app under Account → Agent access. From the command line, `npm run account:create -- "Token name" <userId>` adds a token to an existing account, and `npm run account:create -- "Your name"` makes a new account and prints its first token once. That new account has no Apple or Google login, so the app can't open it, and what an agent adds there won't show in the app. Only the token's SHA-256 hash is stored.
 
 ## Checks
 

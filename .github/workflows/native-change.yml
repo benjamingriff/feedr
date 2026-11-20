@@ -31,9 +31,10 @@ jobs:
 
       - id: compare
         name: Compare with main
+        shell: bash # with pipefail, so a failed fingerprint stops here
         run: |
           fingerprint() { (cd "$1" && pnpm install --frozen-lockfile --filter @feedr/mobile... > /dev/null \
-            && cd apps/mobile && pnpm exec expo-updates fingerprint:generate --platform ios | jq -r .hash); }
+            && cd apps/mobile && pnpm exec expo-updates fingerprint:generate --platform ios | jq -er .hash); }
           git worktree add -q "$RUNNER_TEMP/base" HEAD^1
           if ! grep -q '"expo-updates"' "$RUNNER_TEMP/base/apps/mobile/package.json"; then
             echo "main has no expo-updates yet; nothing to compare."

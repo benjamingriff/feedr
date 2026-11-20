@@ -260,6 +260,11 @@ run pnpm --version >/dev/null 2>&1 || die "pnpm isn't available. Run ./scripts/s
 REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
 ok "jq, gh (signed in), age, pnpm"
 ok "Repository $REPO"
+git fetch --quiet origin main
+# Railway only offers Wait for CI once main has a workflow that runs on push.
+git cat-file -e origin/main:.github/workflows/ci.yml 2>/dev/null \
+  || die "Merge the tooling PR first: main needs its CI workflow before Railway can wait for it."
+ok "main has CI"
 printf '\n'; pause
 
 # ── 2. Protect main ────────────────────────────────────────────────────────
@@ -316,7 +321,7 @@ printf '\n'; pause
 # ── 4. Railway: the API service ────────────────────────────────────────────
 stage "Railway: the API service"
 what "adds the API, built from this repo's Dockerfile, and sets when it deploys:"
-say  "                only for commits on main that pass CI and touch the API."
+say  "                for each commit on main once its CI passes."
 if healthy "$FEEDR_API_URL"; then
   you "nothing."
   ok "The API is set up"
@@ -326,8 +331,6 @@ else
   step "Rename the new service api. Railway finds the Dockerfile at the repo root."
   step "In the api service, open Settings, then set:"
   note "     Source → Branch: main, and turn on Wait for CI"
-  note "     Build → Watch Paths, one per line:"
-  note "       apps/api/**  packages/core/**  Dockerfile  package.json  pnpm-lock.yaml  pnpm-workspace.yaml"
   note "     Deploy → Healthcheck Path: /health"
   note "     Deploy → Restart Policy: On Failure"
   printf '\n'
@@ -512,8 +515,10 @@ if gh secret list --repo "$REPO" --json name -q '.[].name' | grep -qx DATABASE_P
   ok "GitHub has DATABASE_PUBLIC_URL"
 else
   you "copy the database's public address from Railway (it's hidden as you paste)."
-  step "In Railway, open the Postgres service → Variables → DATABASE_PUBLIC_URL, and copy it."
-  note "     The backup runs on GitHub, outside Railway's private network, so it needs this one."
+  note "The backup runs on GitHub, outside Railway's private network, so the database needs a"
+  note "public address. Its password still protects it."
+  step "In Railway, open the Postgres service → Settings → Networking, and turn on public access."
+  step "Then Variables → DATABASE_PUBLIC_URL (it appears once public access is on), and copy it."
   ask_secret DATABASE_PUBLIC_URL "Paste DATABASE_PUBLIC_URL:"
   set_secret DATABASE_PUBLIC_URL "$DATABASE_PUBLIC_URL"
   unset DATABASE_PUBLIC_URL
@@ -532,7 +537,7 @@ else
   changed=$(git status --short -- "$APP_JSON" "$EAS_JSON")
   you "tell Claude the wizard is at the hand-back. Then:"
   [[ -n "$changed" ]] && step "Claude commits these to the deploy PR:" && printf '%s\n' "$changed" | sed 's/^/        /'
-  step "Merge the tooling PR, then the deploy PR."
+  step "Merge the deploy PR."
   step "Re-run this wizard. It skips to the first release."
   finish
   exit 0
@@ -559,8 +564,9 @@ else
   fi
 fi
 say "Once Apple has processed the build (App Store Connect emails you):"
-step "App Store Connect → Users and Access → + → invite your partner. Any role works for"
-say  "           TestFlight; Customer Support sees the least."
+step "App Store Connect → Users and Access → + → invite your partner with the Marketing role"
+say  "           and access to this app. Internal testers need Admin, App Manager, Developer or"
+say  "           Marketing; Marketing can change the least."
 step "Your app → TestFlight → Internal Testing → + → a group called Household. Add"
 say  "           yourself and your partner, and turn on automatic distribution."
 step "On each iPhone, install TestFlight from the App Store and accept the email invite."

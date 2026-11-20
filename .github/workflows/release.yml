@@ -47,6 +47,7 @@ jobs:
       - id: ship
         name: Publish an update, or build for TestFlight
         working-directory: apps/mobile
+        shell: bash # with pipefail, so a failed eas command stops the release
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           MESSAGE: ${{ inputs.message }}
@@ -75,9 +76,16 @@ jobs:
             echo "::error::A build for fingerprint $hash is already running. Run Release again once it finishes."
             exit 1
           else
-            eas build --platform ios --profile production --auto-submit --non-interactive --wait
+            build_id=$(eas build --platform ios --profile production --auto-submit --non-interactive --wait --json | jq -er '.[0].id')
             echo "kind=TestFlight build" >> "$GITHUB_OUTPUT"
-            echo "Built fingerprint \`$hash\` and submitted it to TestFlight." >> "$GITHUB_STEP_SUMMARY"
+            {
+              echo "Built fingerprint \`$hash\` (build \`$build_id\`) and sent it to TestFlight."
+              echo
+              echo "If the build never reaches TestFlight, the submission failed. Don't rerun Release: it would see"
+              echo "the finished build and publish an update instead. Submit this build again:"
+              echo
+              echo "    cd apps/mobile && npx eas-cli@latest submit --platform ios --profile production --id $build_id"
+            } >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Tag the release

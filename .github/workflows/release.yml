@@ -1,0 +1,89 @@
+# Ships main to phones. Run it from the Actions tab ("Release" → Run workflow) when you want
+# what's merged on your phone; merging alone only deploys the API.
+#
+# It computes the app's native fingerprint (a hash of everything native: Expo modules, app.json,
+# the Expo SDK). If a finished production build already has that fingerprint, the JavaScript goes
+# out as an over-the-air update in a minute and costs no build. If not, native code changed, so it
+# makes a new build (one of the free plan's 15 iOS builds a month) and submits it to TestFlight.
+#
+# Fingerprints are only computed here, on Linux: another OS can hash differently and miss builds.
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      message:
+        description: Update message (defaults to the last commit's subject)
+        required: false
+        type: string
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write # tag the release
+
+jobs:
+  release:
+    name: Update or build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    # A build waits in the free plan's queue, then about 20 minutes to build.
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: jdx/mise-action@v2
+      - run: pnpm install --frozen-lockfile
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+          # Installs eas-cli into the action's own folder; pnpm 11 refuses its build scripts there.
+          packager: npm
+
+      - id: ship
+        name: Publish an update, or build for TestFlight
+        working-directory: apps/mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          MESSAGE: ${{ inputs.message }}
+        run: |
+          # eas-cli prints a notice before the JSON, so keep from the first "{" on.
+          fingerprint=$(eas fingerprint:generate --platform ios --build-profile production --json --non-interactive | sed -n '/^{/,$p')
+          hash=$(jq -er '.hash' <<<"$fingerprint")
+          # If autolinking fails, @expo/fingerprint quietly leaves out every Expo module, and an
+          # update could then reach a build without the native code it needs. Refuse.
+          modules=$(jq '[.sources[] | select((.reasons // []) | index("expoAutolinkingIos"))] | length' <<<"$fingerprint")
+          if [ "$modules" -eq 0 ]; then
+            echo "::error::The fingerprint hashes no Expo native modules, so it can't be trusted."
+            exit 1
+          fi
+
+          builds=$(eas build:list --platform ios --build-profile production --fingerprint-hash "$hash" --limit 20 --json --non-interactive)
+          finished=$(jq '[.[] | select(.status == "FINISHED")] | length' <<<"$builds")
+          active=$(jq '[.[] | select(.status == "NEW" or .status == "IN_QUEUE" or .status == "IN_PROGRESS")] | length' <<<"$builds")
+
+          if [ "$finished" -gt 0 ]; then
+            eas update --channel production --environment production --platform ios \
+              --message "${MESSAGE:-$(git log -1 --pretty=%s)}" --non-interactive
+            echo "kind=Update" >> "$GITHUB_OUTPUT"
+            echo "Published an update for builds with fingerprint \`$hash\`." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$active" -gt 0 ]; then
+            echo "::error::A build for fingerprint $hash is already running. Run Release again once it finishes."
+            exit 1
+          else
+            eas build --platform ios --profile production --auto-submit --non-interactive --wait
+            echo "kind=TestFlight build" >> "$GITHUB_OUTPUT"
+            echo "Built fingerprint \`$hash\` and submitted it to TestFlight." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Tag the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KIND: ${{ steps.ship.outputs.kind }}
+        run: |
+          tag="release-$(date -u +%Y-%m-%d)-${{ github.run_number }}"
+          gh release create "$tag" --target "$GITHUB_SHA" --title "$tag ($KIND)" --generate-notes

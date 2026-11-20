@@ -125,5 +125,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: jdx/mise-action@v2 # Node and pnpm from mise.toml
       - run: pnpm install --frozen-lockfile
+      # Expo SDK packages must match the SDK, or builds can break.
+      - run: pnpm --filter @feedr/mobile exec expo install --check
       # Metro resolves modules differently from tsc, so bundle the app the way a build does.
       - run: pnpm --filter @feedr/mobile exec expo export --platform ios --output-dir "$RUNNER_TEMP/ios"

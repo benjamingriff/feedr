@@ -1,0 +1,66 @@
+# Labels a PR "native change" when it changes the app's native fingerprint, so you know merging it
+# means the next Release makes a TestFlight build (one of the free plan's 15 a month) instead of an
+# over-the-air update. Hold those PRs and merge them together just before a release.
+#
+# Advisory: don't make it a required check. It runs PR code, so it only labels PRs from this repo
+# (forks get a read-only token) and must stay on pull_request, never pull_request_target.
+name: Native change
+
+on:
+  pull_request:
+
+concurrency:
+  group: native-change-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  fingerprint:
+    name: Native fingerprint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # HEAD is the merge commit; HEAD^1 is main as it is now.
+          fetch-depth: 2
+      - uses: jdx/mise-action@v2
+
+      - id: compare
+        name: Compare with main
+        run: |
+          fingerprint() { (cd "$1" && pnpm install --frozen-lockfile --filter @feedr/mobile... > /dev/null \
+            && cd apps/mobile && pnpm exec expo-updates fingerprint:generate --platform ios | jq -r .hash); }
+          git worktree add -q "$RUNNER_TEMP/base" HEAD^1
+          if ! grep -q '"expo-updates"' "$RUNNER_TEMP/base/apps/mobile/package.json"; then
+            echo "main has no expo-updates yet; nothing to compare."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          head=$(fingerprint "$GITHUB_WORKSPACE")
+          base=$(fingerprint "$RUNNER_TEMP/base")
+          if [ "$head" = "$base" ]; then
+            echo "Native fingerprint unchanged ($head): the next Release can ship this as an update." >> "$GITHUB_STEP_SUMMARY"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Native fingerprint $base → $head: the next Release will make a TestFlight build." >> "$GITHUB_STEP_SUMMARY"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Label the PR
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          label="native change"
+          if [ "${{ steps.compare.outputs.changed }}" = true ]; then
+            gh label create "$label" --color d93f0b --force \
+              --description "Changes native code: the next Release makes a TestFlight build" > /dev/null
+            gh pr edit "$PR" --add-label "$label"
+          else
+            gh pr edit "$PR" --remove-label "$label" 2> /dev/null || true
+          fi

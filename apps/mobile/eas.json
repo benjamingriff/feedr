@@ -1,0 +1,20 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "production": {
+      "environment": "production",
+      "channel": "production",
+      "autoIncrement": true,
+      "corepack": true,
+      "node": "24.22.0"
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {}
+    }
+  }
+}

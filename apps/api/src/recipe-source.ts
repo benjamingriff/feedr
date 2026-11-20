@@ -20,6 +20,8 @@ export interface RecipeSource {
   text?: string;
 }
 
+// JSON-LD is untyped; every read below checks the shape it needs.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Json = any;
 
 export async function fetchRecipeSource(url: string): Promise<RecipeSource> {

@@ -1,0 +1,5 @@
+pnpm-lock.yaml
+**/.expo
+**/dist
+# Prose: Prettier would re-pad every table.
+*.md

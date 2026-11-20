@@ -1,5 +1,5 @@
 // Connects to a running API's /mcp endpoint with the official MCP client and walks the agent workflow.
-// FEEDR_URL=http://localhost:4100 FEEDR_TOKEN=feedr_... npm run smoke:mcp
+// FEEDR_URL=http://localhost:4100 FEEDR_TOKEN=feedr_... pnpm smoke:mcp
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 

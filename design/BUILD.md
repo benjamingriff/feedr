@@ -254,9 +254,9 @@ DELETE, then "Keep my account". There is no delete endpoint yet, so the button o
 
 ## Done means
 
-- `npm run typecheck` and `npm test` pass.
+- `pnpm typecheck` and `pnpm test` pass.
 - **Screenshots.** Run the API (Docker Postgres, migrate, seed) and the app on web at
-  390×844, with `npm run dev:mobile:web` and the preview tools. Screenshot every designed
+  390×844, with `pnpm dev:mobile:web` and the preview tools. Screenshot every designed
   screen in light and dark, and compare each with `design/screens`. Fix anything that
   differs in spacing, type, lanes, hairlines or colour. Also screenshot People, Dish-up,
   Connect, pick mode, and a two-person plan.

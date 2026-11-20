@@ -224,10 +224,13 @@ ok()   { printf '  %s✓%s %s\n' "$GREEN" "$RESET" "$1"; }
 cmd()  { printf '\n      %s%s%s\n\n' "$BOLD" "$1" "$RESET"; }
 die()  { printf '\n'; warn "$1"; printf '\n'; exit 1; }
 
-# The repo needs Node 24. Use it from PATH, or through mise when PATH has another version.
+# The repo needs Node 24 and pnpm 11. With mise they come from mise.toml; without it, Node 24
+# from PATH and pnpm through its corepack, at the version pinned in package.json.
 RUN=()
 run() { ${RUN[@]+"${RUN[@]}"} "$@"; }
 node_major() { run node -p 'process.versions.node.split(".")[0]' 2>/dev/null || true; }
+export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+pnpm_cli() { if (( ${#RUN[@]} )); then run pnpm "$@"; else corepack pnpm "$@"; fi; }
 
 # The Clerk CLI: the installed one if it runs, otherwise a cached npx copy.
 clerk_cli() {
@@ -264,18 +267,26 @@ pause "Press Enter to start."
 
 # ── 1. Tools ───────────────────────────────────────────────────────────────
 stage "Tools and packages"
-what "checks for the tools feedr needs, then installs its npm packages."
+what "checks for the tools feedr needs, then installs its packages with pnpm."
 you "nothing, unless something is missing (it tells you what to install)."
-if [[ "$(node_major)" != 24 ]] && command -v mise >/dev/null 2>&1; then RUN=(mise exec node@24 --); fi
-[[ "$(node_major)" == 24 ]] || die "Node 24 is needed. Install it (mise use node@24, or nvm install 24), then re-run."
+if command -v mise >/dev/null 2>&1; then
+  mise trust --quiet mise.toml && mise install --quiet || die "mise couldn't install the tools in mise.toml."
+  RUN=(mise exec --)
+fi
+[[ "$(node_major)" == 24 ]] || die "Node 24 is needed. Install mise (it reads mise.toml), or Node 24 with nvm, then re-run."
 ok "Node 24"
 command -v jq >/dev/null 2>&1 || die "jq is needed. Install it (brew install jq, or your package manager), then re-run."
 ok "jq"
 docker info >/dev/null 2>&1 || die "Docker isn't running. Start Docker, then re-run."
 ok "Docker is running"
 say "Installing packages (about a minute the first time)…"
-run npm install --no-audit --no-fund --loglevel=error
+pnpm_cli install --reporter=silent
 ok "Packages installed"
+# Day to day you type pnpm yourself, so it needs to be on your PATH.
+if ! (( ${#RUN[@]} )) && ! command -v pnpm >/dev/null 2>&1; then
+  warn "pnpm isn't on your PATH. Run: corepack enable"
+  SKIPPED+=("Put pnpm on your PATH: corepack enable")
+fi
 printf '\n'; pause
 
 # ── 2. Database ────────────────────────────────────────────────────────────
@@ -286,7 +297,7 @@ if [[ -f "$ROOT_ENV" ]]; then ok "$ROOT_ENV exists"
 else cp .env.example "$ROOT_ENV"; ok "Created $ROOT_ENV from .env.example"; fi
 docker compose up -d --wait postgres >/dev/null
 ok "Postgres is running (port 55433)"
-run npm run -s db:migrate
+pnpm_cli -s db:migrate
 ok "Tables are up to date"
 printf '\n'; pause
 
@@ -438,7 +449,7 @@ else
   read -r -p "  Type 1 or 2 [1]: " api_where || true
   if [[ "$api_where" == 2 ]]; then
     say "Open a new terminal window in this folder and run:"
-    cmd "npm run dev:api"
+    cmd "pnpm dev:api"
     say "Leave it running. This wizard carries on once the API answers."
   else
     say "Building and starting the API container (a minute or two the first time)…"
@@ -467,7 +478,7 @@ if [[ -n "$signed_in" ]]; then
 else
   you "follow these steps."
   step "Open a new terminal window in this folder and run:"
-  cmd "npm run dev:mobile"
+  cmd "pnpm dev:mobile"
   step "Scan the QR code it shows with your iPhone's Camera. It opens in Expo Go."
   step "Tap \"Continue with Apple\" or \"Continue with Google\" and choose your account."
   step "You land on the Home screen. It's empty until stage 10."
@@ -491,9 +502,8 @@ say  "                it: two people, nine recipes and this week's meal plan."
 if [[ -z "$signed_in" ]]; then
   you "nothing for now. Sign in first (stage 9), then re-run this wizard."
 else
-  # Finds the feedr account the API made at sign-in (or makes it). The workspace
-  # script is called directly because the root alias would swallow --clerk.
-  feedr_user_id=$(run npm run -s account -w @feedr/api -- "$(jq -r .name <<<"$signed_in")" \
+  # Finds the feedr account the API made at sign-in (or makes it).
+  feedr_user_id=$(pnpm_cli -s --filter @feedr/api account "$(jq -r .name <<<"$signed_in")" \
     --clerk "$(jq -r .id <<<"$signed_in")" | sed -n '/^{/,/^}/p' | jq -r .userId)
   recipes=$(docker compose exec -T postgres psql -U feedr -d feedr -Atc \
     "select count(*) from recipes where user_id = '$feedr_user_id'" 2>/dev/null || echo "?")
@@ -503,7 +513,7 @@ else
   else
     you "say yes to load it, or no to start empty."
     if confirm "Load the demo data into your account?"; then
-      run npm run -s seed -w @feedr/api -- "$feedr_user_id"
+      pnpm_cli -s seed "$feedr_user_id"
       ok "Demo data loaded. Pull down on the Home screen to refresh."
     fi
   fi

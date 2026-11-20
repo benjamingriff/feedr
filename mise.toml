@@ -1,0 +1,6 @@
+# The toolchain for this repo: `mise trust && mise install` once per checkout (scripts/setup.sh
+# does it). Keep pnpm in step with packageManager in package.json, which corepack, EAS and the
+# Dockerfile use.
+[tools]
+node = "24"
+pnpm = "11.18.0"

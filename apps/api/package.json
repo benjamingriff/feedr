@@ -10,18 +10,19 @@
     "account": "tsx --env-file-if-exists=../../.env src/account.ts",
     "seed": "tsx --env-file-if-exists=../../.env scripts/seed.ts",
     "smoke:mcp": "tsx --env-file-if-exists=../../.env scripts/smoke-mcp.ts",
-    "test": "tsx --env-file-if-exists=../../.env --test --test-concurrency=1 test/*.test.ts",
+    "test": "tsx --env-file-if-exists=../../.env --import ./test/setup.ts --test --test-concurrency=1 test/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@clerk/backend": "^3.26.4",
-    "@feedr/core": "*",
+    "@feedr/core": "workspace:*",
     "@hono/mcp": "^0.3.5",
     "@hono/node-server": "^2.1.5",
     "@modelcontextprotocol/sdk": "^1.32.2",
     "hono": "^4.13.14",
     "kysely": "^0.29.7",
     "pg": "^8.23.1",
+    "tsx": "^4.21.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {

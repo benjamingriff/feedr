@@ -1,0 +1,126 @@
+# The checks every PR must pass before it merges, and every push to main before Railway deploys
+# it (Railway's "Wait for CI" skips a deploy when a workflow on the commit fails).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  # Cancel superseded PR runs, never main's: Railway waits on them.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check:
+    name: Format, lint, typecheck, unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2 # Node and pnpm from mise.toml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm --filter @feedr/core test
+      # PRs only, so a newly published advisory can't block a deploy from main. Gates on high or
+      # critical advisories in what the API ships; the app's build tooling has its own churn.
+      - name: Audit the API's production dependencies
+        if: github.event_name == 'pull_request'
+        run: |
+          pnpm audit --prod --json > "$RUNNER_TEMP/audit.json" || true
+          found=$(jq -r '.advisories // {} | .[]
+            | select(.severity == "high" or .severity == "critical")
+            | select(any(.findings[].paths[]; test("^(apps__api|packages__core)>")))
+            | "\(.severity) \(.module_name): \(.title) \(.url)"' "$RUNNER_TEMP/audit.json")
+          if [ -n "$found" ]; then
+            echo "::error::High or critical advisories in the API's dependencies:"
+            echo "$found"
+            exit 1
+          fi
+
+  api:
+    name: API, migrations and image
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: feedr
+          POSTGRES_PASSWORD: feedr
+          POSTGRES_DB: feedr_rehearsal
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U feedr" --health-interval 2s --health-timeout 5s --health-retries 15
+    env:
+      # The tests create feedr_test on first run (apps/api/test/setup.ts).
+      TEST_DATABASE_URL: postgres://feedr:feedr@localhost:5432/feedr_test
+      REHEARSAL_DATABASE_URL: postgres://feedr:feedr@localhost:5432/feedr_rehearsal
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # On a PR, HEAD is the merge commit and HEAD^1 is main as it is now.
+          fetch-depth: 2
+      - uses: jdx/mise-action@v2 # Node and pnpm from mise.toml
+      - run: pnpm install --frozen-lockfile
+
+      # The migration runner records files by name, so an edit to an applied migration would
+      # never run in production. Add a new file instead.
+      - name: Applied migrations are unchanged
+        if: github.event_name == 'pull_request'
+        run: |
+          changed=$(git diff --name-only --diff-filter=DMRT HEAD^1 HEAD -- apps/api/migrations/)
+          if [ -n "$changed" ]; then
+            echo "::error::Migrations already on main were edited, renamed or deleted. Add a new migration instead:"
+            echo "$changed"
+            exit 1
+          fi
+
+      # Production already has data. Build main's schema with demo data in it, then apply this
+      # PR's migrations on top, so a migration that only works on an empty database fails here.
+      - name: Rehearse migrations on main's schema and data
+        if: github.event_name == 'pull_request'
+        run: |
+          git worktree add -q "$RUNNER_TEMP/base" HEAD^1
+          cd "$RUNNER_TEMP/base"
+          if [ ! -f pnpm-lock.yaml ]; then
+            echo "main predates pnpm; nothing to rehearse against."
+            exit 0
+          fi
+          export DATABASE_URL="$REHEARSAL_DATABASE_URL"
+          pnpm install --frozen-lockfile --filter @feedr/api...
+          pnpm db:migrate
+          user_id=$(pnpm -s account:create "Rehearsal" | sed -n '/^{/,/^}/p' | jq -er .userId)
+          pnpm -s seed "$user_id"
+          cd "$GITHUB_WORKSPACE"
+          pnpm db:migrate
+
+      - run: pnpm --filter @feedr/api test
+
+      - name: Image builds and answers /health
+        run: |
+          docker build -t feedr-api .
+          docker run -d --name api --network host -e PORT=4100 -e DATABASE_URL="$REHEARSAL_DATABASE_URL" feedr-api
+          for _ in $(seq 1 30); do
+            curl -fsS http://localhost:4100/health && exit 0
+            sleep 1
+          done
+          docker logs api
+          exit 1
+
+  mobile:
+    name: App bundles for iOS
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2 # Node and pnpm from mise.toml
+      - run: pnpm install --frozen-lockfile
+      # Metro resolves modules differently from tsc, so bundle the app the way a build does.
+      - run: pnpm --filter @feedr/mobile exec expo export --platform ios --output-dir "$RUNNER_TEMP/ios"

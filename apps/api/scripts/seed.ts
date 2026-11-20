@@ -1,4 +1,4 @@
-// Sample data that shows off the app: npm run seed -- <userId>
+// Sample data that shows off the app: pnpm seed <userId>
 // Two people, nine recipes (the katsu curry has sections, step links and timers) and this week's plan,
 // with a leftover lunch, a different breakfast each on Tuesday, a snack and two meals left to plan.
 import type { VersionInput } from '@feedr/core';
@@ -6,7 +6,7 @@ import { db } from '../src/db.ts';
 import * as svc from '../src/service.ts';
 
 const userId = process.argv[2];
-if (!userId) throw new Error('Usage: npm run seed -- <userId>  (from npm run account:create)');
+if (!userId) throw new Error('Usage: pnpm seed <userId>  (from pnpm account:create)');
 
 type Line = VersionInput['ingredients'][number];
 /** A step's ingredients by name, or [name, quantity, unit] when the step uses part of the line. */

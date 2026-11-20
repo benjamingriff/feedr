@@ -5,13 +5,13 @@ The feedr iPhone app: Expo SDK 58, Expo Router and React Query. The same screens
 From the repository root:
 
 ```sh
-npm install
-npm run dev:api
-npm run dev:mobile
+pnpm install
+pnpm dev:api
+pnpm dev:mobile
 # or through Expo's tunnel, when a firewall blocks the phone (needs `npx expo login`):
-npm run dev:mobile:tunnel
+pnpm dev:mobile:tunnel
 # or, in a browser:
-npm run dev:mobile:web -- --port 8082
+pnpm dev:mobile:web --port 8082
 ```
 
 Open it in an Expo Go release that supports SDK 58. Run `./scripts/setup.sh` from the repo root first: it writes `.env.local` here with the Clerk publishable key and `EXPO_PUBLIC_API_URL`, which the app bakes in when Metro bundles it (restart with `--clear` after changing them). The Sign in screen has nothing to type: just "Continue with Apple" and "Continue with Google". A production build sets the same two variables to the production Clerk key and `https://` API in its build environment.
@@ -72,10 +72,10 @@ Sign in (`src/connect.tsx`) isn't a route. The root layout shows it until there 
 ## Checks
 
 ```sh
-npm run typecheck
-npm test
-npm run lint -w @feedr/mobile
-npm run export:web -w @feedr/mobile
+pnpm typecheck
+pnpm test
+pnpm lint
+pnpm --filter @feedr/mobile export:web
 ```
 
 The screens were checked on web at 390×844 in light and dark against `design/screens`; the results are in `design/build-shots`. Not yet checked on a physical iPhone: keep-awake, SecureStore, the safe-area insets and dotted underlines. Clerk sign-in is typechecked but needs a configured instance to test.

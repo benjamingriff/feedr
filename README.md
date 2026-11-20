@@ -10,7 +10,7 @@ See [PROPOSAL.md](PROPOSAL.md) for the design.
 
 ## Run locally
 
-Requires Node 24, Docker, jq and an iPhone with Expo Go. Run the setup wizard and follow it:
+Requires [mise](https://mise.jdx.dev) (or Node 24 with `corepack enable`), Docker, jq and an iPhone with Expo Go. mise installs the Node and pnpm in `mise.toml` once you `mise trust` the checkout; the wizard does that. Run the setup wizard and follow it:
 
 ```bash
 ./scripts/setup.sh
@@ -21,12 +21,12 @@ It takes about five minutes and says at every stage what it's doing and what, if
 Day to day, once setup is done:
 
 ```bash
-npm run dev:api        # or: docker compose up -d api
-npm run dev:mobile     # scan the QR code with the Camera app to open it in Expo Go
-npm run dev:mobile:tunnel  # the same through Expo's tunnel, when a firewall blocks the phone (needs `npx expo login`)
+pnpm dev:api        # or: docker compose up -d api
+pnpm dev:mobile     # scan the QR code with the Camera app to open it in Expo Go
+pnpm dev:mobile:tunnel  # the same through Expo's tunnel, when a firewall blocks the phone (needs `npx expo login`)
 ```
 
-Your phone still needs to reach the API on this computer (port 4100); the tunnel only carries the app. The app talks to the API over plain HTTP, so on a network you don't control, anyone else on it can read your session or token: use the Tailscale address there, which is encrypted. To run the app in a browser, use `npm run dev:mobile:web`.
+Your phone still needs to reach the API on this computer (port 4100); the tunnel only carries the app. The app talks to the API over plain HTTP, so on a network you don't control, anyone else on it can read your session or token: use the Tailscale address there, which is encrypted. To run the app in a browser, use `pnpm dev:mobile:web`.
 
 The app has no settings screen for where the API lives. It reads `EXPO_PUBLIC_API_URL` and `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` when Metro bundles it: from `apps/mobile/.env.local` locally, and from the build environment for a production build, which uses the production `https://` API and Clerk key.
 
@@ -57,15 +57,17 @@ claude mcp add --transport http feedr http://localhost:4100/mcp \
 
 Then, for example: "Import https://… into feedr and plan it for dinner on Monday for both of us, then leftovers for Tuesday lunch." The server's MCP instructions explain versions, whole-batch nutrition and portions to the agent, and ask it to tag recipes with a meal type and link each step to the ingredients it uses.
 
-`FEEDR_TOKEN=feedr_… npm run smoke:mcp` walks the main tools with the official MCP client against a running API.
+`FEEDR_TOKEN=feedr_… pnpm smoke:mcp` walks the main tools with the official MCP client against a running API.
 
 ## Personal tokens
 
-Agents connect with personal tokens; the app itself signs in with Apple or Google. Create a token for your account in the app under Account → Agent access. From the command line, `npm run account:create -- "Token name" <userId>` adds a token to an existing account, and `npm run account:create -- "Your name"` makes a new account and prints its first token once. That new account has no Apple or Google login, so the app can't open it, and what an agent adds there won't show in the app. Only the token's SHA-256 hash is stored.
+Agents connect with personal tokens; the app itself signs in with Apple or Google. Create a token for your account in the app under Account → Agent access. From the command line, `pnpm account:create "Token name" <userId>` adds a token to an existing account, and `pnpm account:create "Your name"` makes a new account and prints its first token once. That new account has no Apple or Google login, so the app can't open it, and what an agent adds there won't show in the app. Only the token's SHA-256 hash is stored.
 
 ## Checks
 
 ```bash
-npm run typecheck
-npm test            # core unit tests + API integration tests (needs Postgres)
+pnpm typecheck
+pnpm lint
+pnpm format:check  # pnpm format fixes it
+pnpm test          # core unit tests + API integration tests (needs Postgres)
 ```

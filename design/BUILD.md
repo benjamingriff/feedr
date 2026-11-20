@@ -210,7 +210,8 @@ offers "Cancel invite".
 **Delete account** (`/account/delete`). Page head with "It can't be undone", "What goes" with
 four numbered rows (live recipe and people counts), an export prompt, a "Type DELETE to
 confirm" field and a `PrimaryButton` "Delete my account" that stays disabled until it says
-DELETE, then "Keep my account". There is no delete endpoint yet, so the button does nothing.
+DELETE, then "Keep my account". There is no delete endpoint yet, so the button only shows
+"Deleting accounts isn't built yet. Nothing was deleted."
 
 **Sign in** (Connect).
 - **Page head.** "Sign in" with the lede "Your meal plan, cookbook and shopping list, kept up

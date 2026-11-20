@@ -19,12 +19,13 @@ import {
 import { router } from "expo-router";
 import { useApiQuery } from "../../store";
 
-// Design mock: there is no delete endpoint yet, so the button does nothing. The counts are live.
+// Design mock: there is no delete endpoint yet, so the button only says so. The counts are live.
 
 export default function DeleteAccount() {
   const recipes = useApiQuery<RecipeSummary[]>(["recipes", ""], "/recipes");
   const people = useApiQuery<Person[]>(["people"], "/people");
   const [typed, setTyped] = useState("");
+  const [tried, setTried] = useState(false);
   const ready = typed.trim().toUpperCase() === "DELETE";
 
   const removed = [
@@ -73,10 +74,15 @@ export default function DeleteAccount() {
         <PrimaryButton
           label="Delete my account"
           disabled={!ready}
-          onPress={() => {}}
+          onPress={() => setTried(true)}
           style={{ marginTop: 24 }}
         />
-        <TextAction label="Keep my account" style={{ marginTop: 18 }} onPress={() => router.back()} />
+        {tried && (
+          <Text variant="label" color="accent" style={{ marginTop: 12 }}>
+            Deleting accounts isn’t built yet. Nothing was deleted.
+          </Text>
+        )}
+        <TextAction label="Keep my account" style={{ marginTop: 18 }} onPress={() => (router.canGoBack() ? router.back() : router.replace("/account"))} />
       </Gutter>
     </Screen>
   );

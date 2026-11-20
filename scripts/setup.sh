@@ -287,11 +287,11 @@ ok "Docker is running"
 say "Installing packages (about a minute the first time)…"
 pnpm_cli install --reporter=silent
 ok "Packages installed"
-# Day to day you type pnpm in this folder yourself. With mise, that needs mise in your shell;
-# until then, the commands this wizard shows you go through mise exec.
+# Day to day you type pnpm in this folder yourself. With mise, that needs mise in your shell.
+# The commands this wizard asks you to run in a new terminal go through mise exec, which works either way.
 PNPM=pnpm
+(( ${#RUN[@]} )) && PNPM="mise exec -- pnpm"
 if ! (pnpm --version 2>/dev/null | grep -q '^11\.'); then
-  PNPM="mise exec -- pnpm"
   warn "pnpm 11 isn't on your PATH in this folder. Add mise to your shell: https://mise.jdx.dev/getting-started.html"
   SKIPPED+=("Get pnpm 11 on your PATH here (mise activate in your shell rc), or prefix commands with: mise exec --")
 fi

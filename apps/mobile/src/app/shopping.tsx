@@ -33,11 +33,11 @@ function Checkbox({ ticked }: { ticked: boolean }) {
           height: 20,
           alignItems: "center",
           justifyContent: "center",
-          ...(ticked ? { backgroundColor: colors.accent } : { borderWidth: 1, borderColor: colors.ink3 }),
+          ...(ticked ? { backgroundColor: colors.accentFill } : { borderWidth: 1, borderColor: colors.ink3 }),
         }}
       >
         {ticked && (
-          <Text variant="secondary" color="bg" style={{ fontFamily: sans[600], fontSize: 13, lineHeight: 16 }}>
+          <Text variant="secondary" color="onAccent" style={{ fontFamily: sans[600], fontSize: 13, lineHeight: 16 }}>
             ✓
           </Text>
         )}

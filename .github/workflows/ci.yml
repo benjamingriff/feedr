@@ -33,7 +33,10 @@ jobs:
       - name: Audit the API's production dependencies
         if: github.event_name == 'pull_request'
         run: |
+          # pnpm audit exits non-zero when it finds anything, so check it produced a report instead.
           pnpm audit --prod --json > "$RUNNER_TEMP/audit.json" || true
+          jq -e '.advisories | type == "object"' "$RUNNER_TEMP/audit.json" > /dev/null \
+            || { echo "::error::pnpm audit produced no report"; cat "$RUNNER_TEMP/audit.json"; exit 1; }
           found=$(jq -r '.advisories // {} | .[]
             | select(.severity == "high" or .severity == "critical")
             | select(any(.findings[].paths[]; test("^(apps__api|packages__core)>")))

@@ -4,11 +4,10 @@ WORKDIR /app
 # pnpm comes from corepack, at the version in package.json's packageManager.
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable
-# Every workspace's package.json, so the lockfile matches; only the API's production deps are installed.
+# Only the API's production dependencies (and core's) are installed.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
 COPY packages/core/package.json packages/core/
 COPY apps/api/package.json apps/api/
-COPY apps/mobile/package.json apps/mobile/
 RUN pnpm install --frozen-lockfile --prod --filter @feedr/api...
 COPY packages/core packages/core
 COPY apps/api apps/api

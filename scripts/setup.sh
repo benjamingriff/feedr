@@ -225,12 +225,12 @@ cmd()  { printf '\n      %s%s%s\n\n' "$BOLD" "$1" "$RESET"; }
 die()  { printf '\n'; warn "$1"; printf '\n'; exit 1; }
 
 # The repo needs Node 24 and pnpm 11. With mise they come from mise.toml; without it, Node 24
-# from PATH and pnpm through its corepack, at the version pinned in package.json.
+# and pnpm from PATH (corepack enable gives the version pinned in package.json).
 RUN=()
 run() { ${RUN[@]+"${RUN[@]}"} "$@"; }
 node_major() { run node -p 'process.versions.node.split(".")[0]' 2>/dev/null || true; }
 export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
-pnpm_cli() { if (( ${#RUN[@]} )); then run pnpm "$@"; else corepack pnpm "$@"; fi; }
+pnpm_cli() { run pnpm "$@"; }
 
 # The Clerk CLI: the installed one if it runs, otherwise a cached npx copy.
 clerk_cli() {
@@ -275,6 +275,11 @@ if command -v mise >/dev/null 2>&1; then
 fi
 [[ "$(node_major)" == 24 ]] || die "Node 24 is needed. Install mise (it reads mise.toml), or Node 24 with nvm, then re-run."
 ok "Node 24"
+# The package scripts call pnpm themselves, so it must be on PATH (mise exec puts it there).
+if ! (( ${#RUN[@]} )) && ! command -v pnpm >/dev/null 2>&1; then
+  die "pnpm isn't on your PATH. Run: corepack enable, then re-run."
+fi
+ok "pnpm"
 command -v jq >/dev/null 2>&1 || die "jq is needed. Install it (brew install jq, or your package manager), then re-run."
 ok "jq"
 docker info >/dev/null 2>&1 || die "Docker isn't running. Start Docker, then re-run."
@@ -282,10 +287,10 @@ ok "Docker is running"
 say "Installing packages (about a minute the first time)…"
 pnpm_cli install --reporter=silent
 ok "Packages installed"
-# Day to day you type pnpm yourself, so it needs to be on your PATH.
-if ! (( ${#RUN[@]} )) && ! command -v pnpm >/dev/null 2>&1; then
-  warn "pnpm isn't on your PATH. Run: corepack enable"
-  SKIPPED+=("Put pnpm on your PATH: corepack enable")
+# Day to day you type pnpm in this folder yourself. With mise, that needs mise in your shell.
+if ! (pnpm --version 2>/dev/null | grep -q '^11\.'); then
+  warn "pnpm 11 isn't on your PATH in this folder. Add mise to your shell: https://mise.jdx.dev/getting-started.html"
+  SKIPPED+=("Get pnpm 11 on your PATH here (mise activate in your shell rc), or prefix commands with: mise exec --")
 fi
 printf '\n'; pause
 

@@ -17,7 +17,10 @@ export function hashToken(token: string): string {
 /** Issues a personal access token. Only the hash is stored; the token is shown once. */
 export async function createAccessToken(userId: string, name: string): Promise<string> {
   const token = `${TOKEN_PREFIX}${randomBytes(32).toString('hex')}`;
-  await db.insertInto('access_tokens').values({ user_id: userId, hash: hashToken(token), name }).execute();
+  await db
+    .insertInto('access_tokens')
+    .values({ user_id: userId, hash: hashToken(token), name })
+    .execute();
   return token;
 }
 

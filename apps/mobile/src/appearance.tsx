@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Appearance as RNAppearance, Pressable, View } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { SectionHeader, Text, WEB } from "./primitives";
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Appearance as RNAppearance, Pressable, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { SectionHeader, Text, WEB } from './primitives';
 import {
   AppearanceContext,
   defaultAppearance,
@@ -13,19 +13,19 @@ import {
   type Appearance,
   type Mode,
   type PaletteName,
-} from "./theme";
+} from './theme';
 
 // The colour palette and light/dark mode a person picks. The choice is kept on this device
 // and applied everywhere through `useColors()`. Settings screens drop in `AppearanceSettings`,
 // or `ModePicker` and `PalettePicker` on their own.
 
-const key = "feedr.appearance.v1";
-const modes: Mode[] = ["system", "light", "dark"];
+const key = 'feedr.appearance.v1';
+const modes: Mode[] = ['system', 'light', 'dark'];
 
 /** Reads a saved choice, falling back to the default for anything missing or unknown. */
 function parse(saved: string | null): Appearance {
   try {
-    const value = JSON.parse(saved ?? "{}") as Partial<Record<keyof Appearance, unknown>>;
+    const value = JSON.parse(saved ?? '{}') as Partial<Record<keyof Appearance, unknown>>;
     return {
       palette: paletteNames.find((name) => name === value.palette) ?? defaultAppearance.palette,
       mode: modes.find((mode) => mode === value.mode) ?? defaultAppearance.mode,
@@ -53,7 +53,7 @@ export function AppearanceProvider({ children, onReady }: { children: ReactNode;
   // On iOS and Android, pin the native scheme too, so keyboards and alerts match the app.
   const mode = appearance?.mode;
   useEffect(() => {
-    if (mode && !WEB) RNAppearance.setColorScheme(mode === "system" ? "auto" : mode);
+    if (mode && !WEB) RNAppearance.setColorScheme(mode === 'system' ? 'auto' : mode);
   }, [mode]);
 
   const value = useMemo(() => {
@@ -78,7 +78,11 @@ export function ModePicker() {
   const colors = useColors();
   const { mode, setMode } = useAppearance();
   return (
-    <View accessibilityRole="radiogroup" accessibilityLabel="Mode" style={{ flexDirection: "row", borderWidth: 1, borderColor: colors.line }}>
+    <View
+      accessibilityRole="radiogroup"
+      accessibilityLabel="Mode"
+      style={{ flexDirection: 'row', borderWidth: 1, borderColor: colors.line }}
+    >
       {modes.map((option, i) => {
         const on = option === mode;
         return (
@@ -91,13 +95,13 @@ export function ModePicker() {
             style={{
               flex: 1,
               height: 40,
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: on ? colors.ink : "transparent",
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: on ? colors.ink : 'transparent',
               ...(i ? { borderLeftWidth: 1, borderLeftColor: colors.line } : {}),
             }}
           >
-            <Text variant="label" color={on ? "bg" : "ink2"}>
+            <Text variant="label" color={on ? 'bg' : 'ink2'}>
               {modeLabel[option]}
             </Text>
           </Pressable>
@@ -106,7 +110,7 @@ export function ModePicker() {
     </View>
   );
 }
-const modeLabel: Record<Mode, string> = { system: "System", light: "Light", dark: "Dark" };
+const modeLabel: Record<Mode, string> = { system: 'System', light: 'Light', dark: 'Dark' };
 
 /**
  * A palette's light and dark sets side by side: each half is that set's background with its
@@ -115,11 +119,16 @@ const modeLabel: Record<Mode, string> = { system: "System", light: "Light", dark
 export function PaletteSwatch({ palette }: { palette: PaletteName }) {
   const colors = useColors();
   return (
-    <View style={{ flexDirection: "row", width: swatchWidth, height: 32, borderWidth: 1, borderColor: colors.line }}>
-      {(["light", "dark"] as const).map((scheme) => (
+    <View style={{ flexDirection: 'row', width: swatchWidth, height: 32, borderWidth: 1, borderColor: colors.line }}>
+      {(['light', 'dark'] as const).map((scheme) => (
         <View
           key={scheme}
-          style={{ flex: 1, backgroundColor: palettes[palette][scheme].bg, alignItems: "center", justifyContent: "center" }}
+          style={{
+            flex: 1,
+            backgroundColor: palettes[palette][scheme].bg,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
         >
           <View style={{ width: 10, height: 10, backgroundColor: palettes[palette][scheme].accentFill }} />
         </View>
@@ -149,8 +158,8 @@ export function PalettePicker() {
             aria-checked={on}
             onPress={() => setPalette(name)}
             style={{
-              flexDirection: "row",
-              alignItems: "center",
+              flexDirection: 'row',
+              alignItems: 'center',
               gap: 16,
               paddingVertical: 14,
               borderTopWidth: 1,
@@ -163,13 +172,13 @@ export function PalettePicker() {
               <Text variant="itemName">{name}</Text>
               <Text variant="secondary">{palettes[name].description}</Text>
             </View>
-            <View style={{ width: lane.arrow, flexShrink: 0, alignItems: "flex-end" }}>
+            <View style={{ width: lane.arrow, flexShrink: 0, alignItems: 'flex-end' }}>
               <View
                 style={{
                   width: 14,
                   height: 14,
-                  alignItems: "center",
-                  justifyContent: "center",
+                  alignItems: 'center',
+                  justifyContent: 'center',
                   borderWidth: 1,
                   borderColor: on ? colors.accent : colors.ink3,
                 }}
@@ -190,7 +199,7 @@ export function AppearanceSettings() {
   return (
     <View style={{ gap: 32 }}>
       <View>
-        <SectionHeader title="Mode" meta={mode === "system" ? "Follows your phone" : undefined} gap={14} />
+        <SectionHeader title="Mode" meta={mode === 'system' ? 'Follows your phone' : undefined} gap={14} />
         <ModePicker />
       </View>
       <View>

@@ -43,7 +43,10 @@ test('two-person dinner: ratio, fraction and grams', () => {
   assert.equal(meal.fraction, 'all of it');
   assert.equal(meal.ratio, '4:3');
   assert.equal(meal.grams, 1203);
-  assert.deepEqual(meal.portions.map((p) => p.grams), [700, 503]);
+  assert.deepEqual(
+    meal.portions.map((p) => p.grams),
+    [700, 503],
+  );
   assert.equal(meal.portions[1]!.is_rest, true);
 });
 
@@ -63,7 +66,10 @@ test('four portions over two meals split by meal, then person', () => {
   assert.equal(dinner!.ratio, '4:3');
   assert.equal(lunch!.is_rest, true);
   const grams = guide.meals.flatMap((m) => m.portions.map((p) => p.grams!));
-  assert.equal(grams.reduce((s, g) => s + g, 0), 2400);
+  assert.equal(
+    grams.reduce((s, g) => s + g, 0),
+    2400,
+  );
   assert.ok(grams.slice(0, -1).every((g) => g % 5 === 0));
   assert.equal(dinner!.grams! + lunch!.grams!, 2400);
 });
@@ -114,7 +120,14 @@ test('shopping list combines lines across recipes', () => {
     line({ ingredient_id: 'cumin', ingredient: 'ground cumin', aisle: 'Spices', quantity: 2, unit: 'tsp' }),
     line({ ingredient_id: 'salt', ingredient: 'salt', aisle: null, quantity: null, raw_text: 'salt, to taste' }),
     line({ ingredient_id: 'garlic', ingredient: 'garlic', quantity: 3, unit: 'cloves' }),
-    line({ ingredient_id: 'cream', ingredient: 'double cream', aisle: 'Dairy', quantity: 300, unit: 'ml', optional: true }),
+    line({
+      ingredient_id: 'cream',
+      ingredient: 'double cream',
+      aisle: 'Dairy',
+      quantity: 300,
+      unit: 'ml',
+      optional: true,
+    }),
   ]);
   assert.deepEqual(
     items.map((i) => [i.aisle, i.ingredient]),
@@ -150,9 +163,14 @@ test('shopping keeps small quantities exact', () => {
     optional: false,
     recipe_title: 'R',
   });
-  const amounts = aggregateShopping([line(0.2, 'g'), line(1, 'ml'), line(1.25, 'tsp'), line(3, 'tbsp'), line(5, 'tbsp'), line(1250, 'g')]).map(
-    (i) => i.amounts[0],
-  );
+  const amounts = aggregateShopping([
+    line(0.2, 'g'),
+    line(1, 'ml'),
+    line(1.25, 'tsp'),
+    line(3, 'tbsp'),
+    line(5, 'tbsp'),
+    line(1250, 'g'),
+  ]).map((i) => i.amounts[0]);
   assert.deepEqual(amounts, [
     { quantity: 0.2, unit: 'g' },
     { quantity: 1, unit: 'ml' },
@@ -188,11 +206,14 @@ test('ingredient names are found in step text', () => {
     ['curry powder', 'curry powder'],
     ['rice', 'basmati rice'],
   ]);
-  assert.deepEqual(found('Dip the chicken in the egg, then the panko.', ['chicken breasts', 'egg', 'panko breadcrumbs']), [
-    ['chicken', 'chicken breasts'],
-    ['egg', 'egg'],
-    ['panko', 'panko breadcrumbs'],
-  ]);
+  assert.deepEqual(
+    found('Dip the chicken in the egg, then the panko.', ['chicken breasts', 'egg', 'panko breadcrumbs']),
+    [
+      ['chicken', 'chicken breasts'],
+      ['egg', 'egg'],
+      ['panko', 'panko breadcrumbs'],
+    ],
+  );
   // A first word is only used when nothing better was found, so adjectives don't match by accident.
   assert.deepEqual(found('Add the chopped onions and the tomatoes.', ['chopped tomatoes', 'onions']), [
     ['onions', 'onions'],
@@ -200,7 +221,15 @@ test('ingredient names are found in step text', () => {
   ]);
 
   // A word two names could claim equally is left alone.
-  assert.deepEqual(found('Bake the chicken, then cook the rice.', ['chicken stock', 'chicken breasts', 'basmati rice', 'risotto rice']), []);
+  assert.deepEqual(
+    found('Bake the chicken, then cook the rice.', [
+      'chicken stock',
+      'chicken breasts',
+      'basmati rice',
+      'risotto rice',
+    ]),
+    [],
+  );
   // So is a whole name two lines share, such as butter for the sauce and butter for the chicken.
   assert.deepEqual(found('Melt the butter.', ['butter', 'butter', 'flour']), []);
   assert.deepEqual(found('Add the onions.', ['onion', 'onions']), []);

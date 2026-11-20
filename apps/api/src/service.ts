@@ -81,11 +81,7 @@ export async function createPerson(userId: string, input: z.infer<typeof PersonI
   return toPerson(row);
 }
 
-export async function updatePerson(
-  userId: string,
-  id: string,
-  input: z.infer<typeof PersonUpdate>,
-): Promise<Person> {
+export async function updatePerson(userId: string, id: string, input: z.infer<typeof PersonUpdate>): Promise<Person> {
   const row = await db
     .updateTable('people')
     .set({
@@ -226,20 +222,18 @@ async function loadVersions(trx: Db, versionIds: string[]): Promise<Map<string, 
         : null,
       ingredients: ingredients
         .filter((i) => i.version_id === v.id)
-        .map(
-          (i): IngredientLine => ({
-            id: i.id,
-            ingredient_id: i.ingredient_id,
-            ingredient: i.ingredient,
-            aisle: i.aisle,
-            quantity: i.quantity,
-            unit: i.unit,
-            raw_text: i.raw_text,
-            preparation: i.preparation,
-            section: i.section,
-            optional: i.optional,
-          }),
-        ),
+        .map((i): IngredientLine => ({
+          id: i.id,
+          ingredient_id: i.ingredient_id,
+          ingredient: i.ingredient,
+          aisle: i.aisle,
+          quantity: i.quantity,
+          unit: i.unit,
+          raw_text: i.raw_text,
+          preparation: i.preparation,
+          section: i.section,
+          optional: i.optional,
+        })),
       steps: steps
         .filter((s) => s.version_id === v.id)
         .map((s) => ({
@@ -323,11 +317,22 @@ async function writeStepIngredients(
   const links = steps.flatMap((step, position) => {
     const stepId = stepRows.find((r) => r.position === position)!.id;
     // Keyed by line, so naming a line twice in one step keeps the last amount.
-    const byLine = new Map<string, { step_id: string; ingredient_line_id: string; quantity: number | null; unit: string | null }>();
+    const byLine = new Map<
+      string,
+      { step_id: string; ingredient_line_id: string; quantity: number | null; unit: string | null }
+    >();
     for (const link of step.ingredients ?? []) {
       const line = lines[link.line];
-      if (!line) throw new InvalidError(`Step ${position + 1} links ingredient ${link.line}, but there are ${lines.length} ingredients`);
-      byLine.set(line.id, { step_id: stepId, ingredient_line_id: line.id, quantity: link.quantity ?? null, unit: link.unit ?? null });
+      if (!line)
+        throw new InvalidError(
+          `Step ${position + 1} links ingredient ${link.line}, but there are ${lines.length} ingredients`,
+        );
+      byLine.set(line.id, {
+        step_id: stepId,
+        ingredient_line_id: line.id,
+        quantity: link.quantity ?? null,
+        unit: link.unit ?? null,
+      });
     }
     return [...byLine.values()];
   });
@@ -417,7 +422,16 @@ export async function searchRecipes(
   const versions = await db
     .selectFrom('recipe_versions as v')
     .leftJoin('nutrition as n', 'n.version_id', 'v.id')
-    .select(['v.id', 'v.recipe_id', 'v.label', 'v.servings', 'v.is_original', 'v.prep_minutes', 'v.cook_minutes', 'n.kcal'])
+    .select([
+      'v.id',
+      'v.recipe_id',
+      'v.label',
+      'v.servings',
+      'v.is_original',
+      'v.prep_minutes',
+      'v.cook_minutes',
+      'n.kcal',
+    ])
     .where(
       'v.recipe_id',
       'in',
@@ -428,9 +442,7 @@ export async function searchRecipes(
     .execute();
   return recipes.map((r) => ({
     ...recipeFields(r),
-    versions: versions
-      .filter((v) => v.recipe_id === r.id)
-      .map(({ recipe_id: _, ...v }) => v),
+    versions: versions.filter((v) => v.recipe_id === r.id).map(({ recipe_id: _, ...v }) => v),
   }));
 }
 
@@ -605,7 +617,12 @@ export async function planServices(userId: string, inputs: ServiceCreate[]): Pro
     for (const { input, portions } of prepared) {
       const { id } = await trx
         .insertInto('services')
-        .values({ user_id: userId, version_id: input.version_id, cook_date: input.cook_date, notes: input.notes ?? null })
+        .values({
+          user_id: userId,
+          version_id: input.version_id,
+          cook_date: input.cook_date,
+          notes: input.notes ?? null,
+        })
         .returning('id')
         .executeTakeFirstOrThrow();
       await trx
@@ -635,7 +652,12 @@ export async function getService(userId: string, serviceId: string): Promise<Ser
     .innerJoin('recipe_versions as v', 'v.id', 's.version_id')
     .innerJoin('recipes as r', 'r.id', 'v.recipe_id')
     .selectAll('s')
-    .select(['r.id as recipe_id', 'r.title as recipe_title', 'v.label as version_label', 'v.servings as version_servings'])
+    .select([
+      'r.id as recipe_id',
+      'r.title as recipe_title',
+      'v.label as version_label',
+      'v.servings as version_servings',
+    ])
     .where('s.id', '=', serviceId)
     .where('s.user_id', '=', userId)
     .executeTakeFirst();
@@ -834,7 +856,8 @@ export async function getPlan(userId: string, start: string, end: string): Promi
       entry.totals = addNutrition(entry.totals, portion.nutrition);
     }
   }
-  for (const day of days) for (const p of day.people) p.meals.sort((a, b) => SLOTS.indexOf(a.slot) - SLOTS.indexOf(b.slot));
+  for (const day of days)
+    for (const p of day.people) p.meals.sort((a, b) => SLOTS.indexOf(a.slot) - SLOTS.indexOf(b.slot));
   return { start, end, days, unassigned };
 }
 

@@ -1,6 +1,6 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { API_URL, useStore } from "./store";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { API_URL, useStore } from './store';
 
 /**
  * Shopping ticks for one week: ingredient ids kept on the device, per API and account. They go
@@ -10,10 +10,10 @@ export function useTicks(weekStart: string) {
   const { connection } = useStore();
   const client = useQueryClient();
   const storageKey = `feedr.ticks:${API_URL}:${connection?.userId}:${weekStart}`;
-  const queryKey = ["ticks", storageKey];
+  const queryKey = ['ticks', storageKey];
   const query = useQuery({
     queryKey,
-    queryFn: async () => JSON.parse((await AsyncStorage.getItem(storageKey)) ?? "[]") as string[],
+    queryFn: async () => JSON.parse((await AsyncStorage.getItem(storageKey)) ?? '[]') as string[],
     staleTime: Infinity,
   });
   return {

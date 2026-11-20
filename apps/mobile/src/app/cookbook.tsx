@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
-import { Pressable, TextInput, View } from "react-native";
-import { router, useLocalSearchParams } from "expo-router";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { defaultVersion, type Person, type RecipeSummary, type Service, type Slot } from "@feedr/core";
-import { shortDate } from "../dates";
-import { minutes, num, totalMinutes } from "../format";
+import { useEffect, useState } from 'react';
+import { Pressable, TextInput, View } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { defaultVersion, type Person, type RecipeSummary, type Service, type Slot } from '@feedr/core';
+import { shortDate } from '../dates';
+import { minutes, num, totalMinutes } from '../format';
 import {
   ArrowLane,
   BackLink,
@@ -19,11 +19,11 @@ import {
   Text,
   TopBar,
   inputStyle,
-} from "../primitives";
-import { useApiQuery, useStore } from "../store";
-import { mono, useColors } from "../theme";
+} from '../primitives';
+import { useApiQuery, useStore } from '../store';
+import { mono, useColors } from '../theme';
 
-const TABS = ["all", "breakfast", "lunch", "dinner"] as const;
+const TABS = ['all', 'breakfast', 'lunch', 'dinner'] as const;
 type Tab = (typeof TABS)[number];
 
 const hasTag = (recipe: RecipeSummary, tag: string) => recipe.tags.some((t) => t.toLowerCase() === tag);
@@ -31,7 +31,7 @@ const hasTag = (recipe: RecipeSummary, tag: string) => recipe.tags.some((t) => t
 /** "1 hr · Serves 2 · 640 kcal" for the version a recipe opens on. */
 function rowMeta(recipe: RecipeSummary) {
   const version = defaultVersion(recipe.versions);
-  if (!version) return "";
+  if (!version) return '';
   const time = totalMinutes(version);
   return [
     time != null && minutes(time),
@@ -39,7 +39,7 @@ function rowMeta(recipe: RecipeSummary) {
     version.kcal != null && `${num(version.kcal / version.servings)} kcal`,
   ]
     .filter(Boolean)
-    .join(" · ");
+    .join(' · ');
 }
 
 function FilterTabs({ recipes, tab, onChange }: { recipes: RecipeSummary[]; tab: Tab; onChange: (tab: Tab) => void }) {
@@ -48,16 +48,16 @@ function FilterTabs({ recipes, tab, onChange }: { recipes: RecipeSummary[]; tab:
     <View
       accessibilityRole="tablist"
       style={{
-        flexDirection: "row",
-        alignItems: "flex-end",
-        justifyContent: "space-between",
+        flexDirection: 'row',
+        alignItems: 'flex-end',
+        justifyContent: 'space-between',
         borderBottomWidth: 1,
         borderBottomColor: colors.line,
       }}
     >
       {TABS.map((t) => {
         const active = t === tab;
-        const count = t === "all" ? recipes.length : recipes.filter((r) => hasTag(r, t)).length;
+        const count = t === 'all' ? recipes.length : recipes.filter((r) => hasTag(r, t)).length;
         return (
           <Pressable
             key={t}
@@ -71,7 +71,7 @@ function FilterTabs({ recipes, tab, onChange }: { recipes: RecipeSummary[]; tab:
                 : { paddingTop: 10, paddingBottom: 11 }
             }
           >
-            <Text variant="label" color={active ? "ink" : "ink3"} style={active && { fontFamily: mono[500] }}>
+            <Text variant="label" color={active ? 'ink' : 'ink3'} style={active && { fontFamily: mono[500] }}>
               {t} {count}
             </Text>
           </Pressable>
@@ -92,27 +92,27 @@ export default function Cookbook() {
   const { api } = useStore();
   const client = useQueryClient();
 
-  const [search, setSearch] = useState("");
-  const [q, setQ] = useState("");
+  const [search, setSearch] = useState('');
+  const [q, setQ] = useState('');
   useEffect(() => {
     const timer = setTimeout(() => setQ(search.trim()), 250);
     return () => clearTimeout(timer);
   }, [search]);
-  const [tab, setTab] = useState<Tab>(picking && slot !== "snack" ? slot : "all");
+  const [tab, setTab] = useState<Tab>(picking && slot !== 'snack' ? slot : 'all');
 
-  const query = useApiQuery<RecipeSummary[]>(["recipes", q], `/recipes${q ? `?q=${encodeURIComponent(q)}` : ""}`, {
+  const query = useApiQuery<RecipeSummary[]>(['recipes', q], `/recipes${q ? `?q=${encodeURIComponent(q)}` : ''}`, {
     keepPrevious: true,
   });
-  const people = useApiQuery<Person[]>(["people"], "/people", { enabled: picking });
+  const people = useApiQuery<Person[]>(['people'], '/people', { enabled: picking });
   const recipes = query.data ?? [];
-  const shown = tab === "all" ? recipes : recipes.filter((r) => hasTag(r, tab));
+  const shown = tab === 'all' ? recipes : recipes.filter((r) => hasTag(r, tab));
 
   const pick = useMutation({
     mutationFn: (recipe: RecipeSummary) => {
       const version = defaultVersion(recipe.versions);
-      if (!version || !people.data?.length) throw new Error("Add a person in People before planning meals.");
+      if (!version || !people.data?.length) throw new Error('Add a person in People before planning meals.');
       // No target_kcal: the server works each portion out from the person and slot.
-      return api<Service>("/services", {
+      return api<Service>('/services', {
         version_id: version.id,
         cook_date: date,
         portions: people.data.map((p) => ({ person_id: p.id, date, slot })),
@@ -126,15 +126,15 @@ export default function Cookbook() {
 
   return (
     <Screen refreshing={query.isRefetching} onRefresh={() => void query.refetch()}>
-      <TopBar left={<BackLink label={picking ? "Plan" : "Home"} fallback={picking ? "/plan" : "/"} flush />} />
+      <TopBar left={<BackLink label={picking ? 'Plan' : 'Home'} fallback={picking ? '/plan' : '/'} flush />} />
       <PageHead
         compact
-        title={picking ? `Add ${slot}` : "Cookbook"}
+        title={picking ? `Add ${slot}` : 'Cookbook'}
         lede={
           picking
             ? shortDate(date)
             : query.data &&
-              `${recipes.length} ${recipes.length === 1 ? "recipe" : "recipes"}${q ? ` for “${q}”.` : ", kept up to date by your agent."}`
+              `${recipes.length} ${recipes.length === 1 ? 'recipe' : 'recipes'}${q ? ` for “${q}”.` : ', kept up to date by your agent.'}`
         }
       />
       <Gutter>
@@ -155,7 +155,7 @@ export default function Cookbook() {
         <ErrorLine error={pick.error} />
       </Gutter>
       <QueryState query={query} />
-      {query.data && !shown.length && <StateLine text={q ? "No recipes match" : "No recipes yet"} />}
+      {query.data && !shown.length && <StateLine text={q ? 'No recipes match' : 'No recipes yet'} />}
       <Gutter>
         {shown.map((recipe) => (
           <Row
@@ -166,11 +166,11 @@ export default function Cookbook() {
             rule={false}
             last
             label={recipe.title}
-            role={picking ? "button" : "link"}
+            role={picking ? 'button' : 'link'}
             onPress={() =>
               picking
                 ? !pick.isPending && pick.mutate(recipe)
-                : router.push({ pathname: "/recipe/[id]", params: { id: recipe.id } })
+                : router.push({ pathname: '/recipe/[id]', params: { id: recipe.id } })
             }
           >
             <Fill style={{ gap: 5 }}>

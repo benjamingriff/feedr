@@ -72,23 +72,36 @@ export function buildMcpServer(user: AuthUser): McpServer {
   // People
   server.registerTool(
     'list_people',
-    { description: 'People in the household with weight, daily calorie/protein targets and how calories split across meal slots.', inputSchema: {}, annotations: readOnly },
+    {
+      description:
+        'People in the household with weight, daily calorie/protein targets and how calories split across meal slots.',
+      inputSchema: {},
+      annotations: readOnly,
+    },
     () => run(() => svc.listPeople(u)),
   );
   server.registerTool(
     'create_person',
-    { description: 'Add a person to cook for. slot_split defaults to breakfast 0.25, lunch 0.3, dinner 0.35, snack 0.1.', inputSchema: PersonInput.shape },
+    {
+      description:
+        'Add a person to cook for. slot_split defaults to breakfast 0.25, lunch 0.3, dinner 0.35, snack 0.1.',
+      inputSchema: PersonInput.shape,
+    },
     (input) => run(() => svc.createPerson(u, input)),
   );
   server.registerTool(
     'update_person',
-    { description: "Update a person's weight, targets or slot split.", inputSchema: { person_id: id, ...PersonUpdate.shape } },
+    {
+      description: "Update a person's weight, targets or slot split.",
+      inputSchema: { person_id: id, ...PersonUpdate.shape },
+    },
     ({ person_id, ...input }) => run(() => svc.updatePerson(u, person_id, input)),
   );
   server.registerTool(
     'get_slot_targets',
     {
-      description: 'Calorie and protein targets for a meal slot, per person and in total. Use before choosing or creating a version.',
+      description:
+        'Calorie and protein targets for a meal slot, per person and in total. Use before choosing or creating a version.',
       inputSchema: { slot: Slot, person_ids: z.array(id).optional().describe('Defaults to everyone') },
       annotations: readOnly,
     },
@@ -98,13 +111,18 @@ export function buildMcpServer(user: AuthUser): McpServer {
   // Recipes
   server.registerTool(
     'list_ingredients',
-    { description: 'Known canonical ingredient names and aisles. Reuse these names in recipes.', inputSchema: { q: z.string().optional() }, annotations: readOnly },
+    {
+      description: 'Known canonical ingredient names and aisles. Reuse these names in recipes.',
+      inputSchema: { q: z.string().optional() },
+      annotations: readOnly,
+    },
     ({ q }) => run(() => svc.listIngredients(u, q)),
   );
   server.registerTool(
     'search_recipes',
     {
-      description: 'Find recipes by text or tag. Returns summaries with each version id, label, servings, prep and cook minutes and whole-batch kcal.',
+      description:
+        'Find recipes by text or tag. Returns summaries with each version id, label, servings, prep and cook minutes and whole-batch kcal.',
       inputSchema: { q: z.string().optional(), tag: z.string().optional() },
       annotations: readOnly,
     },
@@ -112,7 +130,11 @@ export function buildMcpServer(user: AuthUser): McpServer {
   );
   server.registerTool(
     'get_recipe',
-    { description: 'A recipe with every version in full: ingredients, steps and whole-batch nutrition.', inputSchema: { recipe_id: id }, annotations: readOnly },
+    {
+      description: 'A recipe with every version in full: ingredients, steps and whole-batch nutrition.',
+      inputSchema: { recipe_id: id },
+      annotations: readOnly,
+    },
     ({ recipe_id }) => run(() => svc.getRecipe(u, recipe_id)),
   );
   server.registerTool(
@@ -143,7 +165,10 @@ export function buildMcpServer(user: AuthUser): McpServer {
   );
   server.registerTool(
     'update_recipe',
-    { description: 'Update recipe details (title, description, source, tags, image). Versions are edited separately.', inputSchema: { recipe_id: id, ...RecipeUpdate.shape } },
+    {
+      description: 'Update recipe details (title, description, source, tags, image). Versions are edited separately.',
+      inputSchema: { recipe_id: id, ...RecipeUpdate.shape },
+    },
     ({ recipe_id, ...input }) => run(() => svc.updateRecipe(u, recipe_id, input)),
   );
   server.registerTool(
@@ -171,7 +196,10 @@ export function buildMcpServer(user: AuthUser): McpServer {
   );
   server.registerTool(
     'delete_recipe_version',
-    { description: 'Delete a version that no service uses. A recipe keeps at least one version.', inputSchema: { version_id: id } },
+    {
+      description: 'Delete a version that no service uses. A recipe keeps at least one version.',
+      inputSchema: { version_id: id },
+    },
     ({ version_id }) => run(() => svc.deleteVersion(u, version_id)),
   );
 
@@ -212,22 +240,36 @@ export function buildMcpServer(user: AuthUser): McpServer {
   );
   server.registerTool(
     'get_service',
-    { description: 'A service with its portions, per-portion nutrition and dish-up guide.', inputSchema: { service_id: id }, annotations: readOnly },
+    {
+      description: 'A service with its portions, per-portion nutrition and dish-up guide.',
+      inputSchema: { service_id: id },
+      annotations: readOnly,
+    },
     ({ service_id }) => run(() => svc.getService(u, service_id)),
   );
   server.registerTool(
     'update_service',
-    { description: 'Change the cook date, notes or cooked weight of a service.', inputSchema: { service_id: id, ...ServiceUpdate.shape } },
+    {
+      description: 'Change the cook date, notes or cooked weight of a service.',
+      inputSchema: { service_id: id, ...ServiceUpdate.shape },
+    },
     ({ service_id, ...input }) => run(() => svc.updateService(u, service_id, input)),
   );
   server.registerTool(
     'add_portions',
-    { description: 'Add portions to a service, e.g. lunch leftovers. Shares are recalculated.', inputSchema: { service_id: id, portions: z.array(PortionInput).min(1) } },
+    {
+      description: 'Add portions to a service, e.g. lunch leftovers. Shares are recalculated.',
+      inputSchema: { service_id: id, portions: z.array(PortionInput).min(1) },
+    },
     ({ service_id, portions }) => run(() => svc.addPortions(u, service_id, portions)),
   );
   server.registerTool(
     'update_portion',
-    { description: "Move a portion to another person, date or slot, or change its target_kcal. The target isn't recalculated when moving.", inputSchema: { portion_id: id, ...PortionUpdate.shape } },
+    {
+      description:
+        "Move a portion to another person, date or slot, or change its target_kcal. The target isn't recalculated when moving.",
+      inputSchema: { portion_id: id, ...PortionUpdate.shape },
+    },
     ({ portion_id, ...input }) => run(() => svc.updatePortion(u, portion_id, input)),
   );
   server.registerTool(

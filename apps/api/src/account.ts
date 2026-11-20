@@ -13,7 +13,11 @@ if (process.argv[3] === '--clerk') {
   if (!clerkUserId) throw new Error('Usage: pnpm account:create "Your name" --clerk <clerkUserId>');
   const user =
     (await db.selectFrom('users').select(['id', 'name']).where('clerk_user_id', '=', clerkUserId).executeTakeFirst()) ??
-    (await db.insertInto('users').values({ name, clerk_user_id: clerkUserId }).returning(['id', 'name']).executeTakeFirstOrThrow());
+    (await db
+      .insertInto('users')
+      .values({ name, clerk_user_id: clerkUserId })
+      .returning(['id', 'name'])
+      .executeTakeFirstOrThrow());
   await db.destroy();
   console.log(JSON.stringify({ userId: user.id, name: user.name }, null, 2));
 } else {

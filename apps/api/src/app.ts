@@ -23,7 +23,13 @@ type Env = { Variables: { user: AuthUser } };
 
 export const app = new Hono<Env>();
 
-app.use('*', cors({ origin: (origin) => origin ?? '*', allowHeaders: ['Authorization', 'Content-Type', 'Mcp-Session-Id', 'Mcp-Protocol-Version'] }));
+app.use(
+  '*',
+  cors({
+    origin: (origin) => origin ?? '*',
+    allowHeaders: ['Authorization', 'Content-Type', 'Mcp-Session-Id', 'Mcp-Protocol-Version'],
+  }),
+);
 
 app.onError((err, c) => {
   if (err instanceof ZodError) return c.json({ error: 'Invalid request', issues: err.issues }, 400);
@@ -52,7 +58,9 @@ app.get('/me', (c) => {
   return c.json<Me>({ id, name, auth });
 });
 app.post('/me/tokens', async (c) => {
-  const { name } = z.object({ name: z.string().min(1).default('Agent token') }).parse(await c.req.json().catch(() => ({})));
+  const { name } = z
+    .object({ name: z.string().min(1).default('Agent token') })
+    .parse(await c.req.json().catch(() => ({})));
   return c.json({ token: await createAccessToken(uid(c), name) }, 201);
 });
 
@@ -110,7 +118,16 @@ app.delete('/services/:id', async (c) => {
   return c.body(null, 204);
 });
 app.post('/services/:id/portions', async (c) =>
-  c.json(await svc.addPortions(uid(c), c.req.param('id'), z.array(PortionInput).min(1).parse(await c.req.json()))),
+  c.json(
+    await svc.addPortions(
+      uid(c),
+      c.req.param('id'),
+      z
+        .array(PortionInput)
+        .min(1)
+        .parse(await c.req.json()),
+    ),
+  ),
 );
 app.patch('/portions/:id', async (c) =>
   c.json(await svc.updatePortion(uid(c), c.req.param('id'), PortionUpdate.parse(await c.req.json()))),

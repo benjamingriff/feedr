@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import type { Person, Recipe, RecipeSummary, Service, ShoppingList } from "@feedr/core";
+import type { Me, Person, Recipe, RecipeSummary, Service, ShoppingList } from "@feedr/core";
 import { addDays, monday, shortDate, today, weekRange } from "../dates";
 import { joinNames, minutes, num, totalMinutes } from "../format";
 import { eaterLine, tonight, useWeek, type Dish } from "../plan";
@@ -96,8 +96,9 @@ export default function Home() {
   const recipes = useApiQuery<RecipeSummary[]>(["recipes", ""], "/recipes");
   const shopping = useApiQuery<ShoppingList>(["shopping", start], `/shopping?start=${start}&end=${addDays(start, 6)}`);
   const people = useApiQuery<Person[]>(["people"], "/people");
+  const me = useApiQuery<Me>(["me"], "/me");
   const { ticked } = useTicks(start);
-  const queries = [plan, recipes, shopping, people];
+  const queries = [plan, recipes, shopping, people, me];
 
   const dish = week && tonight(week, date);
   const items = shopping.data?.items;
@@ -140,8 +141,14 @@ export default function Home() {
           number="04"
           title="People"
           subline={people.data ? joinNames(people.data.map((p) => p.name)) || "Add who you cook for" : " "}
-          last
           onPress={() => router.push("/people")}
+        />
+        <IndexRow
+          number="05"
+          title="Account"
+          subline={me.data ? `${me.data.name} · Home and settings` : " "}
+          last
+          onPress={() => router.push("/account")}
         />
       </Gutter>
     </Screen>

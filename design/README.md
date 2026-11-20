@@ -34,7 +34,10 @@ There is no tab bar. Home is the root of a single stack:
 Home ─┬─ Meal plan ── Recipe ── Cook mode
       ├─ Cookbook ─── Recipe ── Cook mode
       ├─ Shopping list
-      └─ People
+      ├─ People
+      └─ Account ─┬─ Appearance
+                  ├─ Invite to your home
+                  └─ Delete account
 ```
 
 - Each pushed screen has a text back link at the top left ("← Home", "← Recipes"), not a
@@ -42,8 +45,8 @@ Home ─┬─ Meal plan ── Recipe ── Cook mode
 - Cook mode is full screen and has "Close ✕" at the top right.
 - Home's Tonight button goes straight to cook mode for tonight's dinner.
 
-This replaces `apps/mobile/src/app/(tabs)`. People has no design yet; reuse the list
-patterns below for it.
+This replaces `apps/mobile/src/app/(tabs)`. People and Account have no Paper design; they
+reuse the list patterns below, and BUILD.md describes them.
 
 ## Tokens
 
@@ -60,8 +63,8 @@ patterns below for it.
 Accent tint (the highlighted ingredient row in cook mode) is `accent` at 9% opacity.
 
 These are the **Clay** palette, the default. People can switch to Basil, Cobalt, Yolk or
-Beetroot, and pin light or dark, from the Appearance settings (`/appearance`; nothing links to it
-yet, so open it by URL until the account screen does). Every palette's values live in
+Beetroot, and pin light or dark, from the Appearance settings (`/appearance`, opened from
+Account). Every palette's values live in
 `apps/mobile/src/theme.ts`. Two roles sit beside `accent` so a palette's fill colour can differ
 from its text colour (Yolk's yellow can't be read on white):
 
@@ -242,8 +245,9 @@ the rest are `line`.
    - the feature title;
    - a meta line ("35 min · Serves 2");
    - a gap of 20, then the primary button "Start cooking · N steps".
-3. The index, rows 01–04: Meal plan, Cookbook, Shopping list, People. Each subline is
-   live data: unplanned meals, recipe count, items and ticked count, people's names.
+3. The index, rows 01–05: Meal plan, Cookbook, Shopping list, People, Account. Each
+   subline is live data: unplanned meals, recipe count, items and ticked count, people's
+   names, and the account's name with "Home and settings".
 
 If nothing is planned for tonight, hide the Tonight block rather than showing it empty.
 

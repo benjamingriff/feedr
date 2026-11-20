@@ -180,9 +180,38 @@ the design language:
   mono caps ink3, the input in 17 sans ink, and no boxes. It covers name, weight, daily
   kcal, daily protein and the slot split. "Save" is a `PrimaryButton` and "Delete" is a
   `TextAction`.
+
+**Account**. Home's index row 05. Sections are 44 apart, each under a ruled `SectionHeader`.
+Settings rows are hairline rows: title (17/500) with an optional 14 ink3 detail, then a
+value, a control or "→".
+- **Top bar.** "← Home" on the left and "Account" in mono caps on the right.
+- **Profile.** A 64 square in `accentFill` with the initials in `onAccent`, the name as the
+  page title, the Clerk email in body ink2, then "ID 408AF10B" in mono caps with a
+  `TextAction` "Copy ID".
+- **Your home.** "Your home" / "1 person", then a numbered row per member ("You · owner"), a
+  note on what a shared home means, a `PrimaryButton` "Invite to your home" and a
+  `TextAction` "Got an invite? Join a home". Households aren't built: only you are listed.
+- **Appearance.** One row, "Colour and mode", with the palette and mode as its detail and the
+  `PaletteSwatch` before the arrow. It opens `/appearance`.
+- **Cooking** and **Timers & reminders** ("Coming soon"). Keep screen on, units, week start,
+  default servings, the timer alarm and two reminders. A switch is a square 40×22 `Toggle`,
+  filled `accentFill` with an `onAccent` knob when on. These are mocks that hold local state.
 - **Agent access.** A section with a `PrimaryButton` "Create token". Once a token exists,
   show the token and the `claude mcp add` command in mono, with copy actions.
-- **Account.** A section headed "Account" / "Signed in", with a `TextAction` "Sign out".
+- **Sign-in & data.** Meta "Signed in with Google" (or Apple). Rows: "Export my data" (a
+  mock), "Sign out", and "Delete account" in accent.
+
+**Invite to your home** (`/account/invite`, a mock). Page head, a "Username or ID" field and
+the person it found (an outlined 40 square, name, handle, "Found"). Then "What you'll share",
+four numbered rows, a note that logins and tokens stay separate, and a `PrimaryButton`
+"Send invite to Jess". Sending switches the head to "Invite sent", the tag to "Pending", and
+offers "Cancel invite".
+
+**Delete account** (`/account/delete`). Page head with "It can't be undone", "What goes" with
+four numbered rows (live recipe and people counts), an export prompt, a "Type DELETE to
+confirm" field and a `PrimaryButton` "Delete my account" that stays disabled until it says
+DELETE, then "Keep my account". There is no delete endpoint yet, so the button only shows
+"Deleting accounts isn't built yet. Nothing was deleted."
 
 **Sign in** (Connect).
 - **Page head.** "Sign in" with the lede "Your meal plan, cookbook and shopping list, kept up

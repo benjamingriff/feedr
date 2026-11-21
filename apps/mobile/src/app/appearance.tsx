@@ -1,5 +1,5 @@
-import { AppearanceSettings } from "../appearance";
-import { BackLink, Gutter, PageHead, Screen, TopBar } from "../primitives";
+import { AppearanceSettings } from '../appearance';
+import { BackLink, Gutter, PageHead, Screen, TopBar } from '../primitives';
 
 /** Mode and colour palette. Account links here; the choice applies as soon as it's tapped. */
 export default function AppearanceScreen() {

@@ -1,0 +1,13 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+# Fail installs on the wrong Node (engines in package.json; mise.toml installs the right one).
+engineStrict: true
+
+# pnpm 11 runs a dependency's install script only when it's listed here as true.
+allowBuilds:
+  esbuild: true
+  unrs-resolver: true
+  browser-tabs-lock: false
+  core-js: false

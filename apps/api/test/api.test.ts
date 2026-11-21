@@ -48,8 +48,18 @@ test('rejects missing and bad tokens', async () => {
 });
 
 test('recipe → version → service → plan → shopping', async () => {
-  const me = await call<{ id: string }>('POST', '/people', { name: 'Ben', weight_kg: 80, daily_kcal: 2800, daily_protein_g: 180 }, 201);
-  const sam = await call<{ id: string }>('POST', '/people', { name: 'Sam', daily_kcal: 2000, daily_protein_g: 110 }, 201);
+  const me = await call<{ id: string }>(
+    'POST',
+    '/people',
+    { name: 'Ben', weight_kg: 80, daily_kcal: 2800, daily_protein_g: 180 },
+    201,
+  );
+  const sam = await call<{ id: string }>(
+    'POST',
+    '/people',
+    { name: 'Sam', daily_kcal: 2000, daily_protein_g: 110 },
+    201,
+  );
 
   const recipe = await call<Recipe>(
     'POST',
@@ -128,7 +138,10 @@ test('recipe → version → service → plan → shopping', async () => {
 
   const weighed = await call<Service>('PATCH', `/services/${service.id}`, { cooked_weight_g: 2400 });
   const grams = weighed.dish_up.meals.flatMap((m) => m.portions.map((p) => p.grams ?? 0));
-  assert.equal(grams.reduce((s, g) => s + g, 0), 2400);
+  assert.equal(
+    grams.reduce((s, g) => s + g, 0),
+    2400,
+  );
 
   const plan = await call<Plan>('GET', '/plan?start=2026-11-02&end=2026-11-08');
   assert.equal(plan.days.length, 7);
@@ -147,14 +160,18 @@ test('recipe → version → service → plan → shopping', async () => {
   const shopping = await call<ShoppingList>('GET', '/shopping?start=2026-11-01&end=2026-11-07');
   const onion = shopping.items.find((i) => i.ingredient === 'onion')!;
   assert.deepEqual(onion.amounts, [{ quantity: 3, unit: null }]);
-  assert.deepEqual(shopping.items.find((i) => i.ingredient === 'chicken thigh')!.amounts, [{ quantity: 1, unit: 'kg' }]);
+  assert.deepEqual(shopping.items.find((i) => i.ingredient === 'chicken thigh')!.amounts, [
+    { quantity: 1, unit: 'kg' },
+  ]);
 
   const byVersion = await call<ShoppingList>('GET', `/shopping?version_ids=${recipe.versions[0]!.id},${version.id}`);
   assert.deepEqual(byVersion.items.find((i) => i.ingredient === 'onion')!.amounts, [{ quantity: 5, unit: null }]);
   assert.deepEqual(byVersion.items.find((i) => i.ingredient === 'salt')!.unquantified, ['salt, to taste']);
 
   // A leftover dated next week shows in next week's plan even though it was cooked this week.
-  const dated = await call<Service>('POST', `/services/${service.id}/portions`, [{ target_kcal: 400, date: '2026-11-09' }]);
+  const dated = await call<Service>('POST', `/services/${service.id}/portions`, [
+    { target_kcal: 400, date: '2026-11-09' },
+  ]);
   const datedSpare = dated.portions.find((p) => p.date === '2026-11-09')!;
   assert.equal((await call<Plan>('GET', '/plan?start=2026-11-09&end=2026-11-15')).unassigned.length, 1);
   assert.equal((await call<Plan>('GET', '/plan?start=2026-11-02&end=2026-11-08')).unassigned.length, 0);
@@ -179,11 +196,20 @@ test('step ingredient links are stored with a version and read back', async () =
         cook_minutes: 15,
         ingredients: [
           { ingredient: 'garlic', aisle: 'Produce', quantity: 6, unit: 'clove', raw_text: '6 garlic cloves' },
-          { ingredient: 'basmati rice', aisle: 'Rice & pasta', quantity: 150, unit: 'g', raw_text: '150g basmati rice' },
+          {
+            ingredient: 'basmati rice',
+            aisle: 'Rice & pasta',
+            quantity: 150,
+            unit: 'g',
+            raw_text: '150g basmati rice',
+          },
         ],
         steps: [
           { text: 'Fry 4 cloves of garlic.', ingredients: [{ line: 0, quantity: 4, unit: 'clove' }] },
-          { text: 'Add the rice and the rest of the garlic.', ingredients: [{ line: 1 }, { line: 0, quantity: 2, unit: 'clove' }] },
+          {
+            text: 'Add the rice and the rest of the garlic.',
+            ingredients: [{ line: 1 }, { line: 0, quantity: 2, unit: 'clove' }],
+          },
           { text: 'Serve.' },
         ],
         nutrition: nutrition(900, 20),
@@ -193,15 +219,18 @@ test('step ingredient links are stored with a version and read back', async () =
   );
   const version = recipe.versions[0]!;
   const [garlic, rice] = version.ingredients;
-  assert.deepEqual(version.steps.map((s) => s.ingredients), [
-    [{ line_id: garlic!.id, quantity: 4, unit: 'clove' }],
-    // In ingredient order, whatever order they were given in.
+  assert.deepEqual(
+    version.steps.map((s) => s.ingredients),
     [
-      { line_id: garlic!.id, quantity: 2, unit: 'clove' },
-      { line_id: rice!.id, quantity: null, unit: null },
+      [{ line_id: garlic!.id, quantity: 4, unit: 'clove' }],
+      // In ingredient order, whatever order they were given in.
+      [
+        { line_id: garlic!.id, quantity: 2, unit: 'clove' },
+        { line_id: rice!.id, quantity: null, unit: null },
+      ],
+      [],
     ],
-    [],
-  ]);
+  );
 
   // Reading the recipe back gives the same links, and the summary carries the minutes.
   const read = await call<Recipe>('GET', `/recipes/${recipe.id}`);
@@ -225,14 +254,27 @@ test('plan_services plans a batch atomically', async () => {
   const rpc = async (args: unknown) => {
     const res = await app.request('/mcp', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' },
-      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'plan_services', arguments: args } }),
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json, text/event-stream',
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/call',
+        params: { name: 'plan_services', arguments: args },
+      }),
     });
     return ((await res.json()) as { result: { content: { text: string }[]; isError?: boolean } }).result;
   };
   const days = ['2026-12-07', '2026-12-08', '2026-12-09'];
   const ok = await rpc({
-    services: days.map((d) => ({ version_id: versionId, cook_date: d, portions: [{ person_id: people[0]!.id, date: d, slot: 'breakfast' }] })),
+    services: days.map((d) => ({
+      version_id: versionId,
+      cook_date: d,
+      portions: [{ person_id: people[0]!.id, date: d, slot: 'breakfast' }],
+    })),
   });
   const planned = JSON.parse(ok.content[0]!.text) as { id: string; portions: { kcal: number }[] }[];
   assert.equal(planned.length, 3);
@@ -282,6 +324,9 @@ test('MCP lists tools and calls them', async () => {
   assert.equal(found[0].title, 'Chicken curry');
   assert.equal(found[0].versions.length, 2);
 
-  const bad = await rpc('tools/call', { name: 'get_recipe', arguments: { recipe_id: '00000000-0000-4000-8000-000000000000' } });
+  const bad = await rpc('tools/call', {
+    name: 'get_recipe',
+    arguments: { recipe_id: '00000000-0000-4000-8000-000000000000' },
+  });
   assert.equal(bad.result.isError, true);
 });

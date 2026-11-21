@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Monogram } from "../../account-parts";
+import { useState } from 'react';
+import { Monogram } from '../../account-parts';
 import {
   BackLink,
   Field,
@@ -14,20 +14,20 @@ import {
   Text,
   TextAction,
   TopBar,
-} from "../../primitives";
+} from '../../primitives';
 
 // Design mock: there is no household API yet. Any username finds "Jess", and sending only
 // flips this screen to its pending state.
 
 const SHARED = [
-  { title: "Cookbook", detail: "Both your recipes, in one cookbook" },
-  { title: "Meal plan", detail: "One week, with each person's portions" },
-  { title: "Shopping list", detail: "One list, ticked off together" },
-  { title: "People", detail: "You'll both appear, with your own targets" },
+  { title: 'Cookbook', detail: 'Both your recipes, in one cookbook' },
+  { title: 'Meal plan', detail: "One week, with each person's portions" },
+  { title: 'Shopping list', detail: 'One list, ticked off together' },
+  { title: 'People', detail: "You'll both appear, with your own targets" },
 ];
 
 export default function Invite() {
-  const [query, setQuery] = useState("jess.carter");
+  const [query, setQuery] = useState('jess.carter');
   const [sent, setSent] = useState(false);
   const found = query.trim().length >= 2;
 
@@ -35,11 +35,11 @@ export default function Invite() {
     <Screen>
       <TopBar left={<BackLink label="Account" fallback="/account" />} right={<Text variant="label">Your home</Text>} />
       <PageHead
-        title={sent ? "Invite sent" : "Invite to your home"}
+        title={sent ? 'Invite sent' : 'Invite to your home'}
         lede={
           sent
-            ? "Jess will see it next time they open Feedr. Your home is shared as soon as they accept."
-            : "They keep their own login. Once they accept, you cook from the same plan."
+            ? 'Jess will see it next time they open Feedr. Your home is shared as soon as they accept.'
+            : 'They keep their own login. Once they accept, you cook from the same plan.'
         }
       />
       <Gutter>
@@ -60,8 +60,8 @@ export default function Invite() {
               <Text variant="itemName">Jess Carter</Text>
               <Text variant="secondary">@jess.carter</Text>
             </Fill>
-            <Text variant="tag" color={sent ? "accent" : "ink3"}>
-              {sent ? "Pending" : "Found"}
+            <Text variant="tag" color={sent ? 'accent' : 'ink3'}>
+              {sent ? 'Pending' : 'Found'}
             </Text>
           </Row>
         )}
@@ -74,7 +74,7 @@ export default function Invite() {
             <Row key={item.title} pad={12} rule={i > 0} last={i === SHARED.length - 1}>
               <Lane size="number">
                 <Text variant="stepNumber" style={{ lineHeight: 22 }}>
-                  {String(i + 1).padStart(2, "0")}
+                  {String(i + 1).padStart(2, '0')}
                 </Text>
               </Lane>
               <Fill style={{ gap: 1 }}>

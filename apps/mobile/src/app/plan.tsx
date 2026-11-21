@@ -1,11 +1,11 @@
-import { useRef, useState, type ComponentRef } from "react";
-import { Pressable, View, type ScrollView } from "react-native";
-import { router } from "expo-router";
-import { addDays, dayMonth, dayName, monday, today, weekRange } from "../dates";
-import { joinNames, num } from "../format";
-import { eaterLine, useWeek, type DayMeals, type Dish, type SlotMeals } from "../plan";
-import { BackLink, Fill, Lane, PageHead, QueryState, Row, Screen, Text, TopBar } from "../primitives";
-import { GUTTER, underline, useColors } from "../theme";
+import { useRef, useState, type ComponentRef } from 'react';
+import { Pressable, View, type ScrollView } from 'react-native';
+import { router } from 'expo-router';
+import { addDays, dayMonth, dayName, monday, today, weekRange } from '../dates';
+import { joinNames, num } from '../format';
+import { eaterLine, useWeek, type DayMeals, type Dish, type SlotMeals } from '../plan';
+import { BackLink, Fill, Lane, PageHead, QueryState, Row, Screen, Text, TopBar } from '../primitives';
+import { GUTTER, underline, useColors } from '../theme';
 
 /** "← 17–23 Nov →" in the top bar. */
 function WeekSwitcher({ start, onMove }: { start: string; onMove: (weeks: number) => void }) {
@@ -17,12 +17,12 @@ function WeekSwitcher({ start, onMove }: { start: string; onMove: (weeks: number
     </Pressable>
   );
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
-      {arrow("←", "Previous week", -1)}
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+      {arrow('←', 'Previous week', -1)}
       <Text variant="label" color="ink2">
         {weekRange(start)}
       </Text>
-      {arrow("→", "Next week", 1)}
+      {arrow('→', 'Next week', 1)}
     </View>
   );
 }
@@ -31,14 +31,28 @@ function WeekSwitcher({ start, onMove }: { start: string; onMove: (weeks: number
  * One dish in a slot. With one person the row ends in their kcal; with more, a line under the
  * title says who's eating and how much. Only the first dish in a slot carries the slot label.
  */
-function MealRow({ slot, dish, first, rule, solo }: { slot: string; dish: Dish; first: boolean; rule: boolean; solo: boolean }) {
+function MealRow({
+  slot,
+  dish,
+  first,
+  rule,
+  solo,
+}: {
+  slot: string;
+  dish: Dish;
+  first: boolean;
+  rule: boolean;
+  solo: boolean;
+}) {
   return (
     <Row
       align="baseline"
       pad={9}
       rule={rule}
       label={`${slot}: ${dish.title}`}
-      onPress={() => router.push({ pathname: "/recipe/[id]", params: { id: dish.recipeId, serviceId: dish.serviceId } })}
+      onPress={() =>
+        router.push({ pathname: '/recipe/[id]', params: { id: dish.recipeId, serviceId: dish.serviceId } })
+      }
     >
       <Lane size="label">{first && <Text variant="label">{slot}</Text>}</Lane>
       <Fill style={{ gap: 2 }}>
@@ -56,20 +70,20 @@ function MealRow({ slot, dish, first, rule, solo }: { slot: string; dish: Dish; 
 }
 
 /** "+ Add dinner": opens the cookbook to pick a recipe for this date and slot. */
-function EmptyRow({ slot, date, rule, solo }: { slot: SlotMeals["slot"]; date: string; rule: boolean; solo: boolean }) {
+function EmptyRow({ slot, date, rule, solo }: { slot: SlotMeals['slot']; date: string; rule: boolean; solo: boolean }) {
   return (
     <Row
       align="baseline"
       pad={9}
       rule={rule}
       label={`Add ${slot}`}
-      onPress={() => router.push({ pathname: "/cookbook", params: { date, slot } })}
+      onPress={() => router.push({ pathname: '/cookbook', params: { date, slot } })}
     >
       <Lane size="label">
         <Text variant="label">{slot}</Text>
       </Lane>
       <Fill>
-        <Text variant="meal" color="ink3" style={[underline("dotted", 4), { alignSelf: "flex-start" }]}>
+        <Text variant="meal" color="ink3" style={[underline('dotted', 4), { alignSelf: 'flex-start' }]}>
           + Add {slot}
         </Text>
       </Fill>
@@ -87,7 +101,7 @@ function EmptyRow({ slot, date, rule, solo }: { slot: SlotMeals["slot"]; date: s
 function DaySection({ day, solo, onLayout }: { day: DayMeals; solo: boolean; onLayout: (y: number) => void }) {
   const colors = useColors();
   const isToday = day.date === today();
-  const soFar = day.complete ? "" : " so far";
+  const soFar = day.complete ? '' : ' so far';
   let row = 0;
   return (
     <View
@@ -100,9 +114,16 @@ function DaySection({ day, solo, onLayout }: { day: DayMeals; solo: boolean; onL
         paddingHorizontal: GUTTER,
       }}
     >
-      <View style={{ flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", paddingBottom: solo ? 8 : 0 }}>
-        <View style={{ flexDirection: "row", alignItems: "baseline", gap: 8 }}>
-          <Text variant="dayName" color={isToday ? "accent" : "ink"} accessibilityRole="header">
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'baseline',
+          justifyContent: 'space-between',
+          paddingBottom: solo ? 8 : 0,
+        }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
+          <Text variant="dayName" color={isToday ? 'accent' : 'ink'} accessibilityRole="header">
             {dayName(day.date)}
           </Text>
           <Text variant="meal" color="ink3" style={{ lineHeight: 26 }}>
@@ -115,20 +136,27 @@ function DaySection({ day, solo, onLayout }: { day: DayMeals; solo: boolean; onL
           )}
         </View>
         {solo && (
-          <Text variant="dayTotal" color={day.complete ? "ink" : "ink3"}>
+          <Text variant="dayTotal" color={day.complete ? 'ink' : 'ink3'}>
             {num(day.totals[0]?.kcal)} kcal{soFar}
           </Text>
         )}
       </View>
       {!solo && (
-        <Text variant="mealKcal" color={day.complete ? "ink2" : "ink3"} style={{ paddingTop: 4, paddingBottom: 8 }}>
+        <Text variant="mealKcal" color={day.complete ? 'ink2' : 'ink3'} style={{ paddingTop: 4, paddingBottom: 8 }}>
           {eaterLine(day.totals)} kcal{soFar}
         </Text>
       )}
       {day.slots.flatMap((slot) =>
         slot.dishes.length ? (
           slot.dishes.map((dish, i) => (
-            <MealRow key={`${slot.slot}:${dish.serviceId}`} slot={slot.slot} dish={dish} first={i === 0} rule={row++ > 0} solo={solo} />
+            <MealRow
+              key={`${slot.slot}:${dish.serviceId}`}
+              slot={slot.slot}
+              dish={dish}
+              first={i === 0}
+              rule={row++ > 0}
+              solo={solo}
+            />
           ))
         ) : (
           <EmptyRow key={slot.slot} slot={slot.slot} date={day.date} rule={row++ > 0} solo={solo} />
@@ -147,14 +175,15 @@ export default function PlanScreen() {
   const landed = useRef(false);
 
   const weeksAway = Math.round((Date.parse(start) - Date.parse(thisWeek)) / (7 * 86_400_000));
-  const title = weeksAway === 0 ? "This week" : weeksAway === 1 ? "Next week" : weeksAway === -1 ? "Last week" : weekRange(start);
+  const title =
+    weeksAway === 0 ? 'This week' : weeksAway === 1 ? 'Next week' : weeksAway === -1 ? 'Last week' : weekRange(start);
   const solo = (week?.people.length ?? 0) < 2;
   const left = week?.mealsLeft ?? 0;
   const subtitle = !week
     ? undefined
     : !week.people.length
-      ? "Add a person to start planning."
-      : `${left ? `${left} ${left === 1 ? "meal" : "meals"} left to plan` : "Every meal is planned"} · ${
+      ? 'Add a person to start planning.'
+      : `${left ? `${left} ${left === 1 ? 'meal' : 'meals'} left to plan` : 'Every meal is planned'} · ${
           solo ? `${num(week.people[0]?.targetKcal)} kcal a day` : `for ${joinNames(week.people.map((p) => p.name))}`
         }`;
 

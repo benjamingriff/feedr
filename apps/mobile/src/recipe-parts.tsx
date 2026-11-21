@@ -1,9 +1,9 @@
-import type { ReactNode } from "react";
-import { View } from "react-native";
-import { matchIngredientNames, type IngredientLine, type RecipeVersion, type Step } from "@feedr/core";
-import { amount, capitalise } from "./format";
-import { Chip, Fill, Lane, Row, Text } from "./primitives";
-import { mono } from "./theme";
+import type { ReactNode } from 'react';
+import { View } from 'react-native';
+import { matchIngredientNames, type IngredientLine, type RecipeVersion, type Step } from '@feedr/core';
+import { amount, capitalise } from './format';
+import { Chip, Fill, Lane, Row, Text } from './primitives';
+import { mono } from './theme';
 
 // What the recipe page and cook mode share: ingredient rows, and finding a step's ingredients
 // and where they appear in its text.
@@ -40,21 +40,21 @@ export function IngredientRow({
   onPress?: () => void;
   checked?: boolean;
 }) {
-  const strike = struck ? ({ textDecorationLine: "line-through" } as const) : undefined;
+  const strike = struck ? ({ textDecorationLine: 'line-through' } as const) : undefined;
   return (
     <Row last={last} highlight={highlight} onPress={onPress} label={name} role="checkbox" checked={checked}>
       <Lane size="label" style={{ paddingRight: 8 }}>
         <Text
           variant="quantity"
-          color={struck ? "ink3" : highlight ? "ink" : "ink2"}
+          color={struck ? 'ink3' : highlight ? 'ink' : 'ink2'}
           style={[strike, highlight && { fontFamily: mono[500] }]}
         >
           {quantity}
         </Text>
       </Lane>
       <Fill style={{ gap: 1 }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <Text variant="itemName" color={struck ? "ink3" : highlight ? "accent" : "ink"} style={strike}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <Text variant="itemName" color={struck ? 'ink3' : highlight ? 'accent' : 'ink'} style={strike}>
             {name}
           </Text>
           {!!tag && <Chip kind="tag" label={tag} />}
@@ -99,7 +99,7 @@ export function stepAmount(step: Step, line: IngredientLine) {
  */
 export function splitNote(step: Step, line: IngredientLine, version: RecipeVersion) {
   const mine = step.ingredients.find((i) => i.line_id === line.id);
-  if (mine?.quantity == null || line.quantity == null) return "";
+  if (mine?.quantity == null || line.quantity == null) return '';
   const others = version.steps.flatMap((other) =>
     other.id === step.id
       ? []
@@ -114,11 +114,11 @@ export function splitNote(step: Step, line: IngredientLine, version: RecipeVersi
   return ` · ${[
     `${show(mine.quantity, mine.unit)} of ${show(line.quantity, line.unit)}`,
     ...others.map((i) => `${show(i.quantity!, i.unit)} for step ${i.step}`),
-  ].join(", ")}`;
+  ].join(', ')}`;
 }
 
 /** "03" for the step at position 2. */
-export const stepNumber = (position: number) => String(position + 1).padStart(2, "0");
+export const stepNumber = (position: number) => String(position + 1).padStart(2, '0');
 
 /** The prep line, sentence-cased: "Thinly sliced". */
 export const prepLine = (line: IngredientLine) => (line.preparation ? capitalise(line.preparation) : undefined);

@@ -1,6 +1,6 @@
-import { useState } from "react";
-import type { Person, RecipeSummary } from "@feedr/core";
-import { num } from "../../format";
+import { useState } from 'react';
+import type { Person, RecipeSummary } from '@feedr/core';
+import { num } from '../../format';
 import {
   BackLink,
   Field,
@@ -15,24 +15,30 @@ import {
   Text,
   TextAction,
   TopBar,
-} from "../../primitives";
-import { router } from "expo-router";
-import { useApiQuery } from "../../store";
+} from '../../primitives';
+import { router } from 'expo-router';
+import { useApiQuery } from '../../store';
 
 // Design mock: there is no delete endpoint yet, so the button only says so. The counts are live.
 
 export default function DeleteAccount() {
-  const recipes = useApiQuery<RecipeSummary[]>(["recipes", ""], "/recipes");
-  const people = useApiQuery<Person[]>(["people"], "/people");
-  const [typed, setTyped] = useState("");
+  const recipes = useApiQuery<RecipeSummary[]>(['recipes', ''], '/recipes');
+  const people = useApiQuery<Person[]>(['people'], '/people');
+  const [typed, setTyped] = useState('');
   const [tried, setTried] = useState(false);
-  const ready = typed.trim().toUpperCase() === "DELETE";
+  const ready = typed.trim().toUpperCase() === 'DELETE';
 
   const removed = [
-    { what: "Recipes", detail: recipes.data ? `${num(recipes.data.length)} recipes and their versions` : "Every recipe and its versions" },
-    { what: "Meal plans", detail: "Every planned meal, past and future" },
-    { what: "People", detail: people.data ? `${num(people.data.length)} people and their targets` : "Everyone you cook for" },
-    { what: "Agent access", detail: "Every token, so connected agents stop working" },
+    {
+      what: 'Recipes',
+      detail: recipes.data ? `${num(recipes.data.length)} recipes and their versions` : 'Every recipe and its versions',
+    },
+    { what: 'Meal plans', detail: 'Every planned meal, past and future' },
+    {
+      what: 'People',
+      detail: people.data ? `${num(people.data.length)} people and their targets` : 'Everyone you cook for',
+    },
+    { what: 'Agent access', detail: 'Every token, so connected agents stop working' },
   ];
 
   return (
@@ -48,7 +54,7 @@ export default function DeleteAccount() {
           <Row key={item.what} pad={12} rule={i > 0} last={i === removed.length - 1}>
             <Lane size="number">
               <Text variant="stepNumber" style={{ lineHeight: 22 }}>
-                {String(i + 1).padStart(2, "0")}
+                {String(i + 1).padStart(2, '0')}
               </Text>
             </Lane>
             <Fill style={{ gap: 1 }}>
@@ -82,7 +88,11 @@ export default function DeleteAccount() {
             Deleting accounts isn’t built yet. Nothing was deleted.
           </Text>
         )}
-        <TextAction label="Keep my account" style={{ marginTop: 18 }} onPress={() => (router.canGoBack() ? router.back() : router.replace("/account"))} />
+        <TextAction
+          label="Keep my account"
+          style={{ marginTop: 18 }}
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/account'))}
+        />
       </Gutter>
     </Screen>
   );

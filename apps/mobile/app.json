@@ -18,12 +18,6 @@
       "bundler": "metro",
       "output": "single"
     },
-    "plugins": [
-      "expo-router",
-      "expo-secure-store",
-      "@clerk/expo",
-      "expo-font",
-      "expo-splash-screen"
-    ]
+    "plugins": ["expo-router", "expo-secure-store", "@clerk/expo", "expo-font", "expo-splash-screen"]
   }
 }

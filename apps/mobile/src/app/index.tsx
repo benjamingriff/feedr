@@ -1,8 +1,8 @@
-import { router } from "expo-router";
-import type { Me, Person, Recipe, RecipeSummary, Service, ShoppingList } from "@feedr/core";
-import { addDays, monday, shortDate, today, weekRange } from "../dates";
-import { joinNames, minutes, num, totalMinutes } from "../format";
-import { eaterLine, tonight, useWeek, type Dish } from "../plan";
+import { router } from 'expo-router';
+import type { Me, Person, Recipe, RecipeSummary, Service, ShoppingList } from '@feedr/core';
+import { addDays, monday, shortDate, today, weekRange } from '../dates';
+import { joinNames, minutes, num, totalMinutes } from '../format';
+import { eaterLine, tonight, useWeek, type Dish } from '../plan';
 import {
   ArrowLane,
   Fill,
@@ -15,14 +15,14 @@ import {
   SectionHeader,
   Text,
   TopBar,
-} from "../primitives";
-import { useApiQuery } from "../store";
-import { useTicks } from "../ticks";
+} from '../primitives';
+import { useApiQuery } from '../store';
+import { useTicks } from '../ticks';
 
 /** Tonight's dinner, with a button straight into cook mode for the version that was planned. */
 function Tonight({ dish, solo }: { dish: Dish; solo: boolean }) {
-  const service = useApiQuery<Service>(["service", dish.serviceId], `/services/${dish.serviceId}`);
-  const recipe = useApiQuery<Recipe>(["recipe", dish.recipeId], `/recipes/${dish.recipeId}`);
+  const service = useApiQuery<Service>(['service', dish.serviceId], `/services/${dish.serviceId}`);
+  const recipe = useApiQuery<Recipe>(['recipe', dish.recipeId], `/recipes/${dish.recipeId}`);
   const version = recipe.data?.versions.find((v) => v.id === service.data?.version_id);
   const time = version && totalMinutes(version);
   return (
@@ -36,7 +36,7 @@ function Tonight({ dish, solo }: { dish: Dish; solo: boolean }) {
         {dish.title}
       </Text>
       <Text variant="label" style={{ paddingTop: 6, paddingBottom: 20 }}>
-        {version ? [time != null && minutes(time), `Serves ${version.servings}`].filter(Boolean).join(" · ") : " "}
+        {version ? [time != null && minutes(time), `Serves ${version.servings}`].filter(Boolean).join(' · ') : ' '}
       </Text>
       {/* A retry for whichever detail failed with nothing cached; a stale error with data needs none. */}
       {[service, recipe]
@@ -46,12 +46,12 @@ function Tonight({ dish, solo }: { dish: Dish; solo: boolean }) {
           <QueryState key={i} query={q} />
         ))}
       <PrimaryButton
-        label={version ? `Start cooking · ${version.steps.length} steps` : "Start cooking"}
+        label={version ? `Start cooking · ${version.steps.length} steps` : 'Start cooking'}
         disabled={!version}
         onPress={() =>
           version &&
           router.push({
-            pathname: "/cook/[versionId]",
+            pathname: '/cook/[versionId]',
             params: { versionId: version.id, recipeId: dish.recipeId, serviceId: dish.serviceId },
           })
         }
@@ -93,10 +93,10 @@ export default function Home() {
   const date = today();
   const start = monday(date);
   const { query: plan, week } = useWeek(start);
-  const recipes = useApiQuery<RecipeSummary[]>(["recipes", ""], "/recipes");
-  const shopping = useApiQuery<ShoppingList>(["shopping", start], `/shopping?start=${start}&end=${addDays(start, 6)}`);
-  const people = useApiQuery<Person[]>(["people"], "/people");
-  const me = useApiQuery<Me>(["me"], "/me");
+  const recipes = useApiQuery<RecipeSummary[]>(['recipes', ''], '/recipes');
+  const shopping = useApiQuery<ShoppingList>(['shopping', start], `/shopping?start=${start}&end=${addDays(start, 6)}`);
+  const people = useApiQuery<Person[]>(['people'], '/people');
+  const me = useApiQuery<Me>(['me'], '/me');
   const { ticked } = useTicks(start);
   const queries = [plan, recipes, shopping, people, me];
 
@@ -106,10 +106,7 @@ export default function Home() {
   const left = week?.mealsLeft;
 
   return (
-    <Screen
-      refreshing={queries.some((q) => q.isRefetching)}
-      onRefresh={() => queries.forEach((q) => void q.refetch())}
-    >
+    <Screen refreshing={queries.some((q) => q.isRefetching)} onRefresh={() => queries.forEach((q) => void q.refetch())}>
       <TopBar left={<Text variant="label">{shortDate(date)}</Text>} />
       <QueryState query={plan} />
       {dish && week && <Tonight key={dish.serviceId} dish={dish} solo={week.people.length < 2} />}
@@ -119,36 +116,36 @@ export default function Home() {
           title="Meal plan"
           subline={[
             weekRange(start),
-            left == null ? null : left ? `${left} ${left === 1 ? "meal" : "meals"} to plan` : "All meals planned",
+            left == null ? null : left ? `${left} ${left === 1 ? 'meal' : 'meals'} to plan` : 'All meals planned',
           ]
             .filter(Boolean)
-            .join(" · ")}
-          onPress={() => router.push("/plan")}
+            .join(' · ')}
+          onPress={() => router.push('/plan')}
         />
         <IndexRow
           number="02"
           title="Cookbook"
-          subline={recipes.data ? `${recipes.data.length} ${recipes.data.length === 1 ? "recipe" : "recipes"}` : " "}
-          onPress={() => router.push("/cookbook")}
+          subline={recipes.data ? `${recipes.data.length} ${recipes.data.length === 1 ? 'recipe' : 'recipes'}` : ' '}
+          onPress={() => router.push('/cookbook')}
         />
         <IndexRow
           number="03"
           title="Shopping list"
-          subline={items ? `${items.length} ${items.length === 1 ? "item" : "items"} · ${tickedCount} ticked` : " "}
-          onPress={() => router.push("/shopping")}
+          subline={items ? `${items.length} ${items.length === 1 ? 'item' : 'items'} · ${tickedCount} ticked` : ' '}
+          onPress={() => router.push('/shopping')}
         />
         <IndexRow
           number="04"
           title="People"
-          subline={people.data ? joinNames(people.data.map((p) => p.name)) || "Add who you cook for" : " "}
-          onPress={() => router.push("/people")}
+          subline={people.data ? joinNames(people.data.map((p) => p.name)) || 'Add who you cook for' : ' '}
+          onPress={() => router.push('/people')}
         />
         <IndexRow
           number="05"
           title="Account"
-          subline={me.data ? `${me.data.name} · Home and settings` : " "}
+          subline={me.data ? `${me.data.name} · Home and settings` : ' '}
           last
-          onPress={() => router.push("/account")}
+          onPress={() => router.push('/account')}
         />
       </Gutter>
     </Screen>

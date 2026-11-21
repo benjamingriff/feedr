@@ -1,6 +1,6 @@
-import { router } from "expo-router";
-import type { Person } from "@feedr/core";
-import { num } from "../../format";
+import { router } from 'expo-router';
+import type { Person } from '@feedr/core';
+import { num } from '../../format';
 import {
   ArrowLane,
   BackLink,
@@ -13,12 +13,12 @@ import {
   Text,
   TextAction,
   TopBar,
-} from "../../primitives";
-import { useApiQuery } from "../../store";
+} from '../../primitives';
+import { useApiQuery } from '../../store';
 
 /** Who you cook for. Agent tokens and signing out live on Account. */
 export default function People() {
-  const query = useApiQuery<Person[]>(["people"], "/people");
+  const query = useApiQuery<Person[]>(['people'], '/people');
   const people = query.data ?? [];
   return (
     <Screen refreshing={query.isRefetching} onRefresh={() => void query.refetch()}>
@@ -31,7 +31,7 @@ export default function People() {
             key={person.id}
             last={i === people.length - 1}
             label={`Edit ${person.name}`}
-            onPress={() => router.push({ pathname: "/people/[id]", params: { id: person.id } })}
+            onPress={() => router.push({ pathname: '/people/[id]', params: { id: person.id } })}
           >
             <Fill style={{ gap: 1 }}>
               <Text variant="itemName">{person.name}</Text>
@@ -41,7 +41,7 @@ export default function People() {
                   person.daily_protein_g != null && `${num(person.daily_protein_g)} g protein`,
                 ]
                   .filter(Boolean)
-                  .join(" · ")}{" "}
+                  .join(' · ')}{' '}
                 a day
               </Text>
             </Fill>
@@ -52,7 +52,7 @@ export default function People() {
           <TextAction
             label="+ Add person"
             style={{ marginTop: 18 }}
-            onPress={() => router.push({ pathname: "/people/[id]", params: { id: "new" } })}
+            onPress={() => router.push({ pathname: '/people/[id]', params: { id: 'new' } })}
           />
         )}
       </Gutter>

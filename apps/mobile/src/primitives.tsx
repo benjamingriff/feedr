@@ -1,4 +1,4 @@
-import type { ComponentRef, ReactNode, Ref } from "react";
+import type { ComponentRef, ReactNode, Ref } from 'react';
 import {
   Alert,
   Platform,
@@ -13,37 +13,22 @@ import {
   type TextProps as RNTextProps,
   type TextStyle,
   type ViewStyle,
-} from "react-native";
-import { router } from "expo-router";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import {
-  GUTTER,
-  lane,
-  mono,
-  sans,
-  type,
-  underline,
-  useColors,
-  type ColorName,
-  type TypeRole,
-} from "./theme";
+} from 'react-native';
+import { router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { GUTTER, lane, mono, sans, type, underline, useColors, type ColorName, type TypeRole } from './theme';
 
 /**
  * A desktop browser's scrollbar takes width from the page and breaks the 342 content lane, so
  * scroll views hide it on web. iOS draws its indicator over the content and keeps it.
  */
-export const WEB = Platform.OS === "web";
+export const WEB = Platform.OS === 'web';
 
 // The building blocks from design/README.md's Components section. Screens are composed from
 // these; they should rarely need a raw colour, font or hairline of their own.
 
 /** Text in one of the design's type roles. `color` overrides the role's default token. */
-export function Text({
-  variant,
-  color,
-  style,
-  ...props
-}: RNTextProps & { variant: TypeRole; color?: ColorName }) {
+export function Text({ variant, color, style, ...props }: RNTextProps & { variant: TypeRole; color?: ColorName }) {
   const colors = useColors();
   const { color: roleColor, ...role } = type[variant];
   return <RNText {...props} style={[role, { color: colors[color ?? roleColor] }, style]} />;
@@ -96,7 +81,7 @@ export function Gutter({ children, style }: { children: ReactNode; style?: Style
   return <View style={[{ paddingHorizontal: GUTTER }, style]}>{children}</View>;
 }
 
-export function Hairline({ color = "line", weight = 1 }: { color?: ColorName; weight?: number }) {
+export function Hairline({ color = 'line', weight = 1 }: { color?: ColorName; weight?: number }) {
   const colors = useColors();
   return <View style={{ height: weight, backgroundColor: colors[color] }} />;
 }
@@ -106,9 +91,9 @@ export function TopBar({ left, right }: { left?: ReactNode; right?: ReactNode })
   return (
     <View
       style={{
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
         paddingTop: 10,
         paddingBottom: 14,
         paddingHorizontal: GUTTER,
@@ -126,11 +111,11 @@ export function TopBar({ left, right }: { left?: ReactNode; right?: ReactNode })
  */
 export function BackLink({
   label,
-  fallback = "/",
+  fallback = '/',
   flush = false,
 }: {
   label: string;
-  fallback?: "/" | "/plan" | "/cookbook" | "/people" | "/account";
+  fallback?: '/' | '/plan' | '/cookbook' | '/people' | '/account';
   flush?: boolean;
 }) {
   return (
@@ -152,7 +137,7 @@ export function BackLink({
 export function BrandMark({ label }: { label: string }) {
   const colors = useColors();
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
       <View style={{ width: 12, height: 12, backgroundColor: colors.accentFill }} />
       <Text variant="label" color="ink2">
         {label}
@@ -178,16 +163,14 @@ export function PageHead({
   return (
     <Gutter
       style={[
-        compact
-          ? { paddingTop: 22, paddingBottom: 24, gap: 8 }
-          : { paddingTop: 24, paddingBottom: 28, gap: 12 },
+        compact ? { paddingTop: 22, paddingBottom: 24, gap: 8 } : { paddingTop: 24, paddingBottom: 28, gap: 12 },
         style,
       ]}
     >
       <Text variant="pageTitle" accessibilityRole="header">
         {title}
       </Text>
-      {!!lede && <Text variant={compact ? "subtitle" : "body"}>{lede}</Text>}
+      {!!lede && <Text variant={compact ? 'subtitle' : 'body'}>{lede}</Text>}
       {children}
     </Gutter>
   );
@@ -220,9 +203,9 @@ export function PrimaryButton({
         {
           height: tall ? 56 : 52,
           paddingHorizontal: 20,
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
           backgroundColor: colors.accentFill,
           opacity: disabled ? 0.5 : 1,
         },
@@ -262,8 +245,8 @@ export function SquareButton({
         height: 56,
         borderWidth: 1,
         borderColor: colors.line,
-        alignItems: "center",
-        justifyContent: "center",
+        alignItems: 'center',
+        justifyContent: 'center',
         opacity: disabled ? 0.4 : 1,
       }}
     >
@@ -294,9 +277,9 @@ export function TextAction({
       disabled={disabled}
       hitSlop={10}
       onPress={onPress}
-      style={[{ alignSelf: "flex-start", opacity: disabled ? 0.45 : 1 }, style]}
+      style={[{ alignSelf: 'flex-start', opacity: disabled ? 0.45 : 1 }, style]}
     >
-      <Text variant="label" color="ink2" style={underline("dotted", 4)}>
+      <Text variant="label" color="ink2" style={underline('dotted', 4)}>
         {label}
       </Text>
     </Pressable>
@@ -309,28 +292,28 @@ export function TextAction({
  */
 export function Chip({
   label,
-  kind = "plain",
+  kind = 'plain',
   active = false,
   onPress,
 }: {
   label: string;
-  kind?: "plain" | "timer" | "tag";
+  kind?: 'plain' | 'timer' | 'tag';
   active?: boolean;
   onPress?: () => void;
 }) {
   const colors = useColors();
   const box: ViewStyle = {
-    alignSelf: "flex-start",
+    alignSelf: 'flex-start',
     borderWidth: 1,
     borderColor: active ? colors.accent : colors.line,
-    paddingVertical: kind === "timer" ? 3 : kind === "tag" ? 1 : 2,
-    paddingHorizontal: kind === "tag" ? 6 : 8,
+    paddingVertical: kind === 'timer' ? 3 : kind === 'tag' ? 1 : 2,
+    paddingHorizontal: kind === 'tag' ? 6 : 8,
   };
   const text =
-    kind === "tag" ? (
+    kind === 'tag' ? (
       <Text variant="tag">{label}</Text>
-    ) : kind === "timer" ? (
-      <Text variant="label" color={active ? "accent" : "ink2"}>
+    ) : kind === 'timer' ? (
+      <Text variant="label" color={active ? 'accent' : 'ink2'}>
         {label}
       </Text>
     ) : (
@@ -351,9 +334,7 @@ export function GroupLabel({ label, first = false }: { label: string; first?: bo
     <View
       style={[
         { paddingBottom: 10 },
-        first
-          ? { paddingTop: 22 }
-          : { paddingTop: 26, borderTopWidth: 1, borderTopColor: colors.line },
+        first ? { paddingTop: 22 } : { paddingTop: 26, borderTopWidth: 1, borderTopColor: colors.line },
       ]}
     >
       <Text variant="label" color="accent">
@@ -384,10 +365,8 @@ export function SectionHeader({
   return (
     <View
       style={[
-        { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: 16 },
-        ruled
-          ? { paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: colors.line }
-          : { paddingBottom: gap },
+        { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 16 },
+        ruled ? { paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: colors.line } : { paddingBottom: gap },
       ]}
     >
       <Text variant="heading" accessibilityRole="header">
@@ -404,7 +383,7 @@ export function SectionHeader({
  */
 export function Row({
   children,
-  align = "flex-start",
+  align = 'flex-start',
   pad = 11,
   rule = true,
   last = false,
@@ -412,11 +391,11 @@ export function Row({
   gap,
   onPress,
   label,
-  role = "button",
+  role = 'button',
   checked,
 }: {
   children: ReactNode;
-  align?: "flex-start" | "baseline" | "center";
+  align?: 'flex-start' | 'baseline' | 'center';
   /** Vertical padding. */
   pad?: number;
   /** Whether the row has a top hairline. */
@@ -427,12 +406,12 @@ export function Row({
   onPress?: () => void;
   /** Accessibility label when the row is pressable. */
   label?: string;
-  role?: "button" | "checkbox" | "link";
+  role?: 'button' | 'checkbox' | 'link';
   checked?: boolean;
 }) {
   const colors = useColors();
   const style: ViewStyle = {
-    flexDirection: "row",
+    flexDirection: 'row',
     alignItems: align,
     paddingVertical: pad,
     gap,
@@ -444,7 +423,7 @@ export function Row({
       {highlight && (
         <View
           style={{
-            position: "absolute",
+            position: 'absolute',
             top: 0,
             bottom: 0,
             left: -12,
@@ -482,9 +461,9 @@ export function Lane({
   children?: ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
-  const trailing = size === "kcal" || size === "checkbox" || size === "arrow";
+  const trailing = size === 'kcal' || size === 'checkbox' || size === 'arrow';
   return (
-    <View style={[{ width: lane[size], flexShrink: 0, alignItems: trailing ? "flex-end" : "flex-start" }, style]}>
+    <View style={[{ width: lane[size], flexShrink: 0, alignItems: trailing ? 'flex-end' : 'flex-start' }, style]}>
       {children}
     </View>
   );
@@ -499,10 +478,7 @@ export function Fill({ children, style }: { children: ReactNode; style?: StylePr
 export function ArrowLane({ small = false, lineHeight }: { small?: boolean; lineHeight?: number }) {
   return (
     <Lane size="arrow">
-      <Text
-        variant="arrow"
-        style={small ? { fontSize: 16, lineHeight: 20 } : lineHeight ? { lineHeight } : undefined}
-      >
+      <Text variant="arrow" style={small ? { fontSize: 16, lineHeight: 20 } : lineHeight ? { lineHeight } : undefined}>
         →
       </Text>
     </Lane>
@@ -521,15 +497,11 @@ export function MetaRow({
   style?: StyleProp<ViewStyle>;
 }) {
   return (
-    <View style={[{ flexDirection: "row", gap: 16 }, style]}>
+    <View style={[{ flexDirection: 'row', gap: 16 }, style]}>
       {items.map((item) => (
         <View key={item.label} style={{ flex: 1, gap: large ? 4 : 6 }}>
           <Text variant="label">{item.label}</Text>
-          {typeof item.value === "string" ? (
-            <Text variant={large ? "dayName" : "meal"}>{item.value}</Text>
-          ) : (
-            item.value
-          )}
+          {typeof item.value === 'string' ? <Text variant={large ? 'dayName' : 'meal'}>{item.value}</Text> : item.value}
         </View>
       ))}
     </View>
@@ -539,7 +511,7 @@ export function MetaRow({
 /** One mono caps line for loading, empty and error states. An error gets a retry action. */
 export function StateLine({ text, onRetry }: { text: string; onRetry?: () => void }) {
   return (
-    <Gutter style={{ paddingVertical: 24, flexDirection: "row", gap: 10, alignItems: "baseline" }}>
+    <Gutter style={{ paddingVertical: 24, flexDirection: 'row', gap: 10, alignItems: 'baseline' }}>
       <Text variant="label">{onRetry ? `${text} ·` : text}</Text>
       {onRetry && <TextAction label="Retry" onPress={onRetry} />}
     </Gutter>
@@ -579,7 +551,7 @@ export function Field({
   return (
     <View style={[{ paddingTop: 14, borderBottomWidth: 1, borderBottomColor: colors.line }, style]}>
       <Text variant="label">{label}</Text>
-      <View style={{ flexDirection: "row", alignItems: "baseline" }}>
+      <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
         <TextInput
           accessibilityLabel={label}
           placeholderTextColor={colors.ink3}
@@ -601,17 +573,14 @@ export const inputStyle: TextStyle = {
   paddingHorizontal: 0,
   minWidth: 0,
   // The browser's focus ring would draw the box the design leaves out.
-  ...(WEB ? ({ outlineStyle: "none" } as unknown as TextStyle) : {}),
+  ...(WEB ? ({ outlineStyle: 'none' } as unknown as TextStyle) : {}),
 };
 
 /** Text shown for copying: a token or a command, in mono, selectable. */
 export function Code({ children }: { children: string }) {
   const colors = useColors();
   return (
-    <RNText
-      selectable
-      style={{ fontFamily: mono[400], fontSize: 13, lineHeight: 20, color: colors.ink2 }}
-    >
+    <RNText selectable style={{ fontFamily: mono[400], fontSize: 13, lineHeight: 20, color: colors.ink2 }}>
       {children}
     </RNText>
   );
@@ -624,13 +593,21 @@ export function confirmAction(title: string, message: string, action: string, on
     return;
   }
   Alert.alert(title, message, [
-    { text: "Cancel", style: "cancel" },
-    { text: action, style: "destructive", onPress: onConfirm },
+    { text: 'Cancel', style: 'cancel' },
+    { text: action, style: 'destructive', onPress: onConfirm },
   ]);
 }
 
 /** A square on/off switch: an outlined track with a knob, filled `accentFill` when on. */
-export function Toggle({ value, onChange, label }: { value: boolean; onChange: (next: boolean) => void; label: string }) {
+export function Toggle({
+  value,
+  onChange,
+  label,
+}: {
+  value: boolean;
+  onChange: (next: boolean) => void;
+  label: string;
+}) {
   const colors = useColors();
   return (
     <Pressable
@@ -645,8 +622,8 @@ export function Toggle({ value, onChange, label }: { value: boolean; onChange: (
         padding: 2,
         borderWidth: 1,
         borderColor: value ? colors.accentFill : colors.ink3,
-        backgroundColor: value ? colors.accentFill : "transparent",
-        alignItems: value ? "flex-end" : "flex-start",
+        backgroundColor: value ? colors.accentFill : 'transparent',
+        alignItems: value ? 'flex-end' : 'flex-start',
       }}
     >
       <View style={{ width: 16, height: 16, backgroundColor: value ? colors.onAccent : colors.ink3 }} />

@@ -20,6 +20,8 @@ export interface RecipeSource {
   text?: string;
 }
 
+// JSON-LD is untyped; every read below checks the shape it needs.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Json = any;
 
 export async function fetchRecipeSource(url: string): Promise<RecipeSource> {
@@ -40,7 +42,12 @@ export function parseRecipeSource(url: string, html: string): RecipeSource {
     found: true,
     name: str(recipe.name),
     description: str(recipe.description),
-    yield: [recipe.recipeYield].flat().filter((y: Json) => y != null && y !== '').map(String).join(' / ') || undefined,
+    yield:
+      [recipe.recipeYield]
+        .flat()
+        .filter((y: Json) => y != null && y !== '')
+        .map(String)
+        .join(' / ') || undefined,
     prep_time: str(recipe.prepTime),
     cook_time: str(recipe.cookTime),
     total_time: str(recipe.totalTime),

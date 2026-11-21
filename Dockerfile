@@ -1,11 +1,17 @@
+# The feedr API. Railway builds this from the repo root; compose.yaml runs it locally.
 FROM node:24-alpine
 WORKDIR /app
-COPY package.json package-lock.json tsconfig.base.json ./
+# pnpm comes from corepack, at the version in package.json's packageManager.
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+RUN corepack enable
+# Only the API's production dependencies (and core's) are installed.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
 COPY packages/core/package.json packages/core/
 COPY apps/api/package.json apps/api/
-RUN npm ci --workspace @feedr/api --workspace @feedr/core --include-workspace-root --ignore-scripts
+RUN pnpm install --frozen-lockfile --prod --filter @feedr/api...
 COPY packages/core packages/core
 COPY apps/api apps/api
 ENV NODE_ENV=production
 EXPOSE 4100
-CMD ["npx", "tsx", "apps/api/src/server.ts"]
+WORKDIR /app/apps/api
+CMD ["node_modules/.bin/tsx", "src/server.ts"]

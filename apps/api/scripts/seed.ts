@@ -1,4 +1,4 @@
-// Sample data that shows off the app: npm run seed -- <userId>
+// Sample data that shows off the app: pnpm seed <userId>
 // Two people, nine recipes (the katsu curry has sections, step links and timers) and this week's plan,
 // with a leftover lunch, a different breakfast each on Tuesday, a snack and two meals left to plan.
 import type { VersionInput } from '@feedr/core';
@@ -6,7 +6,7 @@ import { db } from '../src/db.ts';
 import * as svc from '../src/service.ts';
 
 const userId = process.argv[2];
-if (!userId) throw new Error('Usage: npm run seed -- <userId>  (from npm run account:create)');
+if (!userId) throw new Error('Usage: pnpm seed <userId>  (from pnpm account:create)');
 
 type Line = VersionInput['ingredients'][number];
 /** A step's ingredients by name, or [name, quantity, unit] when the step uses part of the line. */
@@ -99,8 +99,16 @@ const katsu = await svc.createRecipe(userId, {
       line(200, 'ml', 'vegetable oil', 'Cupboard', { section: CHICKEN_RICE, prep: 'for frying' }),
     ],
     steps: [
-      step('Rinse the rice, then simmer it in 600 ml water, covered, until the water has gone. Leave it to steam off the heat.', ['basmati rice'], 12),
-      step("Dip the chicken in the egg, then press it into the panko until it's well coated.", ['chicken breasts', 'egg', 'panko breadcrumbs']),
+      step(
+        'Rinse the rice, then simmer it in 600 ml water, covered, until the water has gone. Leave it to steam off the heat.',
+        ['basmati rice'],
+        12,
+      ),
+      step("Dip the chicken in the egg, then press it into the panko until it's well coated.", [
+        'chicken breasts',
+        'egg',
+        'panko breadcrumbs',
+      ]),
       step(
         'Melt the butter in a wide pan. Add the onions and garlic and cook for 10–12 min until soft and golden, then stir in the curry powder.',
         ['butter', 'onions', ['garlic', 6, 'clove'], 'curry powder'],
@@ -116,10 +124,10 @@ const katsu = await svc.createRecipe(userId, {
         ['plain flour', ['garlic', 2, 'clove'], 'chicken stock', 'honey'],
         15,
       ),
-      step('Slice the chicken into strips. Serve on the rice with the sauce spooned over the side, so the crumb stays crisp.', [
-        'chicken breasts',
-        'basmati rice',
-      ]),
+      step(
+        'Slice the chicken into strips. Serve on the rice with the sauce spooned over the side, so the crumb stays crisp.',
+        ['chicken breasts', 'basmati rice'],
+      ),
     ],
   }),
 });
@@ -130,7 +138,8 @@ const katsuForTwo = await svc.createVersion(
     label: 'For two',
     servings: 2,
     based_on_version_id: katsu.versions[0]!.id,
-    notes: 'Halved from the original (serves 4) and baked instead of fried. The sauce makes extra, so freeze half for next week.',
+    notes:
+      'Halved from the original (serves 4) and baked instead of fried. The sauce makes extra, so freeze half for next week.',
     prep_minutes: 20,
     cook_minutes: 40,
     nutrition: [1280, 84, 136, 36],
@@ -148,7 +157,11 @@ const katsuForTwo = await svc.createVersion(
       line(150, 'g', 'basmati rice', 'Cupboard', { section: CHICKEN_RICE, prep: 'rinsed' }),
     ],
     steps: [
-      step('Rinse the rice, then simmer it in 300 ml water, covered, until the water has gone. Leave it to steam off the heat.', ['basmati rice'], 12),
+      step(
+        'Rinse the rice, then simmer it in 300 ml water, covered, until the water has gone. Leave it to steam off the heat.',
+        ['basmati rice'],
+        12,
+      ),
       step(
         "Heat the oven to 200°C fan. Dip the chicken in the egg, then press it into the panko until it's well coated. Lay it on a lined tray.",
         ['chicken breasts', 'egg', 'panko breadcrumbs'],
@@ -158,16 +171,20 @@ const katsuForTwo = await svc.createVersion(
         ['butter', 'onions', ['garlic', 4, 'clove'], 'curry powder'],
         10,
       ),
-      step("Bake the chicken for 20 min until golden and cooked through. Start the sauce while it's in.", ['chicken breasts'], 20),
+      step(
+        "Bake the chicken for 20 min until golden and cooked through. Start the sauce while it's in.",
+        ['chicken breasts'],
+        20,
+      ),
       step(
         'Stir the flour and the last 2 cloves of garlic into the onions. Add the stock a splash at a time, then simmer until it coats a spoon. Add the honey and blend smooth.',
         ['plain flour', ['garlic', 2, 'clove'], 'chicken stock', 'honey'],
         15,
       ),
-      step('Slice the chicken into strips. Serve on the rice with the sauce spooned over the side, so the crumb stays crisp.', [
-        'chicken breasts',
-        'basmati rice',
-      ]),
+      step(
+        'Slice the chicken into strips. Serve on the rice with the sauce spooned over the side, so the crumb stays crisp.',
+        ['chicken breasts', 'basmati rice'],
+      ),
     ],
   }),
 );
@@ -192,7 +209,11 @@ const salmon = await svc.createRecipe(userId, {
       line(1, 'tsp', 'sesame seeds', 'Cupboard', { optional: true }),
     ],
     steps: [
-      step('Heat the oven to 200°C fan. Simmer the rice in 300 ml water, covered, for 12 min, then leave it to steam.', ['basmati rice'], 12),
+      step(
+        'Heat the oven to 200°C fan. Simmer the rice in 300 ml water, covered, for 12 min, then leave it to steam.',
+        ['basmati rice'],
+        12,
+      ),
       step('Whisk the miso, honey and soy sauce into a glaze.', ['white miso', 'honey', 'soy sauce']),
       step('Lay the salmon on a lined tray, brush it with the glaze and roast for 10–12 min.', ['salmon'], 11),
       step('Steam the pak choi over the rice pan for 3 min, until just tender.', ['pak choi'], 3),
@@ -221,8 +242,16 @@ const chickpea = await svc.createRecipe(userId, {
       line(250, 'g', 'basmati rice', 'Cupboard', { prep: 'rinsed' }),
     ],
     steps: [
-      step('Soften the onions in a little oil for 8 min, then stir in the garlic and curry powder for 1 min.', ['onions', 'garlic', 'curry powder'], 8),
-      step('Add the chickpeas and tomatoes with half a tin of water. Simmer for 15 min.', ['chickpeas', 'chopped tomatoes'], 15),
+      step(
+        'Soften the onions in a little oil for 8 min, then stir in the garlic and curry powder for 1 min.',
+        ['onions', 'garlic', 'curry powder'],
+        8,
+      ),
+      step(
+        'Add the chickpeas and tomatoes with half a tin of water. Simmer for 15 min.',
+        ['chickpeas', 'chopped tomatoes'],
+        15,
+      ),
       step('Meanwhile, simmer the rice, covered, for 12 min.', ['basmati rice'], 12),
       step('Stir the spinach into the curry until it wilts. Serve over the rice.', ['spinach']),
     ],
@@ -246,7 +275,11 @@ const wrap = await svc.createRecipe(userId, {
       line(2, null, 'tortilla wraps', 'Bakery'),
     ],
     steps: [
-      step('Season the chicken and fry it for 5 min a side, until cooked through. Rest it, then slice.', ['chicken breasts'], 10),
+      step(
+        'Season the chicken and fry it for 5 min a side, until cooked through. Rest it, then slice.',
+        ['chicken breasts'],
+        10,
+      ),
       step('Toss the lettuce with the dressing and parmesan.', ['romaine lettuce', 'caesar dressing', 'parmesan']),
       step('Pile the salad and chicken onto the wraps and roll them up tightly.', ['tortilla wraps']),
     ],
@@ -261,13 +294,26 @@ const oatsLines = (n: number) => [
   line(80 * n, 'g', 'mixed berries', 'Produce'),
 ];
 const oatsSteps = [
-  step('Stir the oats, milk, yogurt and chia seeds together. Cover and chill overnight.', ['porridge oats', 'milk', 'Greek yogurt', 'chia seeds']),
+  step('Stir the oats, milk, yogurt and chia seeds together. Cover and chill overnight.', [
+    'porridge oats',
+    'milk',
+    'Greek yogurt',
+    'chia seeds',
+  ]),
   step('Top with the berries.', ['mixed berries']),
 ];
 const oats = await svc.createRecipe(userId, {
   title: 'Overnight oats',
   tags: ['breakfast', 'make ahead'],
-  original: version({ label: 'Original', servings: 1, prep_minutes: 5, cook_minutes: 0, nutrition: [420, 21, 56, 12], ingredients: oatsLines(1), steps: oatsSteps }),
+  original: version({
+    label: 'Original',
+    servings: 1,
+    prep_minutes: 5,
+    cook_minutes: 0,
+    nutrition: [420, 21, 56, 12],
+    ingredients: oatsLines(1),
+    steps: oatsSteps,
+  }),
 });
 const oatsForTwo = await svc.createVersion(
   userId,
@@ -291,11 +337,26 @@ const yogurtLines = (n: number) => [
   line(40 * n, 'g', 'granola', 'Cupboard'),
   line(n, 'tsp', 'honey', 'Cupboard', { optional: true }),
 ];
-const yogurtSteps = [step('Spoon the yogurt into a bowl and top with the berries, granola and honey.', ['Greek yogurt', 'mixed berries', 'granola', 'honey'])];
+const yogurtSteps = [
+  step('Spoon the yogurt into a bowl and top with the berries, granola and honey.', [
+    'Greek yogurt',
+    'mixed berries',
+    'granola',
+    'honey',
+  ]),
+];
 const yogurt = await svc.createRecipe(userId, {
   title: 'Yogurt, berries & granola',
   tags: ['breakfast', 'quick'],
-  original: version({ label: 'Original', servings: 1, prep_minutes: 5, cook_minutes: 0, nutrition: [350, 22, 40, 11], ingredients: yogurtLines(1), steps: yogurtSteps }),
+  original: version({
+    label: 'Original',
+    servings: 1,
+    prep_minutes: 5,
+    cook_minutes: 0,
+    nutrition: [350, 22, 40, 11],
+    ingredients: yogurtLines(1),
+    steps: yogurtSteps,
+  }),
 });
 const yogurtForTwo = await svc.createVersion(
   userId,
@@ -331,8 +392,16 @@ const traybake = await svc.createRecipe(userId, {
       line(1, null, 'lemon', 'Produce', { prep: 'halved' }),
     ],
     steps: [
-      step('Heat the oven to 200°C fan. Toss the potatoes and pepper with oil in a roasting tin and roast for 10 min.', ['new potatoes', 'red pepper'], 10),
-      step('Rub the chicken with the harissa, nestle it into the tin with the lemon and roast for 25 min.', ['chicken thighs', 'harissa paste', 'lemon'], 25),
+      step(
+        'Heat the oven to 200°C fan. Toss the potatoes and pepper with oil in a roasting tin and roast for 10 min.',
+        ['new potatoes', 'red pepper'],
+        10,
+      ),
+      step(
+        'Rub the chicken with the harissa, nestle it into the tin with the lemon and roast for 25 min.',
+        ['chicken thighs', 'harissa paste', 'lemon'],
+        25,
+      ),
       step('Squeeze the roasted lemon over everything and serve from the tin.'),
     ],
   }),
@@ -357,9 +426,17 @@ const risotto = await svc.createRecipe(userId, {
       line(30, 'g', 'parmesan', 'Dairy & eggs', { prep: 'finely grated' }),
     ],
     steps: [
-      step('Melt the butter and soften the onions for 5 min. Add the garlic and mushrooms and cook until golden.', ['butter', 'onions', 'garlic', 'chestnut mushrooms'], 5),
+      step(
+        'Melt the butter and soften the onions for 5 min. Add the garlic and mushrooms and cook until golden.',
+        ['butter', 'onions', 'garlic', 'chestnut mushrooms'],
+        5,
+      ),
       step('Stir in the rice for 1 min, until the edges turn clear.', ['risotto rice']),
-      step('Add the stock a ladle at a time, stirring, for 18–20 min, until the rice is just tender.', ['vegetable stock'], 20),
+      step(
+        'Add the stock a ladle at a time, stirring, for 18–20 min, until the rice is just tender.',
+        ['vegetable stock'],
+        20,
+      ),
       step('Take it off the heat, beat in the parmesan and rest for 2 min before serving.', ['parmesan'], 2),
     ],
   }),
@@ -409,8 +486,14 @@ await plan(yogurt.versions[0]!.id, TUE, [[TUE, 'breakfast']], [jess]);
 
 for (const d of [MON, FRI, SUN]) await plan(wrap.versions[0]!.id, d, [[d, 'lunch']]);
 // Cooked once, eaten twice: the second meal is the leftovers.
-await plan(katsu.versions[0]!.id, MON, [[MON, 'dinner'], [TUE, 'lunch']]);
-await plan(chickpea.versions[0]!.id, WED, [[WED, 'lunch'], [THU, 'lunch']]);
+await plan(katsu.versions[0]!.id, MON, [
+  [MON, 'dinner'],
+  [TUE, 'lunch'],
+]);
+await plan(chickpea.versions[0]!.id, WED, [
+  [WED, 'lunch'],
+  [THU, 'lunch'],
+]);
 
 await plan(salmon.versions[0]!.id, TUE, [[TUE, 'dinner']]);
 await plan(traybake.versions[0]!.id, THU, [[THU, 'dinner']]);

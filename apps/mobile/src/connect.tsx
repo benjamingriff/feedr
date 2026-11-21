@@ -1,9 +1,9 @@
-import { useState } from "react";
-import { AccessibilityInfo, Image, Pressable, Text as RNText, View } from "react-native";
-import { useSSO } from "@clerk/expo";
-import { ErrorLine, Gutter, PageHead, PrimaryButton, Screen, StateLine, Text, TopBar } from "./primitives";
-import { API_URL, useStore } from "./store";
-import { sans } from "./theme";
+import { useState } from 'react';
+import { AccessibilityInfo, Image, Pressable, Text as RNText, View } from 'react-native';
+import { useSSO } from '@clerk/expo';
+import { ErrorLine, Gutter, PageHead, PrimaryButton, Screen, StateLine, Text, TopBar } from './primitives';
+import { API_URL, useStore } from './store';
+import { sans } from './theme';
 
 /** Runs an async action for a form, tracking whether it's busy and what went wrong. */
 function useAction() {
@@ -24,8 +24,8 @@ function useAction() {
 }
 
 const brands = {
-  apple: { strategy: "oauth_apple", title: "Continue with Apple", name: "Apple" },
-  google: { strategy: "oauth_google", title: "Continue with Google", name: "Google" },
+  apple: { strategy: 'oauth_apple', title: 'Continue with Apple', name: 'Apple' },
+  google: { strategy: 'oauth_google', title: 'Continue with Google', name: 'Google' },
 } as const;
 type Brand = keyof typeof brands;
 
@@ -52,27 +52,27 @@ function BrandButton({ brand, onPress, disabled }: { brand: Brand; onPress: () =
       aria-disabled={disabled}
       disabled={disabled}
       onPress={onPress}
-      style={{ height: 44, flexDirection: "row", alignItems: "center", backgroundColor: "#ffffff" }}
+      style={{ height: 44, flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff' }}
     >
-      {brand === "apple" ? (
+      {brand === 'apple' ? (
         <>
           <Image
-            source={require("../assets/sign-in/apple-logo.png")}
+            source={require('../assets/sign-in/apple-logo.png')}
             style={{ width: 31, height: 44, marginLeft: 10, marginRight: 7 }}
           />
-          <RNText allowFontScaling={false} style={{ fontFamily: sans[500], fontSize: 19, color: "#000000" }}>
+          <RNText allowFontScaling={false} style={{ fontFamily: sans[500], fontSize: 19, color: '#000000' }}>
             {title}
           </RNText>
         </>
       ) : (
         <>
           <Image
-            source={require("../assets/sign-in/google-g.png")}
+            source={require('../assets/sign-in/google-g.png')}
             style={{ width: 20, height: 20, marginLeft: 16, marginRight: 12 }}
           />
           <RNText
             allowFontScaling={false}
-            style={{ fontFamily: "GoogleSans_500Medium", fontSize: 14, lineHeight: 20, color: "#1f1f1f" }}
+            style={{ fontFamily: 'GoogleSans_500Medium', fontSize: 14, lineHeight: 20, color: '#1f1f1f' }}
           >
             {title}
           </RNText>
@@ -81,14 +81,14 @@ function BrandButton({ brand, onPress, disabled }: { brand: Brand; onPress: () =
       {/* The stroke sits on top, inside the edge, so Apple's logo file can fill the full height. */}
       <View
         style={{
-          position: "absolute",
+          position: 'absolute',
           top: 0,
           right: 0,
           bottom: 0,
           left: 0,
           borderWidth: 1,
-          borderColor: "#747775",
-          pointerEvents: "none",
+          borderColor: '#747775',
+          pointerEvents: 'none',
         }}
       />
     </Pressable>
@@ -103,12 +103,12 @@ function SocialSignIn() {
   const { startSSOFlow } = useSSO();
   const { clerk, connect, disconnect } = useStore();
   const { busy, error, run } = useAction();
-  const [brand, setBrand] = useState<Brand>("apple");
+  const [brand, setBrand] = useState<Brand>('apple');
   // Signed in to Clerk already (e.g. feedr was unreachable last time): just finish.
   if (clerk?.signedIn)
     return (
       <>
-        <PrimaryButton label={busy ? "Signing in…" : "Continue"} disabled={busy} onPress={() => void run(connect)} />
+        <PrimaryButton label={busy ? 'Signing in…' : 'Continue'} disabled={busy} onPress={() => void run(connect)} />
         <ErrorLine error={error} />
       </>
     );
@@ -125,8 +125,8 @@ function SocialSignIn() {
       if (createdSessionId && setActive) {
         await setActive({ session: createdSessionId });
         await connect();
-      } else if (signUp?.status === "missing_requirements") {
-        throw new Error(`We need a few more details to finish sign-up: ${signUp.missingFields.join(", ")}.`);
+      } else if (signUp?.status === 'missing_requirements') {
+        throw new Error(`We need a few more details to finish sign-up: ${signUp.missingFields.join(', ')}.`);
       }
       // Otherwise the browser was closed: nothing to do.
     });
@@ -136,8 +136,8 @@ function SocialSignIn() {
   return (
     <>
       <View style={{ gap: 12 }}>
-        <BrandButton brand="apple" disabled={busy} onPress={() => signIn("apple")} />
-        <BrandButton brand="google" disabled={busy} onPress={() => signIn("google")} />
+        <BrandButton brand="apple" disabled={busy} onPress={() => signIn('apple')} />
+        <BrandButton brand="google" disabled={busy} onPress={() => signIn('google')} />
       </View>
       {busy && (
         <Text variant="label" style={{ paddingTop: 16 }}>

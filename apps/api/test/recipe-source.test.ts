@@ -15,7 +15,11 @@ test('extracts schema.org Recipe from an @graph, with sections and nutrition', (
         image: { '@type': 'ImageObject', url: 'https://img/curry.jpg' },
         recipeIngredient: ['6 chicken thighs', '400g can chopped tomatoes &amp; juice'],
         recipeInstructions: [
-          { '@type': 'HowToSection', name: 'Sauce', itemListElement: [{ '@type': 'HowToStep', text: '<p>Fry the onion.</p>' }] },
+          {
+            '@type': 'HowToSection',
+            name: 'Sauce',
+            itemListElement: [{ '@type': 'HowToStep', text: '<p>Fry the onion.</p>' }],
+          },
           { '@type': 'HowToStep', text: 'Add the chicken.' },
         ],
         nutrition: { '@type': 'NutritionInformation', calories: '354 calories', proteinContent: '24 g' },
@@ -38,9 +42,16 @@ test('extracts schema.org Recipe from an @graph, with sections and nutrition', (
 });
 
 test('falls back to page text without Recipe data', () => {
-  const r = parseRecipeSource('https://e.com', '<title>Soup</title><style>x{}</style><p>Boil water.</p><li>Add salt</li>');
+  const r = parseRecipeSource(
+    'https://e.com',
+    '<title>Soup</title><style>x{}</style><p>Boil water.</p><li>Add salt</li>',
+  );
   assert.equal(r.found, false);
-  assert.equal(parseRecipeSource('u', `<script type="application/ld+json">{"@type":"Recipe","name":"N","recipeYield":4}</script>`).yield, '4');
+  assert.equal(
+    parseRecipeSource('u', `<script type="application/ld+json">{"@type":"Recipe","name":"N","recipeYield":4}</script>`)
+      .yield,
+    '4',
+  );
   assert.equal(r.name, 'Soup');
   assert.match(r.text!, /Boil water\.\nAdd salt/);
 });

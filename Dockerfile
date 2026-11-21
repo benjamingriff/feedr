@@ -1,4 +1,4 @@
-# The feedr API. Railway builds this from the repo root (railway.json); compose.yaml runs it locally.
+# The feedr API. Railway builds this from the repo root; compose.yaml runs it locally.
 FROM node:24-alpine
 WORKDIR /app
 # pnpm comes from corepack, at the version in package.json's packageManager.

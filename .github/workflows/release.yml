@@ -94,9 +94,9 @@ jobs:
               --limit 1 --json --non-interactive); then
               {
                 echo "Release failed, and EAS couldn't say whether this run queued a build. Before rerunning"
-                echo "Release, look on expo.dev for a production iOS build with fingerprint \`$hash\`. If there"
-                echo "is one, don't rerun Release: once it finishes, check its submission, and if it has none"
-                echo "(or it failed), run:"
+                echo "Release, look on expo.dev for a production iOS build with fingerprint \`$hash\`. If none"
+                echo "is there, or each one errored or was canceled, rerun Release. Otherwise don't: once the"
+                echo "build finishes, check its submission, and if it has none (or it failed), run:"
                 echo
                 echo "    $submit <build id>"
               } >> "$GITHUB_STEP_SUMMARY"

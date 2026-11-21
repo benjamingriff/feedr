@@ -87,17 +87,32 @@ jobs:
             # eas can fail after queueing the build, even before it prints anything about it. If that
             # build exists, a rerun would publish an update to it (or fail while it runs) when what's
             # missing is the submission. Look it up by fingerprint rather than trusting eas's output.
-            build_id=$(eas build:list --platform ios --build-profile production --fingerprint-hash "$hash" \
-              --limit 1 --json --non-interactive 2>/dev/null \
-              | jq -r '.[0] // empty | select(.status != "ERRORED" and .status != "CANCELED") | .id' || true)
+            # eas's own failure can leave the submission queued, so the summary only says to submit
+            # once expo.dev shows none.
+            submit="cd apps/mobile && npx eas-cli@latest submit --platform ios --profile production --id"
+            if ! listed=$(eas build:list --platform ios --build-profile production --fingerprint-hash "$hash" \
+              --limit 1 --json --non-interactive); then
+              {
+                echo "Release failed, and EAS couldn't say whether this run queued a build. Before rerunning"
+                echo "Release, look on expo.dev for a production iOS build with fingerprint \`$hash\`. If there"
+                echo "is one, don't rerun Release: once it finishes, check its submission, and if it has none"
+                echo "(or it failed), run:"
+                echo
+                echo "    $submit <build id>"
+              } >> "$GITHUB_STEP_SUMMARY"
+              echo "::error::Couldn't check for this run's build. See the summary before rerunning Release."
+              exit "$status"
+            fi
+            build_id=$(jq -r '.[0] // empty | select(.status != "ERRORED" and .status != "CANCELED") | .id' <<<"$listed" || true)
             if [ -n "$build_id" ]; then
               {
-                echo "Build \`$build_id\` wasn't submitted to TestFlight. Don't rerun Release."
-                echo "Once the build has finished (see the link in the log), submit it:"
+                echo "Build \`$build_id\` may not be on TestFlight. Don't rerun Release. Once the build has"
+                echo "finished (see the link in the log), check its submission on expo.dev. If it has none"
+                echo "(or it failed), run:"
                 echo
-                echo "    cd apps/mobile && npx eas-cli@latest submit --platform ios --profile production --id $build_id"
+                echo "    $submit $build_id"
               } >> "$GITHUB_STEP_SUMMARY"
-              echo "::error::Build $build_id wasn't submitted. See the summary for the command to submit it."
+              echo "::error::Build $build_id may not be on TestFlight. See the summary before rerunning Release."
             fi
             exit "$status"
           fi

@@ -32,7 +32,8 @@ jobs:
         run: |
           set -o pipefail
           # pg_dump must be at least the server's version; a newer one reads older servers.
-          docker run --rm -e DATABASE_URL postgres:18-alpine sh -c 'pg_dump --format=custom --no-owner "$DATABASE_URL"' \
+          # PGSSLMODE=require refuses a plaintext connection over the internet.
+          docker run --rm -e DATABASE_URL -e PGSSLMODE=require postgres:18-alpine sh -c 'pg_dump --format=custom --no-owner "$DATABASE_URL"' \
             | age -r "$RECIPIENT" > feedr.dump.age
           ls -l feedr.dump.age
       - uses: actions/upload-artifact@v4

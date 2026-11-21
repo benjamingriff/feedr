@@ -549,16 +549,24 @@ stage "First TestFlight build"
 what "runs the Release workflow on main. With no build yet, it builds the app"
 say  "                and submits it to TestFlight. Expect up to an hour: the free plan's"
 say  "                queue, then about 20 minutes of building, then Apple's processing."
-if [[ -n "$(gh release list --repo "$REPO" --limit 1 --json tagName -q '.[].tagName')" ]]; then
+last_release=$(gh release list --repo "$REPO" --limit 1 --json tagName -q '.[].tagName')
+last_run=$(gh run list --repo "$REPO" --workflow release.yml --limit 1 --json url -q '.[].url')
+if [[ -n "$last_release" ]]; then
   you "nothing."
-  ok "A release has already run: $(gh release list --repo "$REPO" --limit 1 --json tagName -q '.[].tagName')"
+  ok "A release has already run: $last_release"
+elif [[ -n "$last_run" ]]; then
+  # A run with no release is still going or failed. If it failed after its build finished,
+  # another run would publish an update instead of submitting the build, so its summary decides.
+  you "open the last Release run and follow its summary. Don't start another from here."
+  note "$last_run"
+  SKIPPED+=("Follow the last Release run's summary: $last_run")
 else
   you "say yes to start it. You can close this and watch it in GitHub Actions instead."
   if confirm "Run the Release workflow now?"; then
     gh workflow run release.yml --repo "$REPO" --ref main
     sleep 5
     run_id=$(gh run list --repo "$REPO" --workflow release.yml --limit 1 --json databaseId -q '.[0].databaseId')
-    gh run watch "$run_id" --repo "$REPO" --exit-status || warn "The release failed. Open it with: gh run view $run_id --repo $REPO --log-failed"
+    gh run watch "$run_id" --repo "$REPO" --exit-status || warn "The release failed. Follow its summary: gh run view $run_id --repo $REPO --web"
   else
     SKIPPED+=("Run the first release: gh workflow run release.yml --ref main")
   fi

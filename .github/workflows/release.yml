@@ -5,6 +5,8 @@
 # the Expo SDK). If a finished production build already has that fingerprint, the JavaScript goes
 # out as an over-the-air update in a minute and costs no build. If not, native code changed, so it
 # makes a new build (one of the free plan's 15 iOS builds a month) and submits it to TestFlight.
+# TestFlight builds expire after 90 days, so tick "build" to replace one when native code hasn't
+# changed.
 #
 # Fingerprints are only computed here, on Linux: another OS can hash differently and miss builds.
 name: Release
@@ -16,6 +18,11 @@ on:
         description: Update message (defaults to the last commit's subject)
         required: false
         type: string
+      build:
+        description: Make a new TestFlight build even if native code hasn't changed
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: release
@@ -51,6 +58,7 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           MESSAGE: ${{ inputs.message }}
+          BUILD: ${{ inputs.build }}
         run: |
           # eas-cli prints a notice before the JSON, so keep from the first "{" on.
           fingerprint=$(eas fingerprint:generate --platform ios --build-profile production --json --non-interactive | sed -n '/^{/,$p')
@@ -67,7 +75,7 @@ jobs:
           finished=$(jq '[.[] | select(.status == "FINISHED")] | length' <<<"$builds")
           active=$(jq '[.[] | select(.status == "NEW" or .status == "IN_QUEUE" or .status == "IN_PROGRESS")] | length' <<<"$builds")
 
-          if [ "$finished" -gt 0 ]; then
+          if [ "$finished" -gt 0 ] && [ "$BUILD" != true ]; then
             eas update --channel production --environment production --platform ios \
               --message "${MESSAGE:-$(git log -1 --pretty=%s)}" --non-interactive
             echo "kind=Update" >> "$GITHUB_OUTPUT"

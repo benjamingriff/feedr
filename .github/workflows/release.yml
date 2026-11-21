@@ -85,6 +85,8 @@ jobs:
             exit 1
           else
             # --wait also waits for the TestFlight submission, and exits non-zero if either fails.
+            # Builds from before this run (with build ticked, an older finished one) aren't its build.
+            before=$(jq -c '[.[].id]' <<<"$builds")
             status=0
             eas build --platform ios --profile production --auto-submit --non-interactive --wait || status=$?
             echo "kind=TestFlight build" >> "$GITHUB_OUTPUT"
@@ -99,19 +101,20 @@ jobs:
             # once expo.dev shows none.
             submit="cd apps/mobile && npx eas-cli@latest submit --platform ios --profile production --id"
             if ! listed=$(eas build:list --platform ios --build-profile production --fingerprint-hash "$hash" \
-              --limit 1 --json --non-interactive); then
+              --limit 5 --json --non-interactive); then
               {
                 echo "Release failed, and EAS couldn't say whether this run queued a build. Before rerunning"
-                echo "Release, look on expo.dev for a production iOS build with fingerprint \`$hash\`. If none"
-                echo "is there, or each one errored or was canceled, rerun Release. Otherwise don't: once the"
-                echo "build finishes, check its submission, and if it has none (or it failed), run:"
+                echo "Release, look on expo.dev for a production iOS build this run started. If there isn't"
+                echo "one, or it errored or was canceled, rerun Release (with build ticked if it was). Otherwise"
+                echo "don't: once the build finishes, check its submission, and if it has none (or it failed), run:"
                 echo
                 echo "    $submit <build id>"
               } >> "$GITHUB_STEP_SUMMARY"
               echo "::error::Couldn't check for this run's build. See the summary before rerunning Release."
               exit "$status"
             fi
-            build_id=$(jq -r '.[0] // empty | select(.status != "ERRORED" and .status != "CANCELED") | .id' <<<"$listed" || true)
+            build_id=$(jq -r --argjson before "$before" '[.[] | select(.id | IN($before[]) | not)][0] // empty
+              | select(.status != "ERRORED" and .status != "CANCELED") | .id' <<<"$listed" || true)
             if [ -n "$build_id" ]; then
               {
                 echo "Build \`$build_id\` may not be on TestFlight. Don't rerun Release. Once the build has"
@@ -121,6 +124,8 @@ jobs:
                 echo "    $submit $build_id"
               } >> "$GITHUB_STEP_SUMMARY"
               echo "::error::Build $build_id may not be on TestFlight. See the summary before rerunning Release."
+            elif [ "$BUILD" = true ]; then
+              echo "No build was started. Rerun Release with build ticked." >> "$GITHUB_STEP_SUMMARY"
             fi
             exit "$status"
           fi

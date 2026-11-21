@@ -518,8 +518,11 @@ else
   note "The backup runs on GitHub, outside Railway's private network, so the database needs a"
   note "public address. Its password still protects it."
   step "In Railway, open the Postgres service → Settings → Networking, and turn on public access."
-  step "Then Variables → DATABASE_PUBLIC_URL (it appears once public access is on), and copy it."
+  step "Then Connect → Public Network, and copy the connection URL (postgresql://…proxy.rlwy.net:…)."
   ask_secret DATABASE_PUBLIC_URL "Paste DATABASE_PUBLIC_URL:"
+  # The Variables tab can copy the template, whose ${{…}} references only Railway fills in.
+  [[ "$DATABASE_PUBLIC_URL" == *'${{'* ]] \
+    && die "That's Railway's template, not the address. Copy it from Postgres → Connect → Public Network."
   set_secret DATABASE_PUBLIC_URL "$DATABASE_PUBLIC_URL"
   unset DATABASE_PUBLIC_URL
 fi

@@ -8,8 +8,8 @@
       "environment": "production",
       "channel": "production",
       "autoIncrement": true,
-      "corepack": true,
-      "node": "24.22.0"
+      "node": "24.22.0",
+      "pnpm": "11.18.0"
     }
   },
   "submit": {

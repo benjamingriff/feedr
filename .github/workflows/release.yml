@@ -78,26 +78,26 @@ jobs:
           else
             # --wait also waits for the TestFlight submission, and exits non-zero if either fails.
             status=0
-            builds=$(eas build --platform ios --profile production --auto-submit --non-interactive --wait --json) || status=$?
-            build_id=$(jq -r '.[0].id // empty' <<<"$builds" 2>/dev/null || true)
+            eas build --platform ios --profile production --auto-submit --non-interactive --wait || status=$?
             echo "kind=TestFlight build" >> "$GITHUB_OUTPUT"
-            # The status in that JSON can be from before the wait, so ask EAS for the build as it is now.
-            finished=false
-            if [ -n "$build_id" ]; then
-              current=$(eas build:view "$build_id" --json 2>/dev/null | jq -r '.status // empty' || true)
-              [ "$current" = FINISHED ] && finished=true
-            fi
             if [ "$status" -eq 0 ]; then
-              echo "Built fingerprint \`$hash\` (build \`$build_id\`) and submitted it to TestFlight." >> "$GITHUB_STEP_SUMMARY"
-            elif [ "$finished" = true ]; then
-              # Rerunning Release would now find the finished build and publish an update instead.
+              echo "Built fingerprint \`$hash\` and submitted it to TestFlight." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            # eas can fail after queueing the build, even before it prints anything about it. If that
+            # build exists, a rerun would publish an update to it (or fail while it runs) when what's
+            # missing is the submission. Look it up by fingerprint rather than trusting eas's output.
+            build_id=$(eas build:list --platform ios --build-profile production --fingerprint-hash "$hash" \
+              --limit 1 --json --non-interactive 2>/dev/null \
+              | jq -r '.[0] // empty | select(.status != "ERRORED" and .status != "CANCELED") | .id' || true)
+            if [ -n "$build_id" ]; then
               {
-                echo "Build \`$build_id\` finished but its TestFlight submission failed. Don't rerun Release."
-                echo "Submit the build again:"
+                echo "Build \`$build_id\` wasn't submitted to TestFlight. Don't rerun Release."
+                echo "Once the build has finished (see the link in the log), submit it:"
                 echo
                 echo "    cd apps/mobile && npx eas-cli@latest submit --platform ios --profile production --id $build_id"
               } >> "$GITHUB_STEP_SUMMARY"
-              echo "::error::Build $build_id finished but its submission failed. See the summary for the command to resubmit."
+              echo "::error::Build $build_id wasn't submitted. See the summary for the command to submit it."
             fi
             exit "$status"
           fi

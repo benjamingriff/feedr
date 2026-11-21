@@ -1,0 +1,139 @@
+# Ships main to phones. Run it from the Actions tab ("Release" → Run workflow) when you want
+# what's merged on your phone; merging alone only deploys the API.
+#
+# It computes the app's native fingerprint (a hash of everything native: Expo modules, app.json,
+# the Expo SDK). If a finished production build already has that fingerprint, the JavaScript goes
+# out as an over-the-air update in a minute and costs no build. If not, native code changed, so it
+# makes a new build (one of the free plan's 15 iOS builds a month) and submits it to TestFlight.
+# TestFlight builds expire after 90 days, so tick "build" to replace one when native code hasn't
+# changed.
+#
+# Fingerprints are only computed here, on Linux: another OS can hash differently and miss builds.
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      message:
+        description: Update message (defaults to the last commit's subject)
+        required: false
+        type: string
+      build:
+        description: Make a new TestFlight build even if native code hasn't changed
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write # tag the release
+
+jobs:
+  release:
+    name: Update or build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    # A build waits in the free plan's queue, then about 20 minutes to build.
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: jdx/mise-action@v2
+      - run: pnpm install --frozen-lockfile
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+          # Installs eas-cli into the action's own folder; pnpm 11 refuses its build scripts there.
+          packager: npm
+
+      - id: ship
+        name: Publish an update, or build for TestFlight
+        working-directory: apps/mobile
+        shell: bash # with pipefail, so a failed eas command stops the release
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          MESSAGE: ${{ inputs.message }}
+          BUILD: ${{ inputs.build }}
+        run: |
+          # eas-cli prints a notice before the JSON, so keep from the first "{" on.
+          fingerprint=$(eas fingerprint:generate --platform ios --build-profile production --json --non-interactive | sed -n '/^{/,$p')
+          hash=$(jq -er '.hash' <<<"$fingerprint")
+          # If autolinking fails, @expo/fingerprint quietly leaves out every Expo module, and an
+          # update could then reach a build without the native code it needs. Refuse.
+          modules=$(jq '[.sources[] | select((.reasons // []) | index("expoAutolinkingIos"))] | length' <<<"$fingerprint")
+          if [ "$modules" -eq 0 ]; then
+            echo "::error::The fingerprint hashes no Expo native modules, so it can't be trusted."
+            exit 1
+          fi
+
+          builds=$(eas build:list --platform ios --build-profile production --fingerprint-hash "$hash" --limit 20 --json --non-interactive)
+          finished=$(jq '[.[] | select(.status == "FINISHED")] | length' <<<"$builds")
+          active=$(jq '[.[] | select(.status == "NEW" or .status == "IN_QUEUE" or .status == "IN_PROGRESS")] | length' <<<"$builds")
+
+          if [ "$finished" -gt 0 ] && [ "$BUILD" != true ]; then
+            eas update --channel production --environment production --platform ios \
+              --message "${MESSAGE:-$(git log -1 --pretty=%s)}" --non-interactive
+            echo "kind=Update" >> "$GITHUB_OUTPUT"
+            echo "Published an update for builds with fingerprint \`$hash\`." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$active" -gt 0 ]; then
+            echo "::error::A build for fingerprint $hash is already running. Run Release again once it finishes."
+            exit 1
+          else
+            # --wait also waits for the TestFlight submission, and exits non-zero if either fails.
+            # Builds from before this run (with build ticked, an older finished one) aren't its build.
+            before=$(jq -c '[.[].id]' <<<"$builds")
+            status=0
+            eas build --platform ios --profile production --auto-submit --non-interactive --wait || status=$?
+            echo "kind=TestFlight build" >> "$GITHUB_OUTPUT"
+            if [ "$status" -eq 0 ]; then
+              echo "Built fingerprint \`$hash\` and submitted it to TestFlight." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            # eas can fail after queueing the build, even before it prints anything about it. If that
+            # build exists, a rerun would publish an update to it (or fail while it runs) when what's
+            # missing is the submission. Look it up by fingerprint rather than trusting eas's output.
+            # eas's own failure can leave the submission queued, so the summary only says to submit
+            # once expo.dev shows none.
+            submit="cd apps/mobile && npx eas-cli@latest submit --platform ios --profile production --id"
+            if ! listed=$(eas build:list --platform ios --build-profile production --fingerprint-hash "$hash" \
+              --limit 5 --json --non-interactive); then
+              {
+                echo "Release failed, and EAS couldn't say whether this run queued a build. Before rerunning"
+                echo "Release, look on expo.dev for a production iOS build this run started. If there isn't"
+                echo "one, or it errored or was canceled, rerun Release (with build ticked if it was). Otherwise"
+                echo "don't: once the build finishes, check its submission, and if it has none (or it failed), run:"
+                echo
+                echo "    $submit <build id>"
+              } >> "$GITHUB_STEP_SUMMARY"
+              echo "::error::Couldn't check for this run's build. See the summary before rerunning Release."
+              exit "$status"
+            fi
+            build_id=$(jq -r --argjson before "$before" '[.[] | select(.id | IN($before[]) | not)][0] // empty
+              | select(.status != "ERRORED" and .status != "CANCELED") | .id' <<<"$listed" || true)
+            if [ -n "$build_id" ]; then
+              {
+                echo "Build \`$build_id\` may not be on TestFlight. Don't rerun Release. Once the build has"
+                echo "finished (see the link in the log), check its submission on expo.dev. If it has none"
+                echo "(or it failed), run:"
+                echo
+                echo "    $submit $build_id"
+              } >> "$GITHUB_STEP_SUMMARY"
+              echo "::error::Build $build_id may not be on TestFlight. See the summary before rerunning Release."
+            elif [ "$BUILD" = true ]; then
+              echo "No build was started. Rerun Release with build ticked." >> "$GITHUB_STEP_SUMMARY"
+            fi
+            exit "$status"
+          fi
+
+      - name: Tag the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KIND: ${{ steps.ship.outputs.kind }}
+        run: |
+          tag="release-$(date -u +%Y-%m-%d)-${{ github.run_number }}"
+          gh release create "$tag" --target "$GITHUB_SHA" --title "$tag ($KIND)" --generate-notes

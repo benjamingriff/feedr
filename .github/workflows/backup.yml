@@ -1,0 +1,43 @@
+# Nightly backup of the production database. Railway's Hobby plan has no scheduled backups, and
+# artifacts on a public repo can be downloaded by anyone signed in to GitHub, so the dump is
+# encrypted with your age key before it's stored. Only the public half is in GitHub
+# (BACKUP_AGE_RECIPIENT); the private key stays on your machine. scripts/deploy-setup.sh sets it up.
+#
+# Restore (on your machine):
+#   gh run download <run id> --name <artifact>
+#   age -d -i ~/.config/feedr/backup-key.txt feedr.dump.age | pg_restore --clean --if-exists --no-owner -d "$DATABASE_URL"
+#
+# GitHub pauses scheduled workflows after 60 days without a commit, and emails you when it does.
+name: Back up the database
+
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    if: vars.BACKUP_AGE_RECIPIENT != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - run: sudo apt-get install -y -qq age > /dev/null
+      - name: Dump and encrypt
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_PUBLIC_URL }}
+          RECIPIENT: ${{ vars.BACKUP_AGE_RECIPIENT }}
+        run: |
+          set -o pipefail
+          # pg_dump must be at least the server's version; a newer one reads older servers.
+          # PGSSLMODE=require refuses a plaintext connection over the internet.
+          docker run --rm -e DATABASE_URL -e PGSSLMODE=require postgres:18-alpine sh -c 'pg_dump --format=custom --no-owner "$DATABASE_URL"' \
+            | age -r "$RECIPIENT" > feedr.dump.age
+          ls -l feedr.dump.age
+      - uses: actions/upload-artifact@v4
+        with:
+          name: feedr-db-${{ github.run_id }}
+          path: feedr.dump.age
+          retention-days: 30

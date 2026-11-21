@@ -4,6 +4,10 @@
     "slug": "feedr",
     "scheme": "feedr",
     "version": "0.1.0",
+    "icon": "./assets/icon.png",
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "ios": {
@@ -12,12 +16,38 @@
         "NSAppTransportSecurity": {
           "NSAllowsLocalNetworking": true
         }
+      },
+      "bundleIdentifier": "com.benjamingriff.feedr",
+      "config": {
+        "usesNonExemptEncryption": false
       }
     },
     "web": {
       "bundler": "metro",
       "output": "single"
     },
-    "plugins": ["expo-router", "expo-secure-store", "@clerk/expo", "expo-font", "expo-splash-screen"]
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "@clerk/expo",
+      "expo-font",
+      "expo-splash-screen",
+      "expo-status-bar",
+      "expo-web-browser"
+    ],
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "6ff87f38-cbf9-4a92-ad91-1b0d30407a55"
+      }
+    },
+    "owner": "ben-jamin-griff",
+    "updates": {
+      "url": "https://u.expo.dev/6ff87f38-cbf9-4a92-ad91-1b0d30407a55"
+    }
   }
 }

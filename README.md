@@ -48,6 +48,10 @@ Home ─┬─ Meal plan ── Recipe ── Cook mode ── Dish-up
 
 The app follows the system's light or dark appearance unless you pin one, and offers five colour palettes, under Account → Colour and mode.
 
+## Deploy
+
+The API and Postgres run on Railway, which deploys each commit on `main` once CI passes. Phones get changes when you run **Release** in GitHub Actions: an over-the-air update when only JavaScript changed, or a TestFlight build when native code did (a PR that needs one gets the `native change` label). `./scripts/deploy-setup.sh` sets up the accounts this needs; it's safe to re-run.
+
 ## Connect an agent (MCP)
 
 ```bash

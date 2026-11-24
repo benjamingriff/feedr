@@ -15,7 +15,7 @@ import {
   VersionInput,
   type Me,
 } from '@feedr/core';
-import { authenticate, createAccessToken, type AuthUser } from './auth.ts';
+import { authenticate, createAccessToken, mcpOAuth, type AuthUser } from './auth.ts';
 import { handleMcp } from './mcp.ts';
 import * as svc from './service.ts';
 
@@ -28,6 +28,7 @@ app.use(
   cors({
     origin: (origin) => origin ?? '*',
     allowHeaders: ['Authorization', 'Content-Type', 'Mcp-Session-Id', 'Mcp-Protocol-Version'],
+    exposeHeaders: ['WWW-Authenticate'],
   }),
 );
 
@@ -41,9 +42,32 @@ app.onError((err, c) => {
 
 app.get('/health', (c) => c.json({ ok: true }));
 
+// OAuth protected-resource metadata (RFC 9728) for /mcp. A connector finds it from the 401's
+// WWW-Authenticate header, then signs in with Clerk, the authorisation server it names.
+app.get('/.well-known/oauth-protected-resource/mcp', (c) => {
+  const oauth = mcpOAuth();
+  if (!oauth) return c.json({ error: 'OAuth is not configured' }, 404);
+  return c.json({
+    resource: oauth.resource,
+    authorization_servers: [oauth.issuer],
+    bearer_methods_supported: ['header'],
+    scopes_supported: ['profile'],
+    resource_name: 'feedr',
+  });
+});
+
 app.use('*', async (c, next) => {
-  const user = await authenticate(c.req.header('Authorization'));
-  if (!user) return c.json({ error: 'Unauthorised' }, 401);
+  const header = c.req.header('Authorization');
+  const oauth = c.req.path === '/mcp' ? mcpOAuth() : null;
+  const user = await authenticate(header, oauth?.resource);
+  if (!user) {
+    // Tells an MCP client where to sign in (RFC 9728 §5.1). error= tells it a token it sent was refused.
+    if (oauth) {
+      const error = header ? 'error="invalid_token", ' : '';
+      c.header('WWW-Authenticate', `Bearer ${error}resource_metadata="${oauth.metadataUrl}"`);
+    }
+    return c.json({ error: 'Unauthorised' }, 401);
+  }
   c.set('user', user);
   await next();
 });

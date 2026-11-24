@@ -12,7 +12,7 @@ A personal ReciMe-style app. Agents (Claude Code or any MCP client) import recip
 
 | Table | Notes |
 |---|---|
-| `users`, `access_tokens` | One login for now. Personal tokens (hashed) for agents and the app; Clerk sign-in optional. |
+| `users`, `access_tokens` | One login for now, through Clerk (the app's Apple or Google sign-in, or a connector's OAuth). Personal tokens (hashed) for Claude Code and scripts. |
 | `people` | Who you cook for (no login): weight, daily kcal and protein targets, `slot_split` (fraction of daily kcal per slot; snack is the total for all snacks). |
 | `recipes` | Who the dish is and where it came from: title, description, source, tags, image. |
 | `recipe_versions` | What you actually cook. The original is the recipe as published; agents add scaled or adapted versions with notes on what changed. Each version owns its own ingredients, steps and nutrition, because step text often contains amounts and times. |
@@ -37,9 +37,9 @@ Days, weeks and shopping lists are calculated, not stored. A shopping list combi
 
 ## Interfaces
 
-- **MCP** (`/mcp`, stateless Streamable HTTP, bearer token): people and slot targets; recipes and versions (create, update, archive); services and portions (plan, add leftovers, move, remove); `get_plan` with per-person totals against targets; `get_shopping_list` (read-only). The server instructions teach agents the model and how to scale.
+- **MCP** (`/mcp`, stateless Streamable HTTP, bearer token: a Clerk OAuth token for connectors such as claude.ai, whose audience must be the `/mcp` URL, or a personal token): people and slot targets; recipes and versions (create, update, archive); services and portions (plan, add leftovers, move, remove); `get_plan` with per-person totals against targets; `get_shopping_list` (read-only). The server instructions teach agents the model and how to scale.
 - **REST** for the app: the same service layer.
-- **App**: Home (tonight's dinner and an index) is the root of one stack, with no tab bar. From it: Meal plan (a week of days, who eats what, and adding meals from the cookbook), Cookbook (search, meal-type filters, recipe pages and cook mode), Shopping list (the week by aisle with local ticks) and People (targets, slot split, agent tokens). Dish-up follows cooking a planned meal.
+- **App**: Home (tonight's dinner and an index) is the root of one stack, with no tab bar. From it: Meal plan (a week of days, who eats what, and adding meals from the cookbook), Cookbook (search, meal-type filters, recipe pages and cook mode), Shopping list (the week by aisle with local ticks), People (targets and slot split) and Account (settings, with agent tokens hidden behind a long-press). Dish-up follows cooking a planned meal.
 
 ## Running
 
@@ -47,4 +47,4 @@ Postgres and the API in Docker on your machine. Claude Code connects to `localho
 
 ## Later
 
-Hosting, Clerk OAuth for claude.ai connectors, a pantry, photos, Apple Health, more micronutrients.
+Hosting, a pantry, photos, Apple Health, more micronutrients.

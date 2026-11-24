@@ -6,7 +6,12 @@ import { db } from '../src/db.ts';
 import * as svc from '../src/service.ts';
 
 const userId = process.argv[2];
-if (!userId) throw new Error('Usage: pnpm seed <userId>  (from pnpm account:create)');
+if (!userId) throw new Error('Usage: pnpm seed <userId>  (pnpm account:list shows the ids)');
+// Seeding twice would duplicate everything, so it only fills an empty account.
+if (Object.values(await svc.accountDataCounts(userId)).some(Boolean)) {
+  await db.destroy();
+  throw new Error(`That account already has data. Empty it first with pnpm account:nuke ${userId}`);
+}
 
 type Line = VersionInput['ingredients'][number];
 /** A step's ingredients by name, or [name, quantity, unit] when the step uses part of the line. */

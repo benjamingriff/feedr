@@ -8,6 +8,7 @@
     "start": "tsx src/server.ts",
     "migrate": "tsx --env-file-if-exists=../../.env src/migrate.ts",
     "account": "tsx --env-file-if-exists=../../.env src/account.ts",
+    "accounts": "tsx --env-file-if-exists=../../.env scripts/accounts.ts",
     "seed": "tsx --env-file-if-exists=../../.env scripts/seed.ts",
     "smoke:mcp": "tsx --env-file-if-exists=../../.env scripts/smoke-mcp.ts",
     "test": "tsx --env-file-if-exists=../../.env --import ./test/setup.ts --test --test-concurrency=1 test/*.test.ts",

@@ -912,3 +912,37 @@ export async function shoppingList(
     items: aggregateShopping(lines),
   };
 }
+
+/* ------------------------------ Account data ------------------------------ */
+
+export interface AccountDataCounts {
+  people: number;
+  recipes: number;
+  ingredients: number;
+  services: number;
+}
+
+/** How much an account holds. The account scripts use it to describe and guard what they change. */
+export async function accountDataCounts(userId: string): Promise<AccountDataCounts> {
+  const { rows } = await sql<AccountDataCounts>`
+    SELECT
+      (SELECT count(*) FROM people WHERE user_id = ${userId})::int AS people,
+      (SELECT count(*) FROM recipes WHERE user_id = ${userId})::int AS recipes,
+      (SELECT count(*) FROM ingredients WHERE user_id = ${userId})::int AS ingredients,
+      (SELECT count(*) FROM services WHERE user_id = ${userId})::int AS services
+  `.execute(db);
+  return rows[0]!;
+}
+
+/**
+ * Deletes everything an account holds: people, recipes (with their versions), ingredients and the plan.
+ * The account itself stays, so its Apple or Google sign-in and its agent tokens keep working.
+ */
+export async function clearAccountData(userId: string): Promise<void> {
+  await db.transaction().execute(async (trx) => {
+    await trx.deleteFrom('services').where('user_id', '=', userId).execute();
+    await trx.deleteFrom('recipes').where('user_id', '=', userId).execute();
+    await trx.deleteFrom('ingredients').where('user_id', '=', userId).execute();
+    await trx.deleteFrom('people').where('user_id', '=', userId).execute();
+  });
+}

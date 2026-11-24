@@ -87,7 +87,7 @@ pnpm prod:seed <userId>
 pnpm prod:account:nuke <userId>
 ```
 
-They read `PROD_DATABASE_URL` from the main checkout's `.env` (copy it from Railway → Postgres → Connect → Public Network), so the address lives in one file and works from any worktree. They connect only over TLS, and if the address isn't set they stop rather than use the local database.
+They read `PROD_DATABASE_URL` from the main checkout's `.env` (copy it from Railway → Postgres → Connect → Public Network), so the address lives in one file and works from any worktree. They connect over TLS unless the address sets its own `sslmode`, and if the address isn't set they stop rather than use the local database.
 
 ## Checks
 

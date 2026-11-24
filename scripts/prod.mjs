@@ -20,6 +20,8 @@ if (raw.includes('${{'))
 
 const url = new URL(raw);
 if (!/^postgres(ql)?:$/.test(url.protocol)) throw new Error("PROD_DATABASE_URL isn't a postgresql:// address.");
+// Without a host, pg would connect to localhost.
+if (!url.hostname) throw new Error('PROD_DATABASE_URL has no host.');
 // The connection crosses the internet, so it must be encrypted. Railway's certificate is
 // self-signed, so it isn't verified: the same as PGSSLMODE=require in the backup workflow.
 if (!url.searchParams.has('sslmode')) url.searchParams.set('sslmode', 'no-verify');

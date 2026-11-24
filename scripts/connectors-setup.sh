@@ -344,27 +344,24 @@ printf '\n'; pause
 stage "Clerk: register the MCP server"
 what "tells Clerk about feedr's MCP server, so it issues tokens for that URL"
 say  "                and lets clients like Claude register themselves (public clients)."
-if clerk_ready; then
-  you "nothing."
-  ok "Clerk lists S256 and accepts public clients"
+# Clerk's public metadata shows S256 and public clients, but not which MCP URLs are registered or
+# whether tokens carry an audience, so those are checked by eye every run.
+you "check these in Clerk. Production uses Clerk's development instance, so pick that."
+open_url "https://dashboard.clerk.com/~/agents/mcp-servers"
+step "Check the top bar says the feedr app and Development."
+step "MCP servers lists exactly this URL. If not, Add MCP server (or Get started) with it:"
+note "      $API/mcp"
+copy "$API/mcp" && note "      (on your clipboard)"
+step "Allow public clients to connect is on for it."
+step "Configure → OAuth applications → Settings: Include Audience is on. Clerk turns it on"
+say  "           with the first MCP server; without it tokens carry no audience and the API"
+say  "           refuses them."
+printf '\n'; pause "Press Enter once all three are true."
+if wait_for clerk_ready "Clerk's metadata to list S256 and public clients"; then ok "Clerk lists S256 and accepts public clients"
 else
-  you "follow these steps. Production uses Clerk's development instance, so pick that."
-  open_url "https://dashboard.clerk.com/~/agents/mcp-servers"
-  step "Check the top bar says the feedr app and Development."
-  step "Add MCP server (or Get started). MCP URL:"
-  note "      $API/mcp"
-  copy "$API/mcp" && note "      (on your clipboard)"
-  step "Turn on Allow public clients to connect, then Add server."
-  step "Then Configure → OAuth applications → Settings: check Include Audience is on."
-  say  "           Clerk turns it on with the first MCP server; without it tokens carry no audience"
-  say  "           and the API refuses them."
-  printf '\n'; pause "Press Enter once the server is added."
-  if wait_for clerk_ready "Clerk's metadata to list public clients"; then ok "Clerk lists S256 and accepts public clients"
-  else
-    warn "Clerk's metadata at $ISSUER/.well-known/oauth-authorization-server doesn't list"
-    warn "client_id_metadata_document_supported yet. Check Allow public clients is on."
-    SKIPPED+=("Clerk: turn on public clients for the MCP server $API/mcp")
-  fi
+  warn "Clerk's metadata at $ISSUER/.well-known/oauth-authorization-server doesn't list"
+  warn "client_id_metadata_document_supported yet. Check Allow public clients is on."
+  SKIPPED+=("Clerk: turn on public clients for the MCP server $API/mcp")
 fi
 note "  curl $ISSUER/.well-known/oauth-authorization-server | jq .code_challenge_methods_supported"
 printf '\n'; pause
@@ -374,25 +371,26 @@ stage "claude.ai: add the connector"
 what "adds feedr to your Claude account. Connectors follow your account, so this"
 say  "                also covers the desktop and phone apps (next stage)."
 you "follow these steps."
-open_url "https://claude.ai/settings/connectors"
-step "Add custom connector. Name: feedr. Remote MCP server URL:"
+open_url "https://claude.ai"
+step "Customize → Connectors → + Add → Add custom connector."
+step "Name: feedr. URL, then Continue:"
 note "      $API/mcp"
 copy "$API/mcp" && note "      (on your clipboard)"
-step "Add, then Connect. Clerk's sign-in page opens: continue with Apple or Google, the same"
-say  "           login as the app, so the connector sees your recipes. Clerk's development"
-say  "           banner on that page is expected. Allow access when asked."
-step "Back in claude.ai, feedr shows as connected. Its tools are listed under it."
+step "Authentication: Sign in now. OAuth client: Use Claude's published identity. Then Add."
+step "Clerk's sign-in page opens: continue with Apple or Google, the same login as the app,"
+say  "           so the connector sees your recipes. Clerk's development banner on that page is"
+say  "           expected. Allow access when asked."
+step "Back in claude.ai, feedr shows as connected."
 printf '\n'; pause "Press Enter once it says connected."
 tools_check "claude.ai"
 printf '\n'; pause
 
 # ── 6. Claude desktop and phone ───────────────────────────────────────────
 stage "Claude desktop and phone apps"
-what "checks the connector reached the apps. There's nothing to add: they use"
-say  "                the connector from your account."
+what "checks the connector reached the apps. They should use the connector from"
+say  "                your account, so there should be nothing to add."
 you "open each app signed in to the same Claude account."
-step "Desktop: new chat → the tools (+ or sliders) menu → turn feedr on."
-step "Phone: new chat → + → Connectors (or Tools) → turn feedr on."
+step "Desktop and phone: new chat → + → Connectors → turn feedr on."
 say  "If either asks you to connect again, sign in with the same Apple or Google login."
 printf '\n'
 tools_check "the Claude phone app"
@@ -401,8 +399,9 @@ printf '\n'; pause
 
 # ── 7. The app ────────────────────────────────────────────────────────────
 stage "The app: Agent access is hidden"
-what "sends the app change (Agent access hidden on Account) to your phone. It's"
-say  "                JavaScript only, so Release publishes an over-the-air update, no TestFlight build."
+what "sends the app change (Agent access hidden on Account) to your phone. Release"
+say  "                publishes an over-the-air update, or makes a TestFlight build if no finished"
+say  "                build matches the app's native code. Its summary says which."
 if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1 && confirm "Run the Release workflow on main now?"; then
   gh workflow run release.yml --ref main
   sleep 5
@@ -412,7 +411,7 @@ else
   note "Run it later from GitHub → Actions → Release, or: gh workflow run release.yml --ref main"
   SKIPPED+=("Run Release so the phone gets the hidden Agent access")
 fi
-you "once it's published, close and reopen the app twice (the update loads on the next launch)."
+you "once it's out, update the app: reopen it twice for an update, or install the TestFlight build."
 step "Account: no Agent access section between Timers & reminders and Sign-in & data."
 step "Long-press the ID line under your name: Agent access appears. Long-press again to hide it."
 if ! confirm "Does Agent access hide and show like that?"; then

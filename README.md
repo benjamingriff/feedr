@@ -18,6 +18,8 @@ Requires [mise](https://mise.jdx.dev) (or Node 24 with `corepack enable`), Docke
 
 It takes about five minutes and says at every stage what it's doing and what, if anything, you need to do. It installs packages and sets up Postgres, then uses the Clerk CLI to create a Clerk app called "feedr" with Apple and Google sign-in, writing the keys to `.env` and `apps/mobile/.env.local`. It saves the address your phone uses for the API, starts the API, and waits while you sign in with Apple or Google on your phone. Finally it offers to load demo data. Re-running it is safe: finished steps are detected and skipped.
 
+In a new git worktree, `pnpm dev:setup` copies the `.env` files from the main checkout, leaving out `PROD_DATABASE_URL` and any live Clerk key.
+
 Day to day, once setup is done:
 
 ```bash
@@ -66,6 +68,26 @@ Then, for example: "Import https://… into feedr and plan it for dinner on Mond
 ## Personal tokens
 
 Agents connect with personal tokens; the app itself signs in with Apple or Google. Create a token for your account in the app under Account → Agent access. From the command line, `pnpm account:create "Token name" <userId>` adds a token to an existing account, and `pnpm account:create "Your name"` makes a new account and prints its first token once. That new account has no Apple or Google login, so the app can't open it, and what an agent adds there won't show in the app. Only the token's SHA-256 hash is stored.
+
+## Seed or empty an account
+
+```bash
+pnpm account:list            # every account: its id, its login and how much it holds
+pnpm seed <userId>           # the demo data: two people, nine recipes and this week's plan
+pnpm account:nuke <userId>   # deletes all of an account's data, after you type "nuke"
+```
+
+Seeding only fills an empty account, so nuke first to start again. Nuking keeps the account itself, so your Apple or Google sign-in and agent tokens still work afterwards.
+
+These use the local database. The `prod:` versions do the same to the production database:
+
+```bash
+pnpm prod:account:list
+pnpm prod:seed <userId>
+pnpm prod:account:nuke <userId>
+```
+
+They read `PROD_DATABASE_URL` from the main checkout's `.env` (copy it from Railway → Postgres → Connect → Public Network), so the address lives in one file and works from any worktree. They connect over TLS unless the address sets its own `sslmode`, and if the address isn't set they stop rather than use the local database.
 
 ## Checks
 

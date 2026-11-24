@@ -4,6 +4,7 @@ import type { Plan, Recipe, RecipeSummary, RecipeVersion, Service, ShoppingList 
 import { app } from '../src/app.ts';
 import { createAccessToken } from '../src/auth.ts';
 import { db, migrate } from '../src/db.ts';
+import * as svc from '../src/service.ts';
 
 let token = '';
 let userId = '';
@@ -297,6 +298,36 @@ test('cannot read another user’s data', async () => {
   const recipes = await call<Recipe[]>('GET', '/recipes');
   const res = await app.request(`/recipes/${recipes[0]!.id}`, { headers: { Authorization: `Bearer ${otherToken}` } });
   assert.equal(res.status, 404);
+  await db.deleteFrom('users').where('id', '=', other).execute();
+});
+
+test('clearing an account deletes its data but keeps the account, its tokens and other accounts', async () => {
+  const other = (await db.insertInto('users').values({ name: 'Clear me' }).returning('id').executeTakeFirstOrThrow())
+    .id;
+  const otherToken = await createAccessToken(other, 'agent');
+  const person = await svc.createPerson(other, { name: 'Sam', daily_kcal: 2000 });
+  const recipe = await svc.createRecipe(other, {
+    title: 'Toast',
+    original: {
+      servings: 1,
+      ingredients: [{ ingredient: 'bread', raw_text: '2 slices bread' }],
+      steps: [{ text: 'Toast it.' }],
+      nutrition: nutrition(200, 8),
+    },
+  });
+  await svc.planService(other, {
+    version_id: recipe.versions[0]!.id,
+    cook_date: '2026-12-07',
+    portions: [{ person_id: person.id, date: '2026-12-07', slot: 'breakfast' }],
+  });
+  const before = await svc.accountDataCounts(userId);
+
+  await svc.clearAccountData(other);
+
+  assert.deepEqual(await svc.accountDataCounts(other), { people: 0, recipes: 0, ingredients: 0, services: 0 });
+  assert.deepEqual(await svc.accountDataCounts(userId), before);
+  const res = await app.request('/recipes', { headers: { Authorization: `Bearer ${otherToken}` } });
+  assert.equal(res.status, 200);
   await db.deleteFrom('users').where('id', '=', other).execute();
 });
 

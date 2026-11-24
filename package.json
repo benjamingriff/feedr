@@ -6,12 +6,18 @@
     "node": ">=24 <25"
   },
   "scripts": {
+    "dev:setup": "node scripts/dev-setup.mjs",
     "dev:api": "pnpm --filter @feedr/api dev",
     "dev:mobile": "pnpm --filter @feedr/mobile start",
     "dev:mobile:tunnel": "pnpm --filter @feedr/mobile tunnel",
     "dev:mobile:web": "pnpm --filter @feedr/mobile web",
     "db:migrate": "pnpm --filter @feedr/api migrate",
     "account:create": "pnpm --filter @feedr/api account",
+    "account:list": "pnpm --filter @feedr/api accounts list",
+    "account:nuke": "pnpm --filter @feedr/api accounts nuke",
+    "prod:account:list": "node scripts/prod.mjs pnpm account:list",
+    "prod:account:nuke": "node scripts/prod.mjs pnpm account:nuke",
+    "prod:seed": "node scripts/prod.mjs pnpm seed",
     "seed": "pnpm --filter @feedr/api seed",
     "smoke:mcp": "pnpm --filter @feedr/api smoke:mcp",
     "typecheck": "pnpm -r --if-present typecheck",

@@ -513,11 +513,15 @@ else
   # Finds the feedr account the API made at sign-in (or makes it).
   feedr_user_id=$(pnpm_cli -s --filter @feedr/api account "$(jq -r .name <<<"$signed_in")" \
     --clerk "$(jq -r .id <<<"$signed_in")" | sed -n '/^{/,/^}/p' | jq -r .userId)
-  recipes=$(docker compose exec -T postgres psql -U feedr -d feedr -Atc \
-    "select count(*) from recipes where user_id = '$feedr_user_id'" 2>/dev/null || echo "?")
-  if [[ "$recipes" =~ ^[1-9] ]]; then
+  # The same check as pnpm seed, which only fills an empty account.
+  rows=$(docker compose exec -T postgres psql -U feedr -d feedr -Atc \
+    "select (select count(*) from people where user_id = '$feedr_user_id')
+          + (select count(*) from recipes where user_id = '$feedr_user_id')
+          + (select count(*) from ingredients where user_id = '$feedr_user_id')
+          + (select count(*) from services where user_id = '$feedr_user_id')" 2>/dev/null || echo "?")
+  if [[ "$rows" =~ ^[1-9] ]]; then
     you "nothing."
-    ok "Your account already has $recipes recipes"
+    ok "Your account already has data (pnpm account:nuke empties it)"
   else
     you "say yes to load it, or no to start empty."
     if confirm "Load the demo data into your account?"; then

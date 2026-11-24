@@ -23,7 +23,8 @@ import {
 import { useApiQuery, useStore } from '../store';
 import { mono, useColors } from '../theme';
 
-const TABS = ['all', 'breakfast', 'lunch', 'dinner'] as const;
+// Meal-type tags. A treat is something sweet, like a weekend bake; it's planned in the snack slot.
+const TABS = ['all', 'breakfast', 'lunch', 'dinner', 'treat'] as const;
 type Tab = (typeof TABS)[number];
 
 const hasTag = (recipe: RecipeSummary, tag: string) => recipe.tags.some((t) => t.toLowerCase() === tag);

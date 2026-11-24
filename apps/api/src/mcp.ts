@@ -31,7 +31,7 @@ Model:
 Importing: call fetch_recipe_source with the URL, then create_recipe. Published nutrition is usually per serving; multiply by the yield for the whole batch.
 
 Writing a version for the app:
-- Tag every recipe with its meal type: breakfast, lunch or dinner (more than one is fine). The app's cookbook filters on these tags.
+- Tag every recipe with its meal type: breakfast, lunch, dinner or treat (more than one is fine). The app's cookbook filters on these tags. A treat is something sweet that's nice rather than good for you, such as a cake, brownies or a weekend bake.
 - Link ingredients to steps. Each step takes ingredients: [{ line, quantity?, unit? }], where line is the index of the ingredient in this version's ingredients array, starting at 0. The app's cook mode lists a step's ingredients beside it. Give quantity and unit only when a step uses part of a line, e.g. 4 of the 6 garlic cloves now and 2 in a later step.
 - Refer to each ingredient in the step text by its name or the main word of its name, so the app can mark it.
 - Set timer_seconds on steps with a wait, and prep_minutes and cook_minutes on the version.
@@ -41,6 +41,8 @@ Planning a meal:
 2. Pick a version near the total, or create one with create_recipe_version.
 3. plan_service with the version and one portion per person per meal. The result includes each portion's nutrition and a dish-up guide.
 4. get_plan to check each person's day totals against their targets.
+
+Planning a treat: plan it in the snack slot. A bake that lasts several days is one service with a portion for each person on each day they'll have some, since the whole batch is split across its portions.
 
 Shopping: get_shopping_list combines the ingredients of every service cooked in a date range (or of given versions) by ingredient and aisle. It is read-only.
 

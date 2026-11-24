@@ -62,10 +62,10 @@ reuse the list patterns below, and BUILD.md describes them.
 
 Accent tint (the highlighted ingredient row in cook mode) is `accent` at 9% opacity.
 
-These are the **Clay** palette, the default. People can switch to Basil, Cobalt, Yolk or
-Beetroot, and pin light or dark, from the Appearance settings (`/appearance`, opened from
-Account). Every palette's values live in
-`apps/mobile/src/theme.ts`. Two roles sit beside `accent` so a palette's fill colour can differ
+These are the **Clay** palette, the one the Paper design is drawn in. The app opens in
+**Cobalt** by default. People can switch to Clay, Basil, Yolk or Beetroot, and pin light or
+dark, from the Appearance settings (`/appearance`, opened from Account). Every palette's values
+live in `apps/mobile/src/theme.ts`. Two roles sit beside `accent` so a palette's fill colour can differ
 from its text colour (Yolk's yellow can't be read on white):
 
 | Token | Use |

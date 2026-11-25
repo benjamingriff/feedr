@@ -42,7 +42,7 @@ Home ─┬─ Meal plan ─┬─ Recipe ─┬─ Cook mode ── Dish-up
 | `/service/[id]` | Dish-up: the cooked weight and the grams for each plate. |
 | `/shopping` | Shopping list for the week in `week` (its Monday), or this week. |
 | `/people`, `/people/[id]` | People; the person form (`new` adds one). |
-| `/account` | Account: profile, your home, settings, agent tokens, sign out and delete. Households, the cooking and reminder settings, export and delete are mocks for now. |
+| `/account` | Account: profile, your home, settings, sign out and delete. Long-press the account ID for agent tokens. Households, the cooking and reminder settings, export and delete are mocks for now. |
 | `/appearance` | Colour palette and light or dark mode, opened from Account. |
 | `/account/invite`, `/account/delete` | Invite someone to your home (a mock); confirm deleting the account. |
 

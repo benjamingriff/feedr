@@ -30,7 +30,11 @@ import { useAppearance } from '../../theme';
 // Design mock: the household, cooking and reminder settings hold local state only, and export
 // does nothing yet. The profile, appearance, agent access and sign-out are live.
 
-/** Creates a token for an agent and shows it once, with the command that connects Claude to the MCP server. */
+/**
+ * Creates a personal token and shows it once, with the command that connects Claude Code to the MCP
+ * server. A testing aid: connectors sign in with OAuth, so Account hides this until you long-press
+ * your account ID.
+ */
 function AgentAccess() {
   const { api } = useStore();
   const [token, setToken] = useState('');
@@ -124,6 +128,7 @@ export default function Account() {
   const { palette, mode } = useAppearance();
   const me = useApiQuery<Me>(['me'], '/me');
   const [copied, setCopied] = useState(false);
+  const [agentAccess, setAgentAccess] = useState(false);
   const [awake, setAwake] = useState(true);
   const [alarm, setAlarm] = useState(true);
   const [planReminder, setPlanReminder] = useState(true);
@@ -148,7 +153,9 @@ export default function Account() {
               {!!email && <Text variant="body">{email}</Text>}
             </View>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
-              <Text variant="label">ID {me.data.id.slice(0, 8).toUpperCase()}</Text>
+              <Text variant="label" onLongPress={() => setAgentAccess((shown) => !shown)}>
+                ID {me.data.id.slice(0, 8).toUpperCase()}
+              </Text>
               <TextAction
                 label={copied ? 'Copied' : 'Copy ID'}
                 onPress={() => void Clipboard.setStringAsync(me.data.id).then(() => setCopied(true))}
@@ -202,7 +209,7 @@ export default function Account() {
         />
       </Section>
 
-      <AgentAccess />
+      {agentAccess && <AgentAccess />}
 
       <Section title="Sign-in & data" meta={provider ? `Signed in with ${provider}` : 'Signed in'}>
         <SettingRow rule={false} title="Export my data" detail="Recipes, plans and people as JSON" onPress={() => {}} />

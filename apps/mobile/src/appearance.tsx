@@ -19,7 +19,9 @@ import {
 // and applied everywhere through `useColors()`. Settings screens drop in `AppearanceSettings`,
 // or `ModePicker` and `PalettePicker` on their own.
 
-const key = 'feedr.appearance.v1';
+// v2 started when Cobalt became the default. v1 saved Clay for anyone who only changed the mode,
+// so it's dropped rather than read, and everyone starts on Cobalt once.
+const key = 'feedr.appearance.v2';
 const modes: Mode[] = ['system', 'light', 'dark'];
 
 /** Reads a saved choice, falling back to the default for anything missing or unknown. */

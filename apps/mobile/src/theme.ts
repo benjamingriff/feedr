@@ -40,11 +40,32 @@ function colors(
 }
 
 /**
- * The colour palettes a person can pick from, each with a light and a dark set. Clay is the
- * original design and the default. To add one, add an entry here; the picker lists them in
+ * The colour palettes a person can pick from, each with a light and a dark set. Cobalt is the
+ * default; Clay is the original design. To add one, add an entry here; the picker lists them in
  * this order.
  */
 export const palettes = {
+  Cobalt: {
+    description: 'Ink blue on white',
+    light: colors({
+      bg: '#ffffff',
+      bgRaised: '#f2f3f6',
+      ink: '#0d0f14',
+      ink2: '#444852',
+      ink3: '#6e727c',
+      line: '#0d0f141a',
+      accent: '#2341e0',
+    }),
+    dark: colors({
+      bg: '#0a0b0f',
+      bgRaised: '#16181e',
+      ink: '#f3f4f7',
+      ink2: '#b4b8c2',
+      ink3: '#868a94',
+      line: '#f3f4f71f',
+      accent: '#6f86ff',
+    }),
+  },
   Clay: {
     description: 'Terracotta on warm paper',
     light: colors({
@@ -85,27 +106,6 @@ export const palettes = {
       ink3: '#85908a',
       line: '#ecf1ea1f',
       accent: '#8cc59a',
-    }),
-  },
-  Cobalt: {
-    description: 'Ink blue on white',
-    light: colors({
-      bg: '#ffffff',
-      bgRaised: '#f2f3f6',
-      ink: '#0d0f14',
-      ink2: '#444852',
-      ink3: '#6e727c',
-      line: '#0d0f141a',
-      accent: '#2341e0',
-    }),
-    dark: colors({
-      bg: '#0a0b0f',
-      bgRaised: '#16181e',
-      ink: '#f3f4f7',
-      ink2: '#b4b8c2',
-      ink3: '#868a94',
-      line: '#f3f4f71f',
-      accent: '#6f86ff',
     }),
   },
   Yolk: {
@@ -161,7 +161,7 @@ export const paletteNames = Object.keys(palettes) as PaletteName[];
 export type Mode = 'system' | 'light' | 'dark';
 export type Scheme = 'light' | 'dark';
 export type Appearance = { palette: PaletteName; mode: Mode };
-export const defaultAppearance: Appearance = { palette: 'Clay', mode: 'system' };
+export const defaultAppearance: Appearance = { palette: 'Cobalt', mode: 'system' };
 
 /** The chosen appearance and its setters. `AppearanceProvider` in appearance.tsx supplies it. */
 export const AppearanceContext = createContext<

@@ -196,8 +196,9 @@ value, a control or "→".
 - **Cooking** and **Timers & reminders** ("Coming soon"). Keep screen on, units, week start,
   default servings, the timer alarm and two reminders. A switch is a square 40×22 `Toggle`,
   filled `accentFill` with an `onAccent` knob when on. These are mocks that hold local state.
-- **Agent access.** A section with a `PrimaryButton` "Create token". Once a token exists,
-  show the token and the `claude mcp add` command in mono, with copy actions.
+- **Agent access**, hidden until you long-press the account ID (connectors sign in with OAuth,
+  so personal tokens are for testing). A section with a `PrimaryButton` "Create token". Once a
+  token exists, show the token and the `claude mcp add` command in mono, with copy actions.
 - **Sign-in & data.** Meta "Signed in with Google" (or Apple). Rows: "Export my data" (a
   mock), "Sign out", and "Delete account" in accent.
 

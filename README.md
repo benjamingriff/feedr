@@ -46,7 +46,7 @@ Home ─┬─ Meal plan ── Recipe ── Cook mode ── Dish-up
 - **Cook mode** shows one step at a time with that step's ingredients and a timer. Finishing a planned meal leads to **Dish-up**, which turns the cooked weight into grams per plate.
 - **Shopping list** is the week's ingredients by aisle. Ticks are kept on the phone.
 - **People** holds each person's targets.
-- **Account** shows who's signed in and holds the settings, agent tokens, sign out and account deletion. Shared homes are mocked there for now.
+- **Account** shows who's signed in and holds the settings, sign out and account deletion. Long-press your account ID to show Agent access, which makes a personal token for testing. Shared homes are mocked there for now.
 
 The app follows the system's light or dark appearance unless you pin one, and offers five colour palettes, under Account → Colour and mode.
 
@@ -55,6 +55,10 @@ The app follows the system's light or dark appearance unless you pin one, and of
 The API and Postgres run on Railway, which deploys each commit on `main` once CI passes. Phones get changes when you run **Release** in GitHub Actions: an over-the-air update when only JavaScript changed, or a TestFlight build when native code did (a PR that needs one gets the `native change` label). `./scripts/deploy-setup.sh` sets up the accounts this needs; it's safe to re-run.
 
 ## Connect an agent (MCP)
+
+In claude.ai (web, desktop and the phone app) or Grok Bot, add a custom connector with the URL `https://<api>/mcp` and sign in with Apple or Google. The connector signs in through Clerk with OAuth, as the same feedr account as the app. `./scripts/connectors-setup.sh` sets this up and checks each step.
+
+From Claude Code, or anything that can send a header, a personal token also works:
 
 ```bash
 claude mcp add --transport http feedr http://localhost:4100/mcp \
@@ -65,9 +69,21 @@ Then, for example: "Import https://… into feedr and plan it for dinner on Mond
 
 `FEEDR_TOKEN=feedr_… pnpm smoke:mcp` walks the main tools with the official MCP client against a running API.
 
+### How a connector signs in
+
+OAuth is on when the API has `PUBLIC_URL` (its public `https://` address), `CLERK_SECRET_KEY` and `CLERK_PUBLISHABLE_KEY`. Clerk is the authorisation server: the MCP server is registered in the Clerk dashboard under Agents → MCP servers with public clients allowed, so Claude registers with a client ID metadata document. Each hop can be checked by hand:
+
+```bash
+curl -i -X POST https://<api>/mcp                          # 401, WWW-Authenticate: Bearer resource_metadata="…"
+curl https://<api>/.well-known/oauth-protected-resource/mcp  # resource is https://<api>/mcp, Clerk first
+curl https://<clerk frontend api>/.well-known/oauth-authorization-server  # lists S256 and client_id_metadata_document_supported
+```
+
+The API accepts a Clerk OAuth token only on `/mcp`, and only if its audience is the `/mcp` URL. It maps the token's Clerk user to a feedr account the same way the app's sign-in does.
+
 ## Personal tokens
 
-Agents connect with personal tokens; the app itself signs in with Apple or Google. Create a token for your account in the app under Account → Agent access. From the command line, `pnpm account:create "Token name" <userId>` adds a token to an existing account, and `pnpm account:create "Your name"` makes a new account and prints its first token once. That new account has no Apple or Google login, so the app can't open it, and what an agent adds there won't show in the app. Only the token's SHA-256 hash is stored.
+Personal tokens are for Claude Code, scripts and `pnpm smoke:mcp`; connectors use OAuth and the app signs in with Apple or Google. Create a token for your account in the app: long-press your account ID on Account to show Agent access. From the command line, `pnpm account:create "Token name" <userId>` adds a token to an existing account, and `pnpm account:create "Your name"` makes a new account and prints its first token once. That new account has no Apple or Google login, so the app can't open it, and what an agent adds there won't show in the app. Only the token's SHA-256 hash is stored.
 
 ## Seed or empty an account
 

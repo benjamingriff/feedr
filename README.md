@@ -42,7 +42,7 @@ Home ─┬─ Meal plan ── Recipe ── Cook mode ── Dish-up
 ```
 
 - **Meal plan** is the week, day by day, with who is eating what. "+ Add dinner" opens the cookbook to pick a recipe for that meal.
-- **Cookbook** lists recipes with search and meal-type filters: breakfast, lunch, dinner and treats. A treat is something sweet, like a weekend bake, and goes in the plan as a snack. Agents write the recipes; the app only reads them.
+- **Cookbook** lists recipes with search and meal-type filters: breakfast, lunch, dinner and treats. A treat is something sweet, like a weekend bake. Agents write the recipes; the app only reads them.
 - **Cook mode** shows one step at a time with that step's ingredients and a timer. Finishing a planned meal leads to **Dish-up**, which turns the cooked weight into grams per plate.
 - **Shopping list** is the week's ingredients by aisle. Ticks are kept on the phone.
 - **People** holds each person's targets.

@@ -23,7 +23,7 @@ import {
 import { useApiQuery, useStore } from '../store';
 import { mono, useColors } from '../theme';
 
-// Meal-type tags. A treat is something sweet, like a weekend bake; it's planned in the snack slot.
+// Meal-type tags. A treat is something sweet, like a weekend bake.
 const TABS = ['all', 'breakfast', 'lunch', 'dinner', 'treat'] as const;
 type Tab = (typeof TABS)[number];
 

@@ -1,6 +1,7 @@
 // Sample data that shows off the app: pnpm seed <userId>
 // Two people, ten recipes (the katsu curry has sections, step links and timers) and this week's plan,
-// with a leftover lunch, a different breakfast each on Tuesday, a snack, a weekend bake and two meals left to plan.
+// with a leftover lunch, a different breakfast each on Tuesday, a snack and two meals left to plan.
+// The apple crumble is a treat: in the cookbook, not the plan.
 import type { VersionInput } from '@feedr/core';
 import { db } from '../src/db.ts';
 import * as svc from '../src/service.ts';
@@ -462,9 +463,9 @@ const apple = await svc.createRecipe(userId, {
   }),
 });
 
-const crumble = await svc.createRecipe(userId, {
+await svc.createRecipe(userId, {
   title: 'Apple crumble',
-  description: 'A weekend bake that lasts into Sunday.',
+  description: 'A weekend bake.',
   tags: ['treat'],
   original: version({
     label: 'Original',
@@ -540,11 +541,6 @@ await plan(risotto.versions[0]!.id, FRI, [[FRI, 'dinner']]);
 await plan(katsuForTwo.id, SAT, [[SAT, 'dinner']]);
 await plan(salmon.versions[0]!.id, SUN, [[SUN, 'dinner']]);
 await plan(apple.versions[0]!.id, THU, [[THU, 'snack']], [ben]);
-// Baked on Saturday, finished on Sunday: treats go in the snack slot.
-await plan(crumble.versions[0]!.id, SAT, [
-  [SAT, 'snack'],
-  [SUN, 'snack'],
-]);
 // Wednesday dinner and Saturday lunch are left to plan.
 
 await db.destroy();

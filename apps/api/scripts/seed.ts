@@ -1,6 +1,7 @@
 // Sample data that shows off the app: pnpm seed <userId>
-// Two people, nine recipes (the katsu curry has sections, step links and timers) and this week's plan,
+// Two people, ten recipes (the katsu curry has sections, step links and timers) and this week's plan,
 // with a leftover lunch, a different breakfast each on Tuesday, a snack and two meals left to plan.
+// The apple crumble is a treat: in the cookbook, not the plan.
 import type { VersionInput } from '@feedr/core';
 import { db } from '../src/db.ts';
 import * as svc from '../src/service.ts';
@@ -462,6 +463,40 @@ const apple = await svc.createRecipe(userId, {
   }),
 });
 
+await svc.createRecipe(userId, {
+  title: 'Apple crumble',
+  description: 'A weekend bake.',
+  tags: ['treat'],
+  original: version({
+    label: 'Original',
+    servings: 4,
+    prep_minutes: 15,
+    cook_minutes: 40,
+    nutrition: [1750, 15, 270, 62],
+    ingredients: [
+      line(4, null, 'Bramley apple', 'Produce', { prep: 'peeled and sliced', section: 'Filling' }),
+      line(50, 'g', 'caster sugar', 'Cupboard', { section: 'Filling' }),
+      line(1, 'tsp', 'ground cinnamon', 'Cupboard', { section: 'Filling' }),
+      line(150, 'g', 'plain flour', 'Cupboard', { section: 'Topping' }),
+      line(75, 'g', 'butter', 'Dairy & eggs', { prep: 'cold, cubed', section: 'Topping' }),
+      line(50, 'g', 'demerara sugar', 'Cupboard', { section: 'Topping' }),
+    ],
+    steps: [
+      step('Heat the oven to 190°C. Toss the apple with the caster sugar and cinnamon in a baking dish.', [
+        'Bramley apple',
+        'caster sugar',
+        'ground cinnamon',
+      ]),
+      step('Rub the butter into the flour until it looks like breadcrumbs, then stir in the demerara sugar.', [
+        'plain flour',
+        'butter',
+        'demerara sugar',
+      ]),
+      step('Scatter the topping over the apple and bake until golden and bubbling.', [], 40),
+    ],
+  }),
+});
+
 /* ---------------------------------- Plan ----------------------------------- */
 
 const monday = new Date();
@@ -509,4 +544,4 @@ await plan(apple.versions[0]!.id, THU, [[THU, 'snack']], [ben]);
 // Wednesday dinner and Saturday lunch are left to plan.
 
 await db.destroy();
-console.log(`Seeded 2 people, 9 recipes and this week's plan (from ${day(0)}).`);
+console.log(`Seeded 2 people, 10 recipes and this week's plan (from ${day(0)}).`);

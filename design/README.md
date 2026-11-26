@@ -260,7 +260,7 @@ If nothing is planned for tonight, hide the Tonight block rather than showing it
   "People on the plan" in BUILD.md.
 
 **Cookbook.** The title is "Cookbook" with "N recipes, kept up to date by your agent."
-Below it are the filter tabs (All, Breakfast, Lunch, Dinner, with counts) and the
+Below it are the filter tabs (All, Breakfast, Lunch, Dinner, Treat, with counts) and the
 cookbook rows. A row opens the recipe.
 
 **Recipe.**

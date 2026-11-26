@@ -16,6 +16,7 @@ export interface Check {
 /** The parts of a version the checks need, from a write or from the stored version. */
 export interface CheckedVersion {
   label?: string;
+  servings?: number;
   notes?: string | null;
   ingredients?: {
     ingredient: string;
@@ -43,6 +44,8 @@ export interface CheckOptions {
   newIngredients?: boolean;
   /** Ingredient names of the version this one was based on, to catch text left over from it. */
   baseNames?: string[];
+  /** Protein per serving of the version this one is based on, for checking a high-protein version. */
+  baseProteinPerServing?: number;
   /** The recipe's shared title, checked against a new version's ingredients. */
   title?: string;
   /** True for create_recipe and create_recipe_version, where a new version is being written. */
@@ -247,7 +250,7 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
     );
     if (halves.length) {
       warnings.push(
-        `Ingredient lines ${halves.join(', ')} are part of a whole item. Use whole items, or measure them in g.`,
+        `Ingredient lines ${halves.join(', ')} are part of a whole item. Round to whole items (1 cinnamon stick, 1 small potato); weigh only what the source weighs.`,
       );
     }
     const unmeasured = lines.flatMap((l, i) => (l.quantity == null && !l.raw_text ? [`${i} (${l.ingredient})`] : []));
@@ -270,6 +273,11 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
 
   steps.forEach((step, s) => {
     const n = `${s + 1} ("${step.text.length > 40 ? `${step.text.slice(0, 40).trimEnd()}…` : step.text}")`;
+    if (wordCount(step.text) > 60) {
+      warnings.push(
+        `Step ${n} is ${wordCount(step.text)} words. Split it into stages of one to three short sentences.`,
+      );
+    }
     if (step.text.length > 400) {
       problems.push(
         `Step ${n} is ${step.text.length} characters. Split it into stages of one to three short sentences.`,
@@ -349,7 +357,7 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
       problems.push(`Step ${n} times a wait "per side". Make it two timed steps, the second starting with the turn.`);
     } else if (step.timer_seconds && times > 1) {
       problems.push(
-        `Step ${n} has a timer and gives ${times} times. Time one wait per step: split it where the next wait starts, or drop the timer if a time is hands-on work like stirring or frying.`,
+        `Step ${n} has a timer and gives ${times} times. Time one wait per step: start a new step where the unattended wait begins and keep the timer on it. Drop a timer only when the time is hands-on work like stirring or frying.`,
       );
     } else if (step.timer_seconds && !times) {
       warnings.push(
@@ -381,6 +389,16 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
       if (usedEarlier && /\b(?:tast|adjust|discard|remov|strain)\w*/i.test(sentence)) continue;
       // A longer line's name ends here ("fried shallots" for Asian fried shallots), so it's that line.
       if (endsLongerName(step.text, m.end, lines, m.index, links)) continue;
+      // "Meanwhile, coat the chicken": a preview of the next step, which links it.
+      if (
+        /^\s*meanwhile\b/i.test(
+          step.text
+            .slice(0, m.start)
+            .split(/[.;!?]/)
+            .at(-1) ?? '',
+        )
+      )
+        continue;
       warnings.push(
         `Step ${n} names ${name} but doesn't link line ${m.index}. Link it if the step adds or handles it; leave it if the step only mentions or discards it, with no need to resend.`,
       );
@@ -448,6 +466,22 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
       );
     }
   }
+  // A high-protein version has more protein per serving than the one it's based on.
+  if (
+    opts.baseProteinPerServing &&
+    v.servings &&
+    /\bhigh[- ]protein\b/i.test(v.label ?? '') &&
+    lines.length &&
+    lines.every((l) => l.nutrition)
+  ) {
+    const perServing = lines.reduce((sum, l) => sum + l.nutrition!.protein_g, 0) / v.servings;
+    if (perServing <= opts.baseProteinPerServing) {
+      warnings.push(
+        `"${v.label}" has ${Math.round(perServing)} g protein a serving against ${Math.round(opts.baseProteinPerServing)} g in the version it's based on. Give it clearly more of the main per serving.`,
+      );
+    }
+  }
+
   // Against the targets of the meals it's cooked for: calories are refused when well off, protein flagged.
   const t = opts.mealTargets;
   const batch =
@@ -474,7 +508,7 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
         const factor = Math.round((t.kcal / batch.kcal) * 100) / 100;
         const forProtein = /\bhigh[- ]protein\b/i.test(v.label ?? '');
         const advice = !forProtein
-          ? `Scale every line together by about ${factor}, keeping tins and eggs whole.`
+          ? `Scale every line together by about ${factor}, keeping tins, eggs and whole spices whole, then round each line to an amount a cook measures.`
           : off < 0
             ? `Add about ${gap} kcal: more of every line together, sides at about 75g dry rice a person.`
             : proteinMet

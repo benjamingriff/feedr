@@ -333,3 +333,34 @@ test('a longer name wins, and discarding needs no link', () => {
   assert.deepEqual(errors, []);
   assert.doesNotMatch(warnings.join('\n'), /names shallot|names bay leaf|no time/);
 });
+
+test('high-protein versions need more protein a serving, and a meanwhile preview needs no link', () => {
+  const { warnings } = checkVersion(
+    {
+      label: 'High protein',
+      servings: 2,
+      ingredients: [
+        {
+          ingredient: 'beef chuck',
+          quantity: 350,
+          unit: 'g',
+          section: 'Curry',
+          nutrition: { kcal: 700, protein_g: 70, carbs_g: 0, fat_g: 47 },
+        },
+        { ingredient: 'chicken breast', quantity: 1, section: 'Curry', nutrition: est(0) },
+      ],
+      steps: [
+        {
+          text: 'Simmer the beef chuck for 90 minutes. Meanwhile, slice the chicken breast.',
+          timer_seconds: 5400,
+          ingredients: [{ line: 0 }],
+        },
+        { text: 'Add the chicken breast.', ingredients: [{ line: 1 }] },
+      ],
+    },
+    { baseProteinPerServing: 47, isNew: true, mealTargets: { kcal: 700, portions: [] } },
+  );
+  const notes = warnings.join('\n');
+  assert.match(notes, /35 g protein a serving against 47 g/);
+  assert.doesNotMatch(notes, /names chicken breast/);
+});

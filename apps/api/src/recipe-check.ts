@@ -43,6 +43,8 @@ export interface CheckOptions {
   newIngredients?: boolean;
   /** Ingredient names of the version this one was based on, to catch text left over from it. */
   baseNames?: string[];
+  /** True for create_recipe and create_recipe_version, where a new version is being written. */
+  isNew?: boolean;
   /** The label of the version this one was based on, naming the main it may have swapped out. */
   baseLabel?: string;
   /** Names already in the user's catalog, to catch near-duplicates like "cumin" and "ground cumin". */
@@ -96,7 +98,7 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
   const steps = v.steps ?? [];
 
   if (lines.length && v.steps && !steps.length) problems.push('There are no steps. Give the method.');
-  if (v.label && /protein/i.test(v.label) && !opts.mealTargets) {
+  if (opts.isNew && v.label && /\bhigh[- ]protein\b/i.test(v.label) && !opts.mealTargets) {
     problems.push(`"${v.label}" is a version for targets: pass for_meals so the server can check it.`);
   }
 
@@ -104,7 +106,12 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
   // naming it (chicken stock with a pumpkin main) can be the cook's choice, so they aren't checked.
   if (opts.baseLabel && v.label && opts.newIngredients !== false) {
     const words = (label: string): string[] => label.toLowerCase().match(/\p{L}{4,}/gu) ?? [];
-    const swapped = words(opts.baseLabel).filter((w) => !words(v.label!).includes(w) && w !== 'original');
+    // Backed by an ingredient change: a base line starting with the word that this version dropped.
+    const own = new Set(lines.map((l) => l.ingredient.toLowerCase()));
+    const dropped = (opts.baseNames ?? []).filter((x) => !own.has(x.toLowerCase()));
+    const swapped = words(opts.baseLabel).filter(
+      (w) => !words(v.label!).includes(w) && dropped.some((x) => x.toLowerCase().split(/\s+/)[0] === w),
+    );
     for (const word of swapped) {
       const re = new RegExp(`\\b${word}\\b`, 'i');
       const section = [...new Set(lines.flatMap((l) => (l.section && re.test(l.section) ? [l.section] : [])))];
@@ -216,18 +223,30 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
     }
     // A step that only cooks a side, e.g. "Cook the rice according to the packet".
     const linkedLines = (step.ingredients ?? []).map((i) => lines[i.line]).filter(Boolean);
-    if (linkedLines.length && linkedLines.every((l) => /serve/i.test(l!.section ?? ''))) {
+    if (
+      linkedLines.length &&
+      linkedLines.every((l) => /^(?:to serve|serve with|sides?)$/i.test(l!.section ?? '')) &&
+      /\b(?:cook|boil|simmer|steam)\b/i.test(step.text)
+    ) {
       warnings.push(
         `Step ${n} only cooks a side. Put it in the step whose wait it cooks during, with how long it takes.`,
       );
     }
     // Amounts in the text that no linked line has, e.g. "300 ml" after the stock was cut to 250 ml.
-    for (const m of step.text.matchAll(/(\d+(?:\.\d+)?)\s?(g|ml)\b/gi)) {
-      const amount = Number(m[1]);
-      const unit = m[2]!.toLowerCase();
-      const same = linkedLines.filter((l) => l!.unit === unit);
-      if (same.length && same.every((l) => (l!.quantity ?? 0) < amount)) {
-        warnings.push(`Step ${n} says ${m[0]}, more than its linked lines have. Check the amount for this version.`);
+    // Only amounts written against a linked line's name ("300 ml beef stock") are compared.
+    for (const l of linkedLines) {
+      if (!l!.unit || !['g', 'ml'].includes(l!.unit) || l!.quantity == null) continue;
+      const name = l!.ingredient.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const re = new RegExp(
+        `(\\d+(?:\\.\\d+)?)\\s?${l!.unit}\\s+(?:of\\s+)?(?:the\\s+)?(?:\\p{L}+\\s+)?${name}`,
+        'giu',
+      );
+      for (const m of step.text.matchAll(re)) {
+        if (Number(m[1]) > l!.quantity) {
+          warnings.push(
+            `Step ${n} says ${m[0]}, more than its line has (${l!.quantity} ${l!.unit}). Check the amount for this version.`,
+          );
+        }
       }
     }
     const times = waitCount(step.text);
@@ -350,14 +369,18 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
       else if (batch.kcal <= 0) {
         problems.push(`${message} Estimate each line's nutrition for its amount.`);
       } else {
-        const factor = Math.round((t.kcal / batch.kcal) * 100) / 100;
+        const gap = Math.round(Math.abs(t.kcal - batch.kcal));
         const proteinMet = t.portions.every(
           (p) => p.protein_g == null || (batch.protein_g * p.kcal) / t.kcal >= 0.95 * p.protein_g,
         );
+        const advice =
+          off < 0
+            ? `Add about ${gap} kcal: more of every line together, sides at about 75g dry rice a person.`
+            : proteinMet
+              ? `Take off about ${gap} kcal from the other lines first (sauce fat, then sides, not under 50g dry rice a person), then the main if needed.`
+              : `Take off about ${gap} kcal from the sides and sauce fat, not the main: protein is already short.`;
         problems.push(
-          proteinMet && off > 0
-            ? `${message} Protein is already enough, so cut the other lines first (sauce fat, then sides, not under 50g dry rice a person), then the main if needed. Keep for_meals and send it again.`
-            : `${message} Scale the main and sauce by about ${factor} (spices less), keep sides at about 75g dry rice a person and tins and eggs whole, re-estimate each line's nutrition, keep for_meals and send it again.`,
+          `${message} ${advice} Re-estimate each changed line's nutrition, keep for_meals and send it again.`,
         );
       }
     }

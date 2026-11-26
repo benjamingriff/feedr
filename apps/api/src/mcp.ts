@@ -243,9 +243,12 @@ export function buildMcpServer(user: AuthUser): McpServer {
         const { for_meals: nestedMeals, ...original } = input.original as typeof input.original & {
           for_meals?: z.infer<typeof ForMeals>;
         };
+        if (topMeals && nestedMeals) {
+          throw new svc.InvalidError('for_meals is given twice. Send it once, beside original.');
+        }
         const for_meals = topMeals ?? nestedMeals;
         input = { ...input, original };
-        const check = checkVersion(input.original, await checkContext(for_meals));
+        const check = checkVersion(input.original, { isNew: true, ...(await checkContext(for_meals)) });
         return saveChecked([checkRecipe(input), check], async () =>
           written(await svc.createRecipe(u, { ...input, original: fromFields(input.original) }), NEXT_AFTER_WRITE),
         );
@@ -291,7 +294,12 @@ export function buildMcpServer(user: AuthUser): McpServer {
           ? await svc.getVersion(u, input.based_on_version_id).catch(() => undefined)
           : undefined;
         const baseNames = base?.ingredients.map((l) => l.ingredient);
-        const check = checkVersion(input, { baseNames, baseLabel: base?.label, ...(await checkContext(for_meals)) });
+        const check = checkVersion(input, {
+          isNew: true,
+          baseNames,
+          baseLabel: base?.label,
+          ...(await checkContext(for_meals)),
+        });
         return saveChecked([check], async () => {
           const created = await svc.createVersion(u, recipe_id, fromFields(input));
           return { version_id: created.id, ...written(await svc.getRecipe(u, recipe_id), NEXT_AFTER_WRITE) };

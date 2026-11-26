@@ -212,10 +212,35 @@ test('catches a swapped main left in a section name, and protein versions withou
         { text: 'Simmer the chicken stock for 10 minutes.', timer_seconds: 600, ingredients: [{ line: 1 }] },
       ],
     },
-    { baseNames: ['chicken breast', 'chicken stock'], baseLabel: 'Chicken' },
+    { baseNames: ['chicken breast', 'chicken stock'], baseLabel: 'Chicken', isNew: true },
   );
   assert.match(errors.join('\n'), /Section "Chicken" names chicken/);
   assert.match(errors.join('\n'), /"Pumpkin, high protein" is a version for targets/);
   // Chicken stock with a pumpkin main is the cook's choice, not a leftover.
   assert.doesNotMatch(warnings.join('\n'), /chicken stock/);
+});
+
+test('leaves batch-size variants and unlisted liquids alone, but flags amounts a line can not cover', () => {
+  const thighs = checkVersion(
+    {
+      label: 'Chicken for two',
+      ingredients: [
+        { ingredient: 'chicken thigh', quantity: 300, unit: 'g', section: 'Chicken thighs', nutrition: est(600) },
+        { ingredient: 'cream', quantity: 100, unit: 'ml', section: 'Sauce', nutrition: est(340) },
+        { ingredient: 'beef stock', quantity: 250, unit: 'ml', section: 'Sauce', nutrition: est(20) },
+      ],
+      steps: [
+        { text: 'Fry the chicken thigh for 10 minutes.', timer_seconds: 600, ingredients: [{ line: 0 }] },
+        {
+          text: 'Stir in 100 ml cream, then 300 ml beef stock. Loosen with up to 150 ml pasta water.',
+          ingredients: [{ line: 1 }, { line: 2 }],
+        },
+      ],
+    },
+    { baseNames: ['chicken thigh', 'cream', 'beef stock'], baseLabel: 'Chicken thighs', isNew: true },
+  );
+  assert.deepEqual(thighs.errors, []);
+  const notes = thighs.warnings.join('\n');
+  assert.match(notes, /says 300 ml beef stock, more than its line has \(250 ml\)/);
+  assert.doesNotMatch(notes, /says 150 ml|says 100 ml/);
 });

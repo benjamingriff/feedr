@@ -65,7 +65,7 @@ Accent tint (the highlighted ingredient row in cook mode) is `accent` at 9% opac
 These are the **Clay** palette, the one the Paper design is drawn in. The app opens in
 **Cobalt** by default. People can switch to Clay, Basil, Yolk or Beetroot, and pin light or
 dark, from the Appearance settings (`/appearance`, opened from Account). Every palette's values
-live in `apps/mobile/src/theme.ts`. Two roles sit beside `accent` so a palette's fill colour can differ
+live in `apps/mobile/src/palettes.ts`. Two roles sit beside `accent` so a palette's fill colour can differ
 from its text colour (Yolk's yellow can't be read on white):
 
 | Token | Use |
@@ -129,6 +129,10 @@ Mono labels are always uppercase and use `0.02em` tracking, unless a row says ot
 
 **Brand mark.** A 12×12 accent square, then a gap of 10, then a 12 mono caps label. It
 appears only in cook mode, as "■ Cook". No screen shows the word "Feedr".
+
+**App icon.** A block "F" with a square tucked under its middle arm, all in the palette's
+`accent` on its `bg`. The Home Screen shows the light or dark set to match the phone, and
+the icon switches to the chosen palette's colour. `scripts/icons.ts` in the app draws it.
 
 **Back link.** "← Home" in 12 mono caps ink2, with padding 6 top and 4 bottom so the tap
 target is larger.

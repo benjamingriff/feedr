@@ -65,7 +65,7 @@ claude mcp add --transport http feedr http://localhost:4100/mcp \
   --header "Authorization: Bearer feedr_…"
 ```
 
-Then, for example: "Import https://… into feedr and plan it for dinner on Monday for both of us, then leftovers for Tuesday lunch." The server's MCP instructions explain versions, whole-batch nutrition and portions to the agent, and ask it to tag recipes with a meal type and link each step to the ingredients it uses.
+Then, for example, paste a recipe and say: "Add this to feedr and plan it for dinner on Monday for both of us, then leftovers for Tuesday lunch." The server's MCP instructions explain versions, whole-batch nutrition and portions to the agent, and ask it to tag recipes with a meal type and link each step to the ingredients it uses.
 
 `FEEDR_TOKEN=feedr_… pnpm smoke:mcp` walks the main tools with the official MCP client against a running API.
 

@@ -15,6 +15,7 @@ export interface Check {
 
 /** The parts of a version the checks need, from a write or from the stored version. */
 export interface CheckedVersion {
+  label?: string;
   notes?: string | null;
   ingredients?: {
     ingredient: string;
@@ -42,6 +43,8 @@ export interface CheckOptions {
   newIngredients?: boolean;
   /** Ingredient names of the version this one was based on, to catch text left over from it. */
   baseNames?: string[];
+  /** The label of the version this one was based on, naming the main it may have swapped out. */
+  baseLabel?: string;
   /** Names already in the user's catalog, to catch near-duplicates like "cumin" and "ground cumin". */
   knownNames?: string[];
   /** The summed targets of the meals the version is cooked for, when the agent says. */
@@ -93,6 +96,28 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
   const steps = v.steps ?? [];
 
   if (lines.length && v.steps && !steps.length) problems.push('There are no steps. Give the method.');
+  if (v.label && /protein/i.test(v.label) && !opts.mealTargets) {
+    problems.push(`"${v.label}" is a version for targets: pass for_meals so the server can check it.`);
+  }
+
+  // A swapped main ("Chicken" to "Pumpkin", going by the labels) can linger in other lines and sections.
+  if (opts.baseLabel && v.label && opts.newIngredients !== false) {
+    const words = (label: string): string[] => label.toLowerCase().match(/\p{L}{4,}/gu) ?? [];
+    const swapped = words(opts.baseLabel).filter((w) => !words(v.label!).includes(w) && w !== 'original');
+    for (const word of swapped) {
+      const re = new RegExp(`\\b${word}\\b`, 'i');
+      const section = [...new Set(lines.flatMap((l) => (l.section && re.test(l.section) ? [l.section] : [])))];
+      if (section.length)
+        problems.push(`Section "${section[0]}" names ${word}, which this version swapped out. Rename it.`);
+      lines.forEach((l, i) => {
+        if (re.test(l.ingredient)) {
+          warnings.push(
+            `Line ${i} (${l.ingredient}) still names ${word}, the main this version swapped out. Check it belongs.`,
+          );
+        }
+      });
+    }
+  }
 
   if (v.notes && v.notes.length > 120) {
     problems.push(`notes is ${v.notes.length} characters. Keep it to one short line, or leave it empty.`);
@@ -192,6 +217,25 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
       );
     }
     if (IMPERIAL.test(step.text)) problems.push(`Step ${n} uses an imperial measure. Use g, ml, cm or °C.`);
+    if (step.timer_seconds && step.timer_seconds < 60) {
+      warnings.push(`Step ${n} has a timer under a minute. Leave it out for short hands-on work.`);
+    }
+    // A step that only cooks a side, e.g. "Cook the rice according to the packet".
+    const linkedLines = (step.ingredients ?? []).map((i) => lines[i.line]).filter(Boolean);
+    if (linkedLines.length && linkedLines.every((l) => /serve/i.test(l!.section ?? ''))) {
+      warnings.push(
+        `Step ${n} only cooks a side. Put it in the step whose wait it cooks during, with how long it takes.`,
+      );
+    }
+    // Amounts in the text that no linked line has, e.g. "300 ml" after the stock was cut to 250 ml.
+    for (const m of step.text.matchAll(/(\d+(?:\.\d+)?)\s?(g|ml)\b/gi)) {
+      const amount = Number(m[1]);
+      const unit = m[2]!.toLowerCase();
+      const same = linkedLines.filter((l) => l!.unit === unit);
+      if (same.length && same.every((l) => (l!.quantity ?? 0) < amount)) {
+        warnings.push(`Step ${n} says ${m[0]}, more than its linked lines have. Check the amount for this version.`);
+      }
+    }
     const times = waitCount(step.text);
     if (
       step.timer_seconds &&
@@ -200,7 +244,7 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
       problems.push(`Step ${n} times a wait "per side". Make it two timed steps, the second starting with the turn.`);
     } else if (step.timer_seconds && times > 1) {
       problems.push(
-        `Step ${n} has a timer and gives ${times} times. Time one wait per step: split it where the next wait starts, each part with its own timer.`,
+        `Step ${n} has a timer and gives ${times} times. Time one wait per step: split it where the next wait starts, or drop the timer if a time is hands-on work like stirring or frying.`,
       );
     } else if (step.timer_seconds && !times) {
       warnings.push(
@@ -313,8 +357,13 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
         problems.push(`${message} Estimate each line's nutrition for its amount.`);
       } else {
         const factor = Math.round((t.kcal / batch.kcal) * 100) / 100;
+        const proteinMet = t.portions.every(
+          (p) => p.protein_g == null || (batch.protein_g * p.kcal) / t.kcal >= 0.95 * p.protein_g,
+        );
         problems.push(
-          `${message} Multiply every line's quantity and nutrition estimate by about ${factor}, keeping tins and eggs whole, and send it again.`,
+          proteinMet && off > 0
+            ? `${message} Protein is already enough, so cut the other lines first (sauce fat, then sides, not under 50g dry rice a person), then the main if needed. Keep for_meals and send it again.`
+            : `${message} Scale the main and sauce by about ${factor} (spices less), keep sides at about 75g dry rice a person and tins and eggs whole, re-estimate each line's nutrition, keep for_meals and send it again.`,
         );
       }
     }

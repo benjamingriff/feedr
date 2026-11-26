@@ -198,3 +198,23 @@ test('sizes against the meals it is for, and keeps prep where the app shows it',
   assert.match(more, /times a wait "per side"/);
   assert.match(more, /imperial measure/);
 });
+
+test('catches a swapped main left in other lines and sections, and protein versions without targets', () => {
+  const { errors, warnings } = checkVersion(
+    {
+      label: 'Pumpkin, high protein',
+      ingredients: [
+        { ingredient: 'pumpkin', quantity: 400, unit: 'g', section: 'Chicken', nutrition: est(100) },
+        { ingredient: 'chicken stock', quantity: 150, unit: 'ml', section: 'Sauce', nutrition: est(10) },
+      ],
+      steps: [
+        { text: 'Air-fry the pumpkin for 15 minutes.', timer_seconds: 900, ingredients: [{ line: 0 }] },
+        { text: 'Simmer the chicken stock for 10 minutes.', timer_seconds: 600, ingredients: [{ line: 1 }] },
+      ],
+    },
+    { baseNames: ['chicken breast', 'chicken stock'], baseLabel: 'Chicken' },
+  );
+  assert.match(errors.join('\n'), /Section "Chicken" names chicken/);
+  assert.match(errors.join('\n'), /"Pumpkin, high protein" is a version for targets/);
+  assert.match(warnings.join('\n'), /Line 1 \(chicken stock\) still names chicken/);
+});

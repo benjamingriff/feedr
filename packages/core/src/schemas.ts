@@ -131,7 +131,7 @@ export const StepInput = z.object({
 });
 
 export const VersionInput = z.object({
-  label: z.string().min(1).describe('What makes this version different, e.g. "Original", "Chicken", "For two"'),
+  label: z.string().min(1).describe('What makes this version different, e.g. "Original", "Chicken", "High protein"'),
   servings: z.number().positive().describe('How many even portions the batch makes'),
   notes: z
     .string()

@@ -42,6 +42,8 @@ Planning a meal:
 3. plan_service with the version and one portion per person per meal. The result includes each portion's nutrition and a dish-up guide.
 4. get_plan to check each person's day totals against their targets.
 
+Treats live in the cookbook and aren't part of the meal plan yet: don't plan a recipe tagged treat unless the user asks you to.
+
 Shopping: get_shopping_list combines the ingredients of every service cooked in a date range (or of given versions) by ingredient and aisle. It is read-only.
 
 Ingredients: call list_ingredients first and reuse existing names exactly (spelling variants like yogurt/yoghurt create duplicates and split the shopping list). Give an aisle for every new ingredient, reusing existing aisle names (e.g. Produce, Meat & fish, Dairy, Spices, Tins & jars, Rice & pasta). Use metric units.`;

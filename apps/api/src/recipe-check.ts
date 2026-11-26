@@ -233,9 +233,9 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
           );
         }
       }
-      if (l.unit === 'tsp' && l.quantity != null && (l.quantity >= 3 || (l.quantity * 4) % 1)) {
+      if (l.unit === 'tsp' && l.quantity != null && (l.quantity >= 3 || (l.quantity * 8) % 1)) {
         warnings.push(
-          `Line ${i} (${l.ingredient}) is ${l.quantity} tsp. Use tsp in ¼ steps under 1 tbsp, and tbsp from 3 tsp.`,
+          `Line ${i} (${l.ingredient}) is ${l.quantity} tsp. Use tsp in ¼ steps (⅛ for strong spices) under 1 tbsp, and tbsp from 3 tsp.`,
         );
       }
       if (l.quantity != null && ['g', 'ml'].includes(l.unit ?? '') && l.quantity >= 20 && l.quantity % 5) {

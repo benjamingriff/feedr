@@ -290,7 +290,12 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
     if (Math.abs(off) > 0.1) {
       const message = `The batch is ${Math.round(batch.kcal)} kcal against ${t.kcal} kcal for the meals it's for (${off > 0 ? '+' : ''}${Math.round(off * 100)}%).`;
       if (published) warnings.push(message);
-      else problems.push(`${message} Scale every line together to within about 10%.`);
+      else {
+        const factor = Math.round((t.kcal / batch.kcal) * 100) / 100;
+        problems.push(
+          `${message} Multiply every line's quantity and nutrition estimate by about ${factor}, keeping tins and eggs whole, and send it again.`,
+        );
+      }
     }
     if (t.protein_g && batch.protein_g < 0.95 * t.protein_g) {
       warnings.push(

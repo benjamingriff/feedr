@@ -341,12 +341,17 @@ test('per-line estimates add up to the batch nutrition', async () => {
     title: 'Beans on toast',
     original: {
       servings: 1,
-      ingredients: [line('bread', 160, 6), line('baked beans', 190, 10.5)],
+      ingredients: [{ ...line('bread', 160, 6), quantity: 2, unit: 'slice' }, line('baked beans', 190, 10.5)],
       steps: [{ text: 'Toast the bread and heat the baked beans.', ingredients: [{ line: 0 }, { line: 1 }] }],
     },
   });
   const n = recipe.versions[0]!.nutrition!;
   assert.deepEqual([n.kcal, n.protein_g, n.carbs_g, n.source], [350, 16.5, 20, 'agent_estimate']);
+  // A measured line's text is built from its fields; an unmeasured one keeps what was sent.
+  assert.deepEqual(
+    recipe.versions[0]!.ingredients.map((l) => l.raw_text),
+    ['2 slice bread', 'baked beans'],
+  );
   // New ingredients without figures would leave the old totals describing other amounts.
   await assert.rejects(
     svc.updateVersion(userId, recipe.versions[0]!.id, { ingredients: [{ ingredient: 'bread', raw_text: 'bread' }] }),

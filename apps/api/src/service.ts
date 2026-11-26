@@ -270,7 +270,7 @@ async function writeVersionContents(
           ingredient_id: ingredientId,
           quantity: line.quantity ?? null,
           unit: line.unit ?? null,
-          raw_text: line.raw_text,
+          raw_text: lineText(line),
           preparation: line.preparation ?? null,
           section: line.section ?? null,
           optional: line.optional ?? false,
@@ -303,6 +303,16 @@ async function writeVersionContents(
     throw new InvalidError('Give nutrition, or a nutrition estimate on every ingredient line');
   }
   if (nutrition) await writeNutrition(trx, versionId, nutrition);
+}
+
+/**
+ * The line as text. The app shows it only when there's no quantity, so a measured line's text is
+ * built from its fields and can't disagree with them.
+ */
+function lineText(line: VersionInput['ingredients'][number]): string {
+  if (line.quantity == null) return line.raw_text ?? line.ingredient;
+  const amount = `${line.quantity}${line.unit ? ` ${line.unit}` : ''}`;
+  return `${amount} ${line.ingredient}${line.preparation ? `, ${line.preparation}` : ''}`;
 }
 
 /** The batch nutrition from per-line estimates, or undefined unless every line has one. */

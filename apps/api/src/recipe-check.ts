@@ -16,7 +16,14 @@ export interface Check {
 /** The parts of a version the checks need, from a write or from the stored version. */
 export interface CheckedVersion {
   notes?: string | null;
-  ingredients?: { ingredient: string; unit?: string | null; section?: string | null; nutrition?: LineNutrition }[];
+  ingredients?: {
+    ingredient: string;
+    quantity?: number | null;
+    unit?: string | null;
+    raw_text?: string | null;
+    section?: string | null;
+    nutrition?: LineNutrition;
+  }[];
   steps?: { text: string; timer_seconds?: number | null; ingredients?: { line: number }[] }[];
   nutrition?: {
     kcal: number | null;
@@ -37,6 +44,7 @@ export interface CheckOptions {
 }
 
 const DURATION = /\d+(?:\s*[–-]\s*\d+)?\s?(?:more\s)?(?:min(?:ute)?s?|hrs?|hours?|sec(?:ond)?s?)\b/gi;
+const IMPERIAL = /\b\d+(?:[./]\d+)?\s*(?:cups?|oz|ounces?|lbs?|pounds?|inch(?:es)?|"|°?\s?F)(?![a-z])/i;
 const macroKcal = (n: { protein_g: number; carbs_g: number; fat_g: number }) =>
   4 * n.protein_g + 4 * n.carbs_g + 9 * n.fat_g;
 /** Whole-name matches of `names` in `text`, so "stock" alone doesn't count as "chicken stock". */
@@ -65,6 +73,9 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
   if (v.notes && v.notes.length > 120) {
     problems.push(`notes is ${v.notes.length} characters. Keep it to one short line, or leave it empty.`);
   }
+  if (v.notes && /\b(?:instead|in place of|replaces?|to keep)\b/i.test(v.notes)) {
+    problems.push('notes says what changed. Leave it empty, or give one line the cook needs before starting.');
+  }
 
   // Sections: all or nothing, and each section's lines together.
   const sections = new Set(opts.newIngredients === false ? [] : lines.flatMap((l) => (l.section ? [l.section] : [])));
@@ -72,7 +83,11 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
     problems.push('Every ingredient line has the same section. Leave section empty when the recipe has one part.');
   } else if (sections.size) {
     const missing = lines.flatMap((l, i) => (l.section ? [] : [i]));
-    if (missing.length) problems.push(`Ingredient lines ${missing.join(', ')} have no section. Give every line one.`);
+    if (missing.length) {
+      problems.push(
+        `Ingredient lines ${missing.map((i) => `${i} (${lines[i]!.ingredient})`).join(', ')} have no section. Give every line a section, or none.`,
+      );
+    }
     const seen = new Set<string>();
     lines.forEach((l, i) => {
       if (!l.section || l.section === lines[i - 1]?.section) return;
@@ -85,6 +100,15 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
     opts.newIngredients === false ? [] : lines.flatMap((l, i) => (l.unit?.toLowerCase() === 'count' ? [i] : []));
   if (counted.length) {
     problems.push(`Ingredient lines ${counted.join(', ')} have unit "count". Leave unit out for whole items (2 eggs).`);
+  }
+
+  if (opts.newIngredients !== false) {
+    const unmeasured = lines.flatMap((l, i) => (l.quantity == null && !l.raw_text ? [`${i} (${l.ingredient})`] : []));
+    if (unmeasured.length) {
+      problems.push(
+        `Ingredient lines ${unmeasured.join(', ')} have no quantity, so give raw_text as the amount, e.g. "To taste", or give a quantity.`,
+      );
+    }
   }
 
   if (steps.length) {
@@ -104,10 +128,16 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
         `Step ${n} is ${step.text.length} characters. Split it into stages of one to three short sentences.`,
       );
     }
+    if (/\bline \d+\b/i.test(step.text)) {
+      problems.push(
+        `Step ${n} mentions a line number. Line numbers belong only in the links; in the text say e.g. "the oil for the sauce".`,
+      );
+    }
+    if (IMPERIAL.test(step.text)) problems.push(`Step ${n} uses an imperial measure. Use g, ml, cm or °C.`);
     const times = waitCount(step.text);
     if (step.timer_seconds && times > 1) {
       problems.push(
-        `Step ${n} has a timer and gives ${times} times. Time one wait per step: split it where the next wait starts.`,
+        `Step ${n} has a timer and gives ${times} times. Time one wait per step: split it where the next wait starts, each part with its own timer.`,
       );
     } else if (step.timer_seconds && !times) {
       warnings.push(

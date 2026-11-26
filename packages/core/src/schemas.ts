@@ -79,8 +79,9 @@ export const IngredientLineInput = z.object({
   raw_text: z
     .string()
     .min(1)
+    .optional()
     .describe(
-      'Quantity, name and prep only, e.g. "2 red onions, finely sliced": no brackets, notes or conversions. Shown only when there is no quantity, as the amount, e.g. "To taste".',
+      'Only for a line with no quantity: the amount as the cook reads it, e.g. "To taste", "A pinch". With a quantity, leave it out and the server writes it.',
     ),
   preparation: z
     .string()

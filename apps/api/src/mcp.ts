@@ -27,8 +27,8 @@ Adding a recipe. Finish each dish before starting the next:
 1. list_ingredients. If the user says who eats it or asks for targets, get_slot_targets for those people and meals.
 2. create_recipe with the original version: the source's recipe with the changes the user always makes. Its description says how to write a recipe.
 3. create_recipe_version once for each alternative the user asked for: another main, another batch size, a version for targets.
-4. Read the warnings in each save result and fix the ones that are real with update_recipe_version.
-5. get_recipe and check the title and description still fit every version (update_recipe if not). Then reply: each version as "Label: N ingredients, M steps", how it compares with any targets, and your substitutions and assumptions. Your reasoning belongs in the reply, never in the recipe.
+4. After each save, read its result: fix the warnings that are real, and for a version sized for targets compare its kcal and protein with the targets' totals. More than about 10% off on kcal, or short on protein, means rescale it with update_recipe_version.
+5. When the dish has every version the user asked for, get_recipe and check the title and description still fit every version (update_recipe if not), before starting the next dish. Then reply: each version's report line from the save results, how it compares with any targets, the batch size you used and whether it differs from the source, and your substitutions and assumptions. Your reasoning belongs in the reply, never in the recipe.
 
 Model:
 - A recipe has one or more versions. Each version is a complete, cookable recipe: its own ingredients, steps and whole-batch nutrition, which the server adds up from your estimate on each ingredient line.
@@ -67,11 +67,11 @@ Versions:
 - The original keeps the source's ingredients, amounts and from-scratch parts (no shop-bought swaps), with the user's standing changes: their method, equipment they lack, substitutions. Make only the changes they asked for, at the size they asked for. Use their usual batch size if they give one, otherwise the source's yield. For equipment they lack, adapt the technique to their tool: which vessel, and what prep it needs.
 - One version per alternative, labelled by what's different ("Pumpkin", "Chicken", "High protein"). The original is "Original" or its main. Never two mains in one version.
 - When you copy a version, rewrite every mention of what changed: every amount and volume in the step text, the method, time and doneness cue for a new main, and a paste scaled with the fat and liquid that cook it.
-- For people or targets: scale every line together so the batch's kcal is within about 10% of their total, with servings = the portions it's for, sides at normal portions (75g dry rice a person) and tins and eggs whole. For protein, then move some of that budget to more of the main, keeping the sauce recognisable, until each person gets their protein at their share of the calories (the dish is split by calorie target). Don't swap the main or its cut unless the user asks. Say in your reply where calories or protein fall short.
+- For people or targets: scale every line together so the batch's kcal is within about 10% of their total, with servings = the portions it's for, sides at normal portions (75g dry rice a person), and amounts a cook measures: whole tins and eggs, 5 g or ml steps, quarter teaspoons. For protein, then move some of that budget to more of the main, keeping the sauce recognisable, until each person gets their protein at their share of the calories (the dish is split by calorie target). Don't swap the main or its cut unless the user asks. Say in your reply where calories or protein fall short.
 
 Ingredients, in the order first used: one line per thing bought or measured. Sides served with it (rice, salad) go last, with amounts, under "To serve" when there are sections. Reserved liquid or the rest of a line links the original line again; water to cover or loosen needs no line. Sections only for separate parts (e.g. "Sauce", "Coating"), ordered by when they're cooked. Each line carries its own nutrition estimate.
 
-Steps: one stage of cooking each, in the order the cook works: what to do, with what (pan, air fryer, tall jug), about how long, and how to tell it's done, in one to three short sentences. Merge tiny prep-only steps. Start a side in the step it finishes alongside, e.g. "While the curry simmers, cook the rice". Keep the source's times where its method still applies. No tips or reasons. Link every line the step adds or handles and name it as on its line; once a paste or sauce is made, later steps name it and don't relink its lines. A timer is for one wait, until the cook's next action: "air-fry 14 minutes, turning halfway" is two steps of 7 minutes. For a range, time the shortest; no timer on hands-on work or packet times.
+Steps: one stage of cooking each, in the order the cook works: what to do, with what (pan, air fryer, tall jug), about how long, and how to tell it's done, in one to three short sentences. Most recipes need 5 to 10 steps: merge tiny prep-only steps. Start a side in the step it finishes alongside, e.g. "While the curry simmers, cook the rice". Keep the source's times where its method still applies. No tips or reasons. Link every line the step adds or handles and name it as on its line; once a paste or sauce is made, later steps name it and don't relink its lines. A timer is for one wait, until the cook's next action: "air-fry 14 minutes, turning halfway" is two steps of 7 minutes. For a range, time the shortest; no timer on hands-on work or packet times.
 
 notes: usually empty. Only one short line the cook must know before starting when the version is unusual, e.g. "High protein: twice the usual chicken". Never a tip, a comparison or a reason.`;
 
@@ -91,12 +91,13 @@ function written(recipe: Recipe, next: string) {
       steps: v.steps.length,
       kcal: v.nutrition?.kcal ?? null,
       protein_g: v.nutrition?.protein_g ?? null,
+      report: `${v.label}: ${v.ingredients.length} ingredients, ${v.steps.length} steps`,
     })),
     next,
   };
 }
 const NEXT_AFTER_WRITE =
-  'Add each other version the user asked for with create_recipe_version (recipe_id, and based_on_version_id from versions above). Fix any warnings that are real. Then get_recipe and reply.';
+  'Fix any warnings that are real. If this version is for targets, compare its kcal and protein with them and rescale if more than about 10% off. Add each other version the user asked for with create_recipe_version (recipe_id, and based_on_version_id from versions above). When the dish has them all, get_recipe now, before the next dish.';
 
 type Result = { content: { type: 'text'; text: string }[]; isError?: boolean };
 

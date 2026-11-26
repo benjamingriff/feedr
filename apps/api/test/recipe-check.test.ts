@@ -4,10 +4,10 @@ import { checkRecipe, checkVersion, type CheckedVersion } from '../src/recipe-ch
 
 const est = (kcal: number) => ({ kcal, protein_g: kcal / 20, carbs_g: kcal / 10, fat_g: kcal / 30 });
 const ingredients = [
-  { ingredient: 'onion', section: 'Sauce', nutrition: est(40) },
-  { ingredient: 'curry powder', section: 'Sauce', nutrition: est(20) },
-  { ingredient: 'chicken breast', section: 'Katsu', nutrition: est(500) },
-  { ingredient: 'panko breadcrumbs', section: 'Katsu', nutrition: est(200) },
+  { quantity: 1, ingredient: 'onion', section: 'Sauce', nutrition: est(40) },
+  { quantity: 1, ingredient: 'curry powder', section: 'Sauce', nutrition: est(20) },
+  { quantity: 1, ingredient: 'chicken breast', section: 'Katsu', nutrition: est(500) },
+  { quantity: 1, ingredient: 'panko breadcrumbs', section: 'Katsu', nutrition: est(200) },
 ];
 const clean: CheckedVersion = {
   ingredients,
@@ -33,14 +33,14 @@ test('refuses broken rules and warns about likely ones', () => {
   const { errors, warnings } = checkVersion({
     notes: 'x'.repeat(121),
     ingredients: [
-      { ingredient: 'onion', section: 'Sauce', nutrition: est(40) },
+      { quantity: 1, ingredient: 'onion', section: 'Sauce', nutrition: est(40) },
       {
         ingredient: 'chicken breast',
         section: 'Katsu',
         nutrition: { kcal: 100, protein_g: 40, carbs_g: 0, fat_g: 10 },
       },
-      { ingredient: 'curry powder', section: 'Sauce', nutrition: est(20) },
-      { ingredient: 'salt' },
+      { quantity: 1, ingredient: 'curry powder', section: 'Sauce', nutrition: est(20) },
+      { quantity: 1, ingredient: 'salt' },
     ],
     steps: [
       // Names chicken without linking it, and links curry powder without naming it.
@@ -54,7 +54,7 @@ test('refuses broken rules and warns about likely ones', () => {
   const problems = errors.join('\n');
   for (const expected of [
     /notes is 121 characters/,
-    /lines 3 have no section/,
+    /lines 3 \(salt\) have no section/,
     /Section "Sauce" is split up/,
     /lines 1 \(chicken breast\), 3 \(salt\) aren't linked/,
     /Step 1 \(.*\) links line 2 \(curry powder\), but cook mode can't find that name/,
@@ -66,14 +66,28 @@ test('refuses broken rules and warns about likely ones', () => {
   assert.match(warnings.join('\n'), /Step 1 \(.*\) has a timer, but no time/);
   assert.match(warnings.join('\n'), /Step 1 \(.*\) names chicken breast but doesn't link line 1/);
   assert.match(checkRecipe({ title: 'Katsu curry (chicken or pumpkin)' }).errors.join(), /title has brackets/);
+  // Line numbers and imperial measures in step text, and change notes, are refused.
+  const text = checkVersion({
+    notes: 'Rump instead of chuck',
+    ingredients: [{ ingredient: 'beef stock', quantity: 250, unit: 'ml', nutrition: est(20) }],
+    steps: [{ text: 'Add the beef stock (line 0) and reduce to 1 cup.', ingredients: [{ line: 0 }] }],
+  }).errors.join('\n');
+  assert.match(text, /mentions a line number/);
+  assert.match(text, /imperial measure/);
+  assert.match(text, /notes says what changed/);
+  // An unmeasured line needs its amount as text.
+  assert.match(
+    checkVersion({ ingredients: [{ ingredient: 'salt', nutrition: est(0) }] }).errors.join(),
+    /no quantity, so give raw_text/,
+  );
   // A method can't be dropped to dodge the link checks.
   assert.match(checkVersion({ ingredients, steps: [] }).errors.join(), /no steps/);
 });
 
 test('one wait per timer, one section is none, no leftovers from the base version', () => {
   const lines = [
-    { ingredient: 'pumpkin', section: 'Katsu', nutrition: est(100) },
-    { ingredient: 'vegetable stock', section: 'Katsu', nutrition: est(20) },
+    { quantity: 1, ingredient: 'pumpkin', section: 'Katsu', nutrition: est(100) },
+    { quantity: 1, ingredient: 'vegetable stock', section: 'Katsu', nutrition: est(20) },
   ];
   const { errors } = checkVersion(
     {
@@ -96,7 +110,7 @@ test('one wait per timer, one section is none, no leftovers from the base versio
   // Compound times and ranges are one wait; a base name inside this version's own name isn't a leftover.
   const fine = checkVersion(
     {
-      ingredients: [{ ingredient: 'smoked paprika', nutrition: est(5) }],
+      ingredients: [{ quantity: 1, ingredient: 'smoked paprika', nutrition: est(5) }],
       steps: [
         {
           text: 'Stir in the smoked paprika and bake for 1 hour, 15 minutes.',
@@ -110,7 +124,7 @@ test('one wait per timer, one section is none, no leftovers from the base versio
   assert.deepEqual(fine.errors, []);
   // A source's own figures can be sent as they are, without per-line estimates.
   const published = checkVersion({
-    ingredients: [{ ingredient: 'bread' }],
+    ingredients: [{ quantity: 1, ingredient: 'bread' }],
     steps: [{ text: 'Toast the bread.', ingredients: [{ line: 0 }] }],
     nutrition: { kcal: 200, protein_g: 8, carbs_g: 38, fat_g: 2, source: 'from_source' },
   });

@@ -268,7 +268,7 @@ test('parallel work is one wait, and a first use at the end is still linked', ()
 });
 
 test('a step that turns the main links it, not just the side', () => {
-  const { errors } = checkVersion({
+  const { errors, warnings } = checkVersion({
     ingredients: [
       { ingredient: 'pumpkin', quantity: 400, unit: 'g', section: 'Katsu', nutrition: est(100) },
       { ingredient: 'lemongrass', quantity: 0.5, section: 'Katsu', nutrition: est(5) },
@@ -286,5 +286,33 @@ test('a step that turns the main links it, not just the side', () => {
   const problems = errors.join('\n');
   assert.match(problems, /links only the side, but its text also handles line 0 \(pumpkin\)/);
   assert.match(problems, /refers to another step/);
-  assert.match(problems, /1 \(lemongrass\) are part of a whole item/);
+  assert.match(warnings.join('\n'), /1 \(lemongrass\) are part of a whole item/);
+});
+
+test('ordinary wording around sides, steps and reserved liquid', () => {
+  const { errors, warnings } = checkVersion({
+    ingredients: [
+      {
+        ingredient: 'salmon',
+        quantity: 300,
+        unit: 'g',
+        nutrition: { kcal: 600, protein_g: 60, carbs_g: 0, fat_g: 40 },
+      },
+      { ingredient: 'beef stock', quantity: 250, unit: 'ml', nutrition: est(20) },
+      { ingredient: 'basmati rice', quantity: 150, unit: 'g', section: 'To serve', nutrition: est(540) },
+    ],
+    steps: [
+      {
+        text: 'Roast the salmon for 15 minutes. While it is in the oven, clear the worktop. Turn and roast for 10 more minutes.',
+        timer_seconds: 900,
+        ingredients: [{ line: 0 }],
+      },
+      { text: 'Pour in 300 ml of the reserved beef stock.', ingredients: [{ line: 1 }] },
+      { text: 'As a last step, cook the basmati rice while the salmon rests.', ingredients: [{ line: 2 }] },
+    ],
+  });
+  const problems = errors.join('\n');
+  assert.doesNotMatch(problems, /refers to another step|links only the side/);
+  assert.match(problems, /gives 2 times/);
+  assert.match(warnings.join('\n'), /says 300 ml of the reserved beef stock/);
 });

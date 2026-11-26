@@ -74,7 +74,8 @@ const baseName = (name: string) =>
     .join(' ');
 
 const DURATION = /\d+(?:\s*[–-]\s*\d+)?\s?(?:more\s)?(?:min(?:ute)?s?|hrs?|hours?|sec(?:ond)?s?)\b/gi;
-const PARALLEL = /\b(?:meanwhile|while|at the same time)\b/i;
+// A sentence opening "Meanwhile", "At the same time" or "While …": a separate task done during a wait.
+const PARALLEL = /^\s*(?:meanwhile|at the same time|while)\b|[.;:]\s*(?:meanwhile|at the same time|while)\b/i;
 const IMPERIAL =
   /(?:\b\d+(?:[./]\d+)?|[½¼¾⅓⅔])\s*-?\s*(?:cups?|oz|ounces?|lbs?|pounds?|inch(?:es)?|°\s?F)(?![a-z])|\b\d{3}\s?F\b/i;
 const macroKcal = (n: { protein_g: number; carbs_g: number; fat_g: number }) =>
@@ -86,12 +87,16 @@ const wordCount = (s: string) => s.match(/\p{L}+/gu)?.length ?? 0;
 
 /** How many separate times a step's text gives: "1 hour 15 minutes" and "10 to 12 minutes" count once. */
 function waitCount(text: string) {
-  const found = [...text.matchAll(DURATION)];
-  // Parallel work ("Simmer for 15 minutes. Meanwhile, cook the rice for 12") is one wait for the cook.
-  if (found.length > 1 && PARALLEL.test(text)) return 1;
+  // A parallel task ("Meanwhile, cook the rice for 12 minutes") is done during a wait, so its sentence
+  // doesn't add one; times in the other sentences still count.
+  const own = text
+    .split(/(?<=[.;!?])\s+/)
+    .filter((sentence) => !PARALLEL.test(sentence))
+    .join(' ');
+  const found = [...own.matchAll(DURATION)];
   return found.filter((m, i) => {
     const prev = found[i - 1];
-    return !prev || !/^\s*,?\s*(?:and|to|or|-|–)?\s*$/i.test(text.slice(prev.index + prev[0].length, m.index));
+    return !prev || !/^\s*,?\s*(?:and|to|or|-|–)?\s*$/i.test(own.slice(prev.index + prev[0].length, m.index));
   }).length;
 }
 
@@ -107,15 +112,17 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
     problems.push(`"${v.label}" is a version for targets: pass for_meals so the server can check it.`);
   }
 
-  // A swapped main ("Chicken" to "Pumpkin", going by the labels) can linger in section names. Other lines
-  // naming it (chicken stock with a pumpkin main) can be the cook's choice, so they aren't checked.
-  if (opts.baseLabel && v.label && opts.newIngredients !== false) {
-    const words = (label: string): string[] => label.toLowerCase().match(/\p{L}{4,}/gu) ?? [];
-    // Backed by an ingredient change: a base line starting with the word that this version dropped.
-    const own = new Set(lines.map((l) => l.ingredient.toLowerCase()));
-    const dropped = (opts.baseNames ?? []).filter((x) => !own.has(x.toLowerCase()));
-    const swapped = words(opts.baseLabel).filter(
-      (w) => !words(v.label!).includes(w) && dropped.some((x) => x.toLowerCase().split(/\s+/)[0] === w),
+  // A swapped main can linger in the title and section names: a word that starts a base line this version
+  // dropped ("chicken" when chicken breast became pumpkin), unless one of its own protein-rich lines still
+  // has it (chicken thigh). Other lines naming it, like chicken stock with a pumpkin main, can be the
+  // cook's choice, so they aren't checked.
+  if (opts.baseNames && opts.newIngredients !== false) {
+    const own = lines.map((l) => l.ingredient.toLowerCase());
+    const dropped = opts.baseNames.filter((x) => !own.includes(x.toLowerCase()));
+    const keeps = (w: string) =>
+      lines.some((l) => l.ingredient.toLowerCase().split(/\s+/).includes(w) && (l.nutrition?.protein_g ?? 0) >= 10);
+    const swapped = [...new Set(dropped.map((x) => x.toLowerCase().split(/\s+/)[0]!))].filter(
+      (w) => w.length > 3 && !keeps(w),
     );
     // The shared title must fit this version too: "Chicken katsu curry" over a pumpkin version.
     for (const word of swapped) {
@@ -206,7 +213,7 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
       l.quantity != null && !l.unit && l.quantity < 1 ? [`${i} (${l.ingredient})`] : [],
     );
     if (halves.length) {
-      problems.push(
+      warnings.push(
         `Ingredient lines ${halves.join(', ')} are part of a whole item. Use whole items, or measure them in g.`,
       );
     }
@@ -244,7 +251,7 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
     if (step.timer_seconds && step.timer_seconds < 60) {
       warnings.push(`Step ${n} has a timer under a minute. Leave it out for short hands-on work.`);
     }
-    if (/\b(?:next|previous|last) step\b/i.test(step.text)) {
+    if (/\b(?:the|in|from) (?:next|previous) steps?\b|\bsteps? \d+\b/i.test(step.text)) {
       problems.push(`Step ${n} refers to another step. Say the action itself, in the step where it happens.`);
     }
     // A step that links only a side: either it also handles the main (link it), or it only cooks the side.
@@ -256,6 +263,16 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
         step.text,
         lines.map((l) => l.ingredient),
       )
+        .filter((m) => {
+          // "Discard the bay leaf", "while the salmon rests": mentions, not handling.
+          const before =
+            step.text
+              .slice(0, m.start)
+              .split(/[.;!?]/)
+              .at(-1) ?? '';
+          const after = step.text.slice(m.end).split(/[.;!?]/)[0] ?? '';
+          return !/\b(?:taste|adjust|discard|remove|while)\b/i.test(before) && !/^\s+rests?\b/i.test(after);
+        })
         .map((m) => m.index)
         .filter((i) => !isSide(lines[i]) && !(step.ingredients ?? []).some((x) => x.line === i));
       if (handled.length) {
@@ -273,7 +290,10 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
     for (const l of linkedLines) {
       if (!l!.unit || !['g', 'ml'].includes(l!.unit) || l!.quantity == null) continue;
       const name = l!.ingredient.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const re = new RegExp(`(\\d+(?:\\.\\d+)?)\\s?${l!.unit}\\s+(?:of\\s+)?(?:the\\s+)?${name}`, 'giu');
+      const re = new RegExp(
+        `(\\d+(?:\\.\\d+)?)\\s?${l!.unit}\\s+(?:of\\s+)?(?:the\\s+)?(?:reserved\\s+)?${name}`,
+        'giu',
+      );
       for (const m of step.text.matchAll(re)) {
         if (Number(m[1]) > l!.quantity) {
           warnings.push(
@@ -415,7 +435,7 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
           (p) => p.protein_g == null || (batch.protein_g * p.kcal) / t.kcal >= 0.95 * p.protein_g,
         );
         const factor = Math.round((t.kcal / batch.kcal) * 100) / 100;
-        const forProtein = /protein/i.test(v.label ?? '');
+        const forProtein = /\bhigh[- ]protein\b/i.test(v.label ?? '');
         const advice = !forProtein
           ? `Scale every line together by about ${factor}, keeping tins and eggs whole.`
           : off < 0

@@ -99,7 +99,7 @@ function written(recipe: Recipe, next: string) {
   };
 }
 const NEXT_AFTER_WRITE =
-  'Saved. Next: fix any warnings, and add each other version the user asked for with create_recipe_version (recipe_id, and based_on_version_id from versions above). When this dish has no more versions to add, even if it has only one, call get_recipe with this recipe_id now and cook it through, then start the next dish. Reply only when every dish is done.';
+  'Saved. Next: act on warnings that ask for a change and check the ones that ask you to check, and add each other version the user asked for with create_recipe_version (recipe_id, and based_on_version_id from versions above). When this dish has no more versions to add, even if it has only one, call get_recipe with this recipe_id now and cook it through, then start the next dish. Reply only when every dish is done.';
 
 type Result = { content: { type: 'text'; text: string }[]; isError?: boolean };
 

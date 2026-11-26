@@ -59,7 +59,7 @@ export interface CheckOptions {
  * True when another, longer line's last two words end at `end` in the text, so a match for the shorter
  * name there ("shallots" in "fried shallots") really belongs to the longer line (Asian fried shallots).
  */
-function endsLongerName(text: string, end: number, lines: { ingredient: string }[], index: number) {
+function endsLongerName(text: string, end: number, lines: { ingredient: string }[], index: number, linked: number[]) {
   const before = (
     text
       .slice(0, end)
@@ -68,7 +68,7 @@ function endsLongerName(text: string, end: number, lines: { ingredient: string }
   ).map((w) => w.replace(/e?s$/, ''));
   return lines.some((l, i) => {
     const name = (l.ingredient.toLowerCase().match(/\p{L}+/gu) ?? []).map((w) => w.replace(/e?s$/, ''));
-    if (i === index || name.length < 2) return false;
+    if (i === index || name.length < 2 || !linked.includes(i)) return false;
     const tail = name.slice(-2);
     return before.slice(-2).join(' ') === tail.join(' ') && tail.length === 2;
   });
@@ -109,14 +109,28 @@ function waitCount(text: string) {
   // A parallel task ("Meanwhile, cook the rice for 12 minutes") is done during a wait, so its sentence
   // doesn't add one; times in the other sentences still count.
   const own = text
-    .split(/(?<=[.;!?])\s+/)
-    .filter((sentence) => !PARALLEL.test(sentence))
+    .split(/(?<=[.;:!?])\s+/)
+    .map((part) => {
+      if (!PARALLEL.test(part)) return part;
+      // "While the curry simmers for 15 minutes, cook the rice": the opening clause holds the main wait.
+      return /^\s*while\b/i.test(part) ? (part.split(',')[0] ?? '') : '';
+    })
     .join(' ');
   const found = [...own.matchAll(DURATION)];
   return found.filter((m, i) => {
     const prev = found[i - 1];
     return !prev || !/^\s*,?\s*(?:and|to|or|-|–)?\s*$/i.test(own.slice(prev.index + prev[0].length, m.index));
   }).length;
+}
+
+/** The clause of `text` up to `at`: since the last full stop, semicolon, comma or "then". */
+function clauseBefore(text: string, at: number) {
+  return (
+    text
+      .slice(0, at)
+      .split(/[.;!?,]|\bthen\b/i)
+      .at(-1) ?? ''
+  );
 }
 
 /** What's wrong with a version, as instructions an agent can act on. Checks only the parts given. */
@@ -146,8 +160,8 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
     // The shared title must fit this version too: "Chicken katsu curry" over a pumpkin version.
     for (const word of swapped) {
       if (opts.title && new RegExp(`\\b${word}\\b`, 'i').test(opts.title)) {
-        problems.push(
-          `The recipe's title "${opts.title}" names ${word}, which this version doesn't have. Rename the recipe with update_recipe so the title fits every version (e.g. drop "${word}"), then send this again.`,
+        warnings.push(
+          `The recipe's title "${opts.title}" names ${word}, which this version may not have. If so, rename the recipe with update_recipe so the title fits every version (e.g. drop "${word}").`,
         );
       }
     }
@@ -284,16 +298,18 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
       )
         .filter((m) => {
           // "Discard the bay leaf", "while the salmon rests": mentions, not handling.
-          const before =
-            step.text
-              .slice(0, m.start)
-              .split(/[.;!?]/)
-              .at(-1) ?? '';
+          const before = clauseBefore(step.text, m.start);
           const after = step.text.slice(m.end).split(/[.;!?]/)[0] ?? '';
           return (
             !/\b(?:tast|adjust|discard|remov|strain|while)\w*/i.test(before) &&
             !/^\s+rests?\b/i.test(after) &&
-            !endsLongerName(step.text, m.end, lines, m.index)
+            !endsLongerName(
+              step.text,
+              m.end,
+              lines,
+              m.index,
+              (step.ingredients ?? []).map((x) => x.line),
+            )
           );
         })
         .map((m) => m.index)
@@ -361,14 +377,10 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
       if (links.includes(m.index) || name.toLowerCase() === 'water') continue;
       // "Taste and adjust with fish sauce", "discard the bay leaves": no link needed for a line used earlier.
       const usedEarlier = steps.slice(0, s).some((st) => st.ingredients?.some((i) => i.line === m.index));
-      const sentence =
-        step.text
-          .slice(0, m.start)
-          .split(/[.;!?]/)
-          .at(-1) ?? '';
+      const sentence = clauseBefore(step.text, m.start);
       if (usedEarlier && /\b(?:tast|adjust|discard|remov|strain)\w*/i.test(sentence)) continue;
       // A longer line's name ends here ("fried shallots" for Asian fried shallots), so it's that line.
-      if (endsLongerName(step.text, m.end, lines, m.index)) continue;
+      if (endsLongerName(step.text, m.end, lines, m.index, links)) continue;
       warnings.push(
         `Step ${n} names ${name} but doesn't link line ${m.index}. Link it if the step adds or handles it; leave it if the step only mentions or discards it, with no need to resend.`,
       );

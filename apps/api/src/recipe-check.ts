@@ -72,6 +72,7 @@ const baseName = (name: string) =>
     .join(' ');
 
 const DURATION = /\d+(?:\s*[–-]\s*\d+)?\s?(?:more\s)?(?:min(?:ute)?s?|hrs?|hours?|sec(?:ond)?s?)\b/gi;
+const PARALLEL = /\b(?:meanwhile|while|at the same time)\b/i;
 const IMPERIAL =
   /(?:\b\d+(?:[./]\d+)?|[½¼¾⅓⅔])\s*-?\s*(?:cups?|oz|ounces?|lbs?|pounds?|inch(?:es)?|°\s?F)(?![a-z])|\b\d{3}\s?F\b/i;
 const macroKcal = (n: { protein_g: number; carbs_g: number; fat_g: number }) =>
@@ -84,6 +85,8 @@ const wordCount = (s: string) => s.match(/\p{L}+/gu)?.length ?? 0;
 /** How many separate times a step's text gives: "1 hour 15 minutes" and "10 to 12 minutes" count once. */
 function waitCount(text: string) {
   const found = [...text.matchAll(DURATION)];
+  // Parallel work ("Simmer for 15 minutes. Meanwhile, cook the rice for 12") is one wait for the cook.
+  if (found.length > 1 && PARALLEL.test(text)) return 1;
   return found.filter((m, i) => {
     const prev = found[i - 1];
     return !prev || !/^\s*,?\s*(?:and|to|or|-|–)?\s*$/i.test(text.slice(prev.index + prev[0].length, m.index));
@@ -116,7 +119,9 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
       const re = new RegExp(`\\b${word}\\b`, 'i');
       const section = [...new Set(lines.flatMap((l) => (l.section && re.test(l.section) ? [l.section] : [])))];
       if (section.length)
-        problems.push(`Section "${section[0]}" names ${word}, which this version swapped out. Rename it.`);
+        warnings.push(
+          `Section "${section[0]}" names ${word}, which this version swapped out. Rename it if the main changed.`,
+        );
     }
   }
 
@@ -226,7 +231,8 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
     if (
       linkedLines.length &&
       linkedLines.every((l) => /^(?:to serve|serve with|sides?)$/i.test(l!.section ?? '')) &&
-      /\b(?:cook|boil|simmer|steam)\b/i.test(step.text)
+      /\b(?:cook|boil|simmer|steam)\b/i.test(step.text) &&
+      !PARALLEL.test(step.text)
     ) {
       warnings.push(
         `Step ${n} only cooks a side. Put it in the step whose wait it cooks during, with how long it takes.`,
@@ -237,10 +243,7 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
     for (const l of linkedLines) {
       if (!l!.unit || !['g', 'ml'].includes(l!.unit) || l!.quantity == null) continue;
       const name = l!.ingredient.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const re = new RegExp(
-        `(\\d+(?:\\.\\d+)?)\\s?${l!.unit}\\s+(?:of\\s+)?(?:the\\s+)?(?:\\p{L}+\\s+)?${name}`,
-        'giu',
-      );
+      const re = new RegExp(`(\\d+(?:\\.\\d+)?)\\s?${l!.unit}\\s+(?:of\\s+)?(?:the\\s+)?${name}`, 'giu');
       for (const m of step.text.matchAll(re)) {
         if (Number(m[1]) > l!.quantity) {
           warnings.push(
@@ -283,13 +286,14 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
     )) {
       const name = lines[m.index]!.ingredient;
       if (links.includes(m.index) || name.toLowerCase() === 'water') continue;
-      // "Taste and adjust with fish sauce", "discard the bay leaves": no link needed.
+      // "Taste and adjust with fish sauce", "discard the bay leaves": no link needed for a line used earlier.
+      const usedEarlier = steps.slice(0, s).some((st) => st.ingredients?.some((i) => i.line === m.index));
       const sentence =
         step.text
           .slice(0, m.start)
           .split(/[.;!?]/)
           .at(-1) ?? '';
-      if (/\b(?:taste|adjust|discard|remove)\b/i.test(sentence)) continue;
+      if (usedEarlier && /\b(?:taste|adjust|discard|remove)\b/i.test(sentence)) continue;
       warnings.push(
         `Step ${n} names ${name} but doesn't link line ${m.index}. Link it if the step adds or handles it.`,
       );
@@ -371,7 +375,7 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
   if (t && batch && t.kcal) {
     const off = (batch.kcal - t.kcal) / t.kcal;
     if (Math.abs(off) > 0.1) {
-      const message = `The batch is ${Math.round(batch.kcal)} kcal against ${t.kcal} kcal for the meals it's for (${off > 0 ? '+' : ''}${Math.round(off * 100)}%); aim for ${Math.round(t.kcal * 0.9)} to ${Math.round(t.kcal * 1.1)} kcal.`;
+      const message = `The batch is ${Math.round(batch.kcal)} kcal against ${t.kcal} kcal for the meals it's for (${off > 0 ? '+' : ''}${Math.round(off * 100)}%); aim for ${Math.ceil(t.kcal * 0.9)} to ${Math.floor(t.kcal * 1.1)} kcal.`;
       if (published) warnings.push(message);
       else if (batch.kcal <= 0) {
         problems.push(`${message} Estimate each line's nutrition for its amount.`);
@@ -380,8 +384,11 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
         const proteinMet = t.portions.every(
           (p) => p.protein_g == null || (batch.protein_g * p.kcal) / t.kcal >= 0.95 * p.protein_g,
         );
-        const advice =
-          off < 0
+        const factor = Math.round((t.kcal / batch.kcal) * 100) / 100;
+        const forProtein = /protein/i.test(v.label ?? '');
+        const advice = !forProtein
+          ? `Scale every line together by about ${factor}, keeping tins and eggs whole.`
+          : off < 0
             ? `Add about ${gap} kcal: more of every line together, sides at about 75g dry rice a person.`
             : proteinMet
               ? `Take off about ${gap} kcal: trim the sides first (not under 50g dry rice a person), then use a lighter form of the sauce's rich ingredient and less oil, then the main if needed.`

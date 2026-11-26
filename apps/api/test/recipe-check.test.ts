@@ -214,7 +214,7 @@ test('catches a swapped main left in a section name, and protein versions withou
     },
     { baseNames: ['chicken breast', 'chicken stock'], baseLabel: 'Chicken', isNew: true },
   );
-  assert.match(errors.join('\n'), /Section "Chicken" names chicken/);
+  assert.match(warnings.join('\n'), /Section "Chicken" names chicken/);
   assert.match(errors.join('\n'), /"Pumpkin, high protein" is a version for targets/);
   // Chicken stock with a pumpkin main is the cook's choice, not a leftover.
   assert.doesNotMatch(warnings.join('\n'), /chicken stock/);
@@ -243,4 +243,25 @@ test('leaves batch-size variants and unlisted liquids alone, but flags amounts a
   const notes = thighs.warnings.join('\n');
   assert.match(notes, /says 300 ml beef stock, more than its line has \(250 ml\)/);
   assert.doesNotMatch(notes, /says 150 ml|says 100 ml/);
+});
+
+test('parallel work is one wait, and a first use at the end is still linked', () => {
+  const { errors, warnings } = checkVersion({
+    ingredients: [
+      { ingredient: 'basmati rice', quantity: 150, unit: 'g', section: 'To serve', nutrition: est(540) },
+      { ingredient: 'salt', raw_text: 'To taste', section: 'To serve', nutrition: est(0) },
+    ],
+    steps: [
+      {
+        text: 'Simmer the sauce for 15 minutes. Meanwhile, cook the basmati rice for 12 minutes.',
+        timer_seconds: 900,
+        ingredients: [{ line: 0 }],
+      },
+      { text: 'Taste and adjust with salt.', ingredients: [] },
+    ],
+  });
+  assert.doesNotMatch(errors.join('\n'), /gives 2 times/);
+  assert.doesNotMatch(warnings.join('\n'), /only cooks a side/);
+  // Salt's only use is the tasting step, so it must still be linked there.
+  assert.match(errors.join('\n'), /1 \(salt\) aren't linked/);
 });

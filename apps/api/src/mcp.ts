@@ -23,12 +23,13 @@ import { checkRecipe, checkVersion, saveChecked, storedVersion } from './recipe-
 
 const INSTRUCTIONS = `feedr stores recipes, plans meals and portions cooked dishes for a household.
 
-Adding a recipe. Finish each dish before starting the next:
-1. list_ingredients, before each dish.
+Adding recipes. Do steps 1 to 5 for each dish the user asked for, finishing one before starting the next:
+1. list_ingredients.
 2. create_recipe with the original version: the source's recipe with the changes the user always makes. Its description says how to write a recipe.
-3. create_recipe_version once for each alternative the user asked for: another main, another batch size, a version for targets. When the user says who eats a version, or asks for targets, pass for_meals (e.g. dinner for everyone plus Ben's lunch): the server checks it against those meals' targets.
+3. create_recipe_version once for each alternative the user asked for: another main, another batch size, a version for targets. When a version is sized for particular meals (the user says who eats it, or asks for targets), pass for_meals, e.g. dinner for everyone plus Ben's lunch, and the server checks it against those meals' targets. Leave it out for the source's own batch or a batch size the user fixed.
 4. After each save, read its result and fix the warnings that are real with update_recipe_version.
-5. When the dish has every version the user asked for, get_recipe and check the title and description still fit every version (update_recipe if not), before starting the next dish. Then reply: each version's report line from the save results, how it compares with any targets, the batch size you used and whether it differs from the source, and your substitutions and assumptions. Your reasoning belongs in the reply, never in the recipe.
+5. Once the dish has every version the user asked for, get_recipe and check the title and description still fit every version (update_recipe if not). Then go back to step 1 for the next dish.
+6. Only when every dish is done, reply: each version's report line from the save results, how it compares with any targets, the batch size you used and whether it differs from the source, and your substitutions and assumptions. Your reasoning belongs in the reply, never in the recipe.
 
 Model:
 - A recipe has one or more versions. Each version is a complete, cookable recipe: its own ingredients, steps and whole-batch nutrition, which the server adds up from your estimate on each ingredient line.
@@ -69,7 +70,7 @@ Versions:
 - When you copy a version, rewrite every mention of what changed: every amount and volume in the step text, the method, time and doneness cue for a new main, and a paste scaled with the fat and liquid that cook it.
 - For people or targets (pass for_meals): scale every line together so the batch's kcal is within about 10% of their total, with servings = the portions it's for, sides at normal portions (75g dry rice a person), and amounts a cook measures: whole tins and eggs, 5 g or ml steps, quarter teaspoons. A high-protein version has more of the main per serving than the original: keep the main's cut and the sauce's fat and liquid, and trim the sides first, until each person gets their protein at their share of the calories (the dish is split by calorie target). Don't swap the main or its cut unless the user asks. Say in your reply where calories or protein fall short.
 
-Ingredients, in the order first used: one line per thing bought or measured. Sides served with it (rice, salad) go last, with amounts, under "To serve" when there are sections. Reserved liquid or the rest of a line links the original line again; water to cover or loosen needs no line. Sections only for separate parts (e.g. "Sauce", "Coating"), ordered by when they're cooked. Each line carries its own nutrition estimate.
+Ingredients, in the order first used: one line per thing bought or measured. Sides served with it (rice, salad) go last, with amounts, under "To serve" when there are sections. Reserved liquid or the rest of a line links the original line again; water to cover or loosen needs no line. Sections only for separate parts (e.g. "Sauce", "Coating"), ordered by when they're cooked. Each line carries its own nutrition estimate, unless you copy a source's published figures for its unchanged recipe as the version's nutrition (source from_source, the whole batch).
 
 Steps: one stage of cooking each, in the order the cook works: what to do, with what (pan, air fryer, tall jug), about how long, and how to tell it's done, in one to three short sentences. Most recipes need 5 to 10 steps: merge tiny prep-only steps. No separate side step: put the rice in the step whose wait it cooks during, e.g. "While the curry simmers, cook the rice". Keep the source's times where its method still applies. No tips or reasons. Link every line the step adds or handles and name it as on its line (two lines with one name: tell them apart in words, never by line number); once a paste or sauce is made, later steps name it and don't relink its lines. A timer is for one wait, until the cook's next action: "air-fry 14 minutes, turning halfway" is two steps of 7 minutes. For a range, time the shortest; no timer on hands-on work or packet times.
 
@@ -97,7 +98,7 @@ function written(recipe: Recipe, next: string) {
   };
 }
 const NEXT_AFTER_WRITE =
-  'Fix any warnings that are real. Add each other version the user asked for with create_recipe_version (recipe_id, and based_on_version_id from versions above). When the dish has them all, get_recipe now, before the next dish.';
+  'Saved. Next: add each other version the user asked for with create_recipe_version (recipe_id, and based_on_version_id from versions above), and fix any warnings that are real. Once this dish has every version, get_recipe, then start the next dish. Reply only when every dish is done.';
 
 type Result = { content: { type: 'text'; text: string }[]; isError?: boolean };
 
@@ -116,6 +117,18 @@ async function run(fn: () => Promise<unknown>): Promise<Result> {
 }
 
 const id = z.uuid();
+
+/**
+ * Drops raw_text from measured lines, so the service builds it from the fields. Agents' text there
+ * is hidden in the app and drifts from the amounts; the checks have already read it for lost prep.
+ */
+function fromFields<T extends { ingredients?: { quantity?: number | null; raw_text?: string }[] }>(version: T): T {
+  if (!version.ingredients) return version;
+  return {
+    ...version,
+    ingredients: version.ingredients.map((l) => (l.quantity == null ? l : { ...l, raw_text: undefined })),
+  };
+}
 
 /** The meals a version is cooked for, so the server can check it against their targets. */
 const ForMeals = z
@@ -136,13 +149,12 @@ export function buildMcpServer(user: AuthUser): McpServer {
     const knownNames = (await svc.listIngredients(u)).map((i) => i.name);
     if (!meals) return { knownNames };
     const targets = await Promise.all(meals.map((m) => svc.slotTargets(u, m.slot, m.person_ids)));
-    const protein = targets.map((t) => t.total_protein_g);
+    const portions = targets.flatMap((t) =>
+      t.people.map((p) => ({ name: `${p.name} (${t.slot})`, kcal: p.kcal, protein_g: p.protein_g })),
+    );
     return {
       knownNames,
-      mealTargets: {
-        kcal: Math.round(targets.reduce((sum, t) => sum + t.total_kcal, 0)),
-        protein_g: protein.every((p) => p != null) ? Math.round(protein.reduce((a, b) => a! + b!, 0)!) : null,
-      },
+      mealTargets: { kcal: Math.round(portions.reduce((sum, p) => sum + p.kcal, 0)), portions },
     };
   }
 
@@ -225,7 +237,7 @@ export function buildMcpServer(user: AuthUser): McpServer {
       run(async () => {
         const check = checkVersion(input.original, await checkContext(for_meals));
         return saveChecked([checkRecipe(input), check], async () =>
-          written(await svc.createRecipe(u, input), NEXT_AFTER_WRITE),
+          written(await svc.createRecipe(u, { ...input, original: fromFields(input.original) }), NEXT_AFTER_WRITE),
         );
       }),
   );
@@ -271,7 +283,7 @@ export function buildMcpServer(user: AuthUser): McpServer {
         const baseNames = base?.ingredients.map((l) => l.ingredient);
         const check = checkVersion(input, { baseNames, ...(await checkContext(for_meals)) });
         return saveChecked([check], async () => {
-          const created = await svc.createVersion(u, recipe_id, input);
+          const created = await svc.createVersion(u, recipe_id, fromFields(input));
           return { version_id: created.id, ...written(await svc.getRecipe(u, recipe_id), NEXT_AFTER_WRITE) };
         });
       }),
@@ -305,11 +317,11 @@ export function buildMcpServer(user: AuthUser): McpServer {
         const check = checkVersion(changed, {
           newIngredients: !!input.ingredients,
           baseNames: base?.ingredients.map((l) => l.ingredient),
-          // Targets are checked when the lines, and so the batch nutrition, are replaced.
-          ...(input.ingredients && (await checkContext(for_meals))),
+          // Targets are checked when the batch nutrition changes: new lines, or new published figures.
+          ...((input.ingredients || input.nutrition) && (await checkContext(for_meals))),
         });
         return saveChecked([check], async () => {
-          await svc.updateVersion(u, version_id, input);
+          await svc.updateVersion(u, version_id, fromFields(input));
           return { version_id, ...written(await svc.getRecipe(u, version.recipe_id), NEXT_AFTER_WRITE) };
         });
       }),

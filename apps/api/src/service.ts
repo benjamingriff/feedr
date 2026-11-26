@@ -306,11 +306,13 @@ async function writeVersionContents(
 }
 
 /**
- * The line as text. The app shows it only when there's no quantity, so a measured line's text is
- * built from its fields and can't disagree with them.
+ * The line as text: what was sent, or for a measured line without it, built from its fields. The
+ * app shows it only when there's no quantity. The MCP drops it on measured lines, so agents' text
+ * can't disagree with the amounts.
  */
 function lineText(line: VersionInput['ingredients'][number]): string {
-  if (line.quantity == null) return line.raw_text ?? line.ingredient;
+  if (line.raw_text) return line.raw_text;
+  if (line.quantity == null) return line.ingredient;
   const amount = `${line.quantity}${line.unit ? ` ${line.unit}` : ''}`;
   return `${amount} ${line.ingredient}${line.preparation ? `, ${line.preparation}` : ''}`;
 }

@@ -45,7 +45,16 @@ export interface CheckOptions {
   /** Names already in the user's catalog, to catch near-duplicates like "cumin" and "ground cumin". */
   knownNames?: string[];
   /** The summed targets of the meals the version is cooked for, when the agent says. */
-  mealTargets?: { kcal: number; protein_g: number | null };
+  mealTargets?: { kcal: number; portions: { name: string; kcal: number; protein_g: number | null }[] };
+}
+
+/** Words in raw_text beyond the amount, name and unit: prep the app would drop. */
+function extraWords(text: string, fields: string) {
+  const known = new Set((fields.toLowerCase().match(/\p{L}+/gu) ?? []).map((w) => w.replace(/e?s$/, '')));
+  const filler = new Set(['of', 'a', 'an', 'x', 'can', 'tin', 'pack', 'about', 'and']);
+  return (text.toLowerCase().match(/\p{L}+/gu) ?? []).filter(
+    (w) => !known.has(w.replace(/e?s$/, '')) && !filler.has(w) && !/^(?:g|kg|ml|l|tsp|tbsp)$/.test(w),
+  );
 }
 
 /** "Ground cumin", "cumins" and "cumin" all come to "cumin". */
@@ -58,7 +67,7 @@ const baseName = (name: string) =>
     .join(' ');
 
 const DURATION = /\d+(?:\s*[–-]\s*\d+)?\s?(?:more\s)?(?:min(?:ute)?s?|hrs?|hours?|sec(?:ond)?s?)\b/gi;
-const IMPERIAL = /\b\d+(?:[./]\d+)?\s*(?:cups?|oz|ounces?|lbs?|pounds?|inch(?:es)?|"|°?\s?F)(?![a-z])/i;
+const IMPERIAL = /(?:\b\d+(?:[./]\d+)?|[½¼¾⅓⅔])\s*-?\s*(?:cups?|oz|ounces?|lbs?|pounds?|inch(?:es)?|°\s?F)(?![a-z])/i;
 const macroKcal = (n: { protein_g: number; carbs_g: number; fat_g: number }) =>
   4 * n.protein_g + 4 * n.carbs_g + 9 * n.fat_g;
 /** Whole-name matches of `names` in `text`, so "stock" alone doesn't count as "chicken stock". */
@@ -87,7 +96,7 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
   if (v.notes && v.notes.length > 120) {
     problems.push(`notes is ${v.notes.length} characters. Keep it to one short line, or leave it empty.`);
   }
-  if (v.notes && /\b(?:instead|in place of|replaces?|to keep)\b/i.test(v.notes)) {
+  if (v.notes && /\b(?:instead|in place of|replaces|to keep)\b/i.test(v.notes)) {
     problems.push('notes says what changed. Leave it empty, or give one line the cook needs before starting.');
   }
 
@@ -118,20 +127,24 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
 
   if (opts.newIngredients !== false) {
     lines.forEach((l, i) => {
-      const nameWords = l.ingredient
-        .toLowerCase()
-        .split(/\s+/)
-        .map((w) => w.replace(/e?s$/, ''));
-      if (l.unit && nameWords.includes(l.unit.toLowerCase().replace(/e?s$/, ''))) {
+      // "2 egg egg" or "2 breast chicken breast": the unit is the thing itself.
+      const lastWord = l.ingredient.toLowerCase().split(/\s+/).at(-1)!.replace(/e?s$/, '');
+      if (l.unit && l.unit.toLowerCase().replace(/e?s$/, '') === lastWord) {
         problems.push(
           `Line ${i} (${l.ingredient}) has unit "${l.unit}", which repeats its name. Leave unit out for whole items.`,
         );
       }
       // raw_text is rebuilt from the fields for measured lines, so prep written only there is lost.
-      if (l.quantity != null && !l.preparation && l.raw_text && /,\s*\S/.test(l.raw_text)) {
-        problems.push(
-          `Line ${i} (${l.ingredient}) has prep in raw_text ("${l.raw_text}") but no preparation. Put the prep in preparation; the app shows it there.`,
-        );
+      if (l.quantity != null && !l.preparation && l.raw_text) {
+        if (/,\s*[a-z]/i.test(l.raw_text)) {
+          problems.push(
+            `Line ${i} (${l.ingredient}) has prep in raw_text ("${l.raw_text}") but no preparation. Put the prep in preparation; the app shows it there.`,
+          );
+        } else if (extraWords(l.raw_text, `${l.ingredient} ${l.unit ?? ''}`).length) {
+          warnings.push(
+            `Line ${i} (${l.ingredient}): raw_text "${l.raw_text}" has words the app won't show. Put any prep in preparation.`,
+          );
+        }
       }
       if (l.quantity != null && ['g', 'ml'].includes(l.unit ?? '') && l.quantity >= 20 && l.quantity % 5) {
         warnings.push(
@@ -170,14 +183,14 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
         `Step ${n} is ${step.text.length} characters. Split it into stages of one to three short sentences.`,
       );
     }
-    if (/\bline \d+\b/i.test(step.text)) {
+    if (/\(\s*lines?\s+\d+|\blines? \d+\s*\)/i.test(step.text)) {
       problems.push(
         `Step ${n} mentions a line number. Line numbers belong only in the links; in the text say e.g. "the oil for the sauce".`,
       );
     }
     if (IMPERIAL.test(step.text)) problems.push(`Step ${n} uses an imperial measure. Use g, ml, cm or °C.`);
     const times = waitCount(step.text);
-    if (step.timer_seconds && /\b(?:per|each|a) side\b/i.test(step.text)) {
+    if (step.timer_seconds && /\b(?:per|each) side\b|(?:min(?:ute)?s?|secs?|seconds?)\s+a side\b/i.test(step.text)) {
       problems.push(`Step ${n} times a wait "per side". Make it two timed steps, the second starting with the turn.`);
     } else if (step.timer_seconds && times > 1) {
       problems.push(
@@ -297,9 +310,16 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
         );
       }
     }
-    if (t.protein_g && batch.protein_g < 0.95 * t.protein_g) {
+    // The dish is split by calorie target, so each portion's protein is its calorie share of the batch.
+    const short = t.portions.flatMap((p) => {
+      const gets = (batch.protein_g * p.kcal) / t.kcal;
+      return p.protein_g != null && gets < 0.95 * p.protein_g
+        ? [`${p.name} ${Math.round(gets)} g of ${p.protein_g} g`]
+        : [];
+    });
+    if (short.length) {
       warnings.push(
-        `Protein is ${Math.round(batch.protein_g)} g against ${t.protein_g} g for those meals. Tell the user, or for a protein version add more of the main.`,
+        `Protein falls short at each portion's share of the dish: ${short.join(', ')}. Tell the user, or for a protein version add more of the main.`,
       );
     }
   }

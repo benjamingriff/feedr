@@ -153,7 +153,16 @@ test('sizes against the meals it is for, and keeps prep where the app shows it',
         },
       ],
     },
-    { mealTargets: { kcal: 1453, protein_g: 88 }, knownNames: ['ground cumin'] },
+    {
+      mealTargets: {
+        kcal: 1453,
+        portions: [
+          { name: 'Ben', kcal: 875, protein_g: 53 },
+          { name: 'Jess', kcal: 578, protein_g: 35 },
+        ],
+      },
+      knownNames: ['ground cumin'],
+    },
   );
   const problems = errors.join('\n');
   assert.match(problems, /unit "breast", which repeats its name/);
@@ -161,4 +170,15 @@ test('sizes against the meals it is for, and keeps prep where the app shows it',
   assert.match(problems, /times a wait "per side"/);
   assert.match(problems, /610 kcal against 1453 kcal .*-58%/);
   assert.match(warnings.join('\n'), /looks like the existing ingredient "ground cumin"/);
+  // Ordinary wording isn't mistaken for line numbers, imperial units, prep or a timed side.
+  const fine = checkVersion({
+    ingredients: [
+      { ingredient: 'potato', quantity: 1000, unit: 'g', raw_text: '1,000 g potatoes', nutrition: est(770) },
+    ],
+    steps: [
+      { text: 'Line 2 baking trays with parchment.', ingredients: [] },
+      { text: 'Roast the potato on a side rack for 40 minutes.', timer_seconds: 2400, ingredients: [{ line: 0 }] },
+    ],
+  });
+  assert.deepEqual(fine.errors, []);
 });

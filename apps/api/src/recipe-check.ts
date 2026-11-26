@@ -233,6 +233,11 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
           );
         }
       }
+      if (l.unit === 'tsp' && l.quantity != null && (l.quantity >= 3 || (l.quantity * 4) % 1)) {
+        warnings.push(
+          `Line ${i} (${l.ingredient}) is ${l.quantity} tsp. Use tsp in ¼ steps under 1 tbsp, and tbsp from 3 tsp.`,
+        );
+      }
       if (l.quantity != null && ['g', 'ml'].includes(l.unit ?? '') && l.quantity >= 20 && l.quantity % 5) {
         warnings.push(
           `Line ${i} (${l.ingredient}) is ${l.quantity}${l.unit}. Round it to an amount a cook measures, in 5${l.unit} steps.`,
@@ -380,7 +385,7 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
     );
     if (unnamed.length) {
       problems.push(
-        `Step ${n} links ${unnamed.map((i) => `line ${i} (${lines[i]!.ingredient})`).join(', ')}, but cook mode can't find ${unnamed.length > 1 ? 'those names' : 'that name'} in its text. Write each name as it is on its line, or drop links the step doesn't add. Once lines are combined into a paste or sauce, later steps name the paste or sauce and don't link its lines.`,
+        `Step ${n} links ${unnamed.map((i) => `line ${i} (${lines[i]!.ingredient})`).join(', ')}, but cook mode can't find ${unnamed.length > 1 ? 'those names' : 'that name'} in its text. Write each name as it is on its line (${unnamed.map((i) => `"${lines[i]!.ingredient}"`).join(', ')}), or drop links the step doesn't add: if they were combined earlier (the toasted spices, the paste), keep that name and drop their links here.`,
       );
     }
     // Whole ingredient names in the text whose lines this step doesn't link. Water to cover or top up needn't be.
@@ -522,7 +527,7 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
               ? `Take off about ${gap} kcal: trim the sides first (not under 50g dry rice a person), then use a lighter form of the sauce's rich ingredient and less oil, then the main if needed.`
               : `Take off about ${gap} kcal from the sides and the sauce's fat, not the main: protein is already short.`;
         problems.push(
-          `${message} ${advice} Re-estimate each changed line's nutrition, keep for_meals and send it again.`,
+          `${message} ${advice} Change quantities, keeping the same per-gram figures for unchanged ingredients, leave some margin inside the range, keep for_meals and send it again.`,
         );
       }
     }

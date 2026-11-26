@@ -59,7 +59,7 @@ export const IngredientLineInput = z.object({
     .string()
     .min(1)
     .describe(
-      'The plain name the app shows, in the singular, e.g. "red onion", "egg", "bay leaf". Reuse names from list_ingredients.',
+      'The plain name the app shows, in the singular, e.g. "red onion", "egg", "bay leaf", with qualifiers like "skinless" in preparation. Reuse names from list_ingredients.',
     ),
   aisle: z
     .string()
@@ -97,7 +97,7 @@ export const IngredientLineInput = z.object({
     .describe('Only when the recipe has separate parts, e.g. "Sauce". Then every line gets one.'),
   optional: z.boolean().optional().describe('For garnishes and extras'),
   nutrition: LineNutritionInput.optional().describe(
-    "Your estimate for this line's amount as measured (raw meat, dry rice and pasta), with the same per-gram figures in every version: oil about 8 kcal per ml, dry rice or pasta about 3.5 kcal per g, raw beef or chicken about 1.2 to 2.5 kcal per g. 0 for water and salt.",
+    "Your estimate for this line's amount as measured (raw meat, dry rice and pasta), with the same per-gram figures in every version (for a coating or marinade, count what's eaten, about two-thirds): oil about 8 kcal per ml, dry rice or pasta about 3.5 kcal per g, raw beef or chicken about 1.2 to 2.5 kcal per g. 0 for water and salt.",
   ),
 });
 export type IngredientLineInput = z.infer<typeof IngredientLineInput>;

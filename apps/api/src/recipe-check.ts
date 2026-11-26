@@ -100,7 +100,8 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
     problems.push(`"${v.label}" is a version for targets: pass for_meals so the server can check it.`);
   }
 
-  // A swapped main ("Chicken" to "Pumpkin", going by the labels) can linger in other lines and sections.
+  // A swapped main ("Chicken" to "Pumpkin", going by the labels) can linger in section names. Other lines
+  // naming it (chicken stock with a pumpkin main) can be the cook's choice, so they aren't checked.
   if (opts.baseLabel && v.label && opts.newIngredients !== false) {
     const words = (label: string): string[] => label.toLowerCase().match(/\p{L}{4,}/gu) ?? [];
     const swapped = words(opts.baseLabel).filter((w) => !words(v.label!).includes(w) && w !== 'original');
@@ -109,13 +110,6 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
       const section = [...new Set(lines.flatMap((l) => (l.section && re.test(l.section) ? [l.section] : [])))];
       if (section.length)
         problems.push(`Section "${section[0]}" names ${word}, which this version swapped out. Rename it.`);
-      lines.forEach((l, i) => {
-        if (re.test(l.ingredient)) {
-          warnings.push(
-            `Line ${i} (${l.ingredient}) still names ${word}, the main this version swapped out. Check it belongs.`,
-          );
-        }
-      });
     }
   }
 

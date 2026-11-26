@@ -199,7 +199,7 @@ test('sizes against the meals it is for, and keeps prep where the app shows it',
   assert.match(more, /imperial measure/);
 });
 
-test('catches a swapped main left in other lines and sections, and protein versions without targets', () => {
+test('catches a swapped main left in a section name, and protein versions without targets', () => {
   const { errors, warnings } = checkVersion(
     {
       label: 'Pumpkin, high protein',
@@ -216,5 +216,6 @@ test('catches a swapped main left in other lines and sections, and protein versi
   );
   assert.match(errors.join('\n'), /Section "Chicken" names chicken/);
   assert.match(errors.join('\n'), /"Pumpkin, high protein" is a version for targets/);
-  assert.match(warnings.join('\n'), /Line 1 \(chicken stock\) still names chicken/);
+  // Chicken stock with a pumpkin main is the cook's choice, not a leftover.
+  assert.doesNotMatch(warnings.join('\n'), /chicken stock/);
 });

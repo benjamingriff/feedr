@@ -316,3 +316,20 @@ test('ordinary wording around sides, steps and reserved liquid', () => {
   assert.match(problems, /gives 2 times/);
   assert.match(warnings.join('\n'), /says 300 ml of the reserved beef stock/);
 });
+
+test('a longer name wins, and discarding needs no link', () => {
+  const { errors, warnings } = checkVersion({
+    ingredients: [
+      { ingredient: 'shallot', quantity: 4, section: 'Paste', nutrition: est(60) },
+      { ingredient: 'bay leaf', quantity: 2, section: 'Paste', nutrition: est(0) },
+      { ingredient: 'Asian fried shallots', quantity: 20, unit: 'g', section: 'To serve', nutrition: est(110) },
+    ],
+    steps: [
+      { text: 'Fry the shallot and bay leaf for 5 minutes.', ingredients: [{ line: 0 }, { line: 1 }] },
+      { text: 'Discarding the bay leaf, simmer for 1½ hours.', timer_seconds: 5400, ingredients: [] },
+      { text: 'Scatter over the fried shallots.', ingredients: [{ line: 2 }] },
+    ],
+  });
+  assert.deepEqual(errors, []);
+  assert.doesNotMatch(warnings.join('\n'), /names shallot|names bay leaf|no time/);
+});

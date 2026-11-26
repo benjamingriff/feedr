@@ -55,6 +55,25 @@ export interface CheckOptions {
   mealTargets?: { kcal: number; portions: { name: string; kcal: number; protein_g: number | null }[] };
 }
 
+/**
+ * True when another, longer line's last two words end at `end` in the text, so a match for the shorter
+ * name there ("shallots" in "fried shallots") really belongs to the longer line (Asian fried shallots).
+ */
+function endsLongerName(text: string, end: number, lines: { ingredient: string }[], index: number) {
+  const before = (
+    text
+      .slice(0, end)
+      .toLowerCase()
+      .match(/\p{L}+/gu) ?? []
+  ).map((w) => w.replace(/e?s$/, ''));
+  return lines.some((l, i) => {
+    const name = (l.ingredient.toLowerCase().match(/\p{L}+/gu) ?? []).map((w) => w.replace(/e?s$/, ''));
+    if (i === index || name.length < 2) return false;
+    const tail = name.slice(-2);
+    return before.slice(-2).join(' ') === tail.join(' ') && tail.length === 2;
+  });
+}
+
 /** Words in raw_text beyond the amount, name and unit: prep the app would drop. */
 function extraWords(text: string, fields: string) {
   const known = new Set((fields.toLowerCase().match(/\p{L}+/gu) ?? []).map((w) => w.replace(/e?s$/, '')));
@@ -73,7 +92,7 @@ const baseName = (name: string) =>
     .map((w) => (w.length > 3 ? w.replace(/e?s$/, '') : w))
     .join(' ');
 
-const DURATION = /\d+(?:\s*[–-]\s*\d+)?\s?(?:more\s)?(?:min(?:ute)?s?|hrs?|hours?|sec(?:ond)?s?)\b/gi;
+const DURATION = /\d+[½¼¾]?(?:\s*[–-]\s*\d+[½¼¾]?)?\s?(?:more\s)?(?:min(?:ute)?s?|hrs?|hours?|sec(?:ond)?s?)\b/gi;
 // A sentence opening "Meanwhile", "At the same time" or "While …": a separate task done during a wait.
 const PARALLEL = /^\s*(?:meanwhile|at the same time|while)\b|[.;:]\s*(?:meanwhile|at the same time|while)\b/i;
 const IMPERIAL =
@@ -271,7 +290,11 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
               .split(/[.;!?]/)
               .at(-1) ?? '';
           const after = step.text.slice(m.end).split(/[.;!?]/)[0] ?? '';
-          return !/\b(?:taste|adjust|discard|remove|while)\b/i.test(before) && !/^\s+rests?\b/i.test(after);
+          return (
+            !/\b(?:tast|adjust|discard|remov|strain|while)\w*/i.test(before) &&
+            !/^\s+rests?\b/i.test(after) &&
+            !endsLongerName(step.text, m.end, lines, m.index)
+          );
         })
         .map((m) => m.index)
         .filter((i) => !isSide(lines[i]) && !(step.ingredients ?? []).some((x) => x.line === i));
@@ -343,9 +366,11 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
           .slice(0, m.start)
           .split(/[.;!?]/)
           .at(-1) ?? '';
-      if (usedEarlier && /\b(?:taste|adjust|discard|remove)\b/i.test(sentence)) continue;
+      if (usedEarlier && /\b(?:tast|adjust|discard|remov|strain)\w*/i.test(sentence)) continue;
+      // A longer line's name ends here ("fried shallots" for Asian fried shallots), so it's that line.
+      if (endsLongerName(step.text, m.end, lines, m.index)) continue;
       warnings.push(
-        `Step ${n} names ${name} but doesn't link line ${m.index}. Link it if the step adds or handles it.`,
+        `Step ${n} names ${name} but doesn't link line ${m.index}. Link it if the step adds or handles it; leave it if the step only mentions or discards it, with no need to resend.`,
       );
     }
 

@@ -26,7 +26,7 @@ const INSTRUCTIONS = `feedr stores recipes, plans meals and portions cooked dish
 Adding recipes. Do steps 1 to 5 for each dish the user asked for, finishing one before starting the next:
 1. list_ingredients. If the user says who eats it or asks for targets, get_slot_targets for each of those meals (dinner, plus a lunch).
 2. create_recipe with the original version: the source's recipe with the changes the user always makes. Its description says how to write a recipe. If the user asked for alternatives, choose a title and description that fit all of them now.
-3. create_recipe_version once for each alternative the user asked for: another main, another batch size, a version for targets. When a version is sized for particular meals (the user says who eats it, or asks for targets), pass for_meals at the top level, beside original on create_recipe, e.g. dinner for everyone plus Ben's lunch: the server checks it against those meals' targets. Leave it out for the source's own batch, including one whose yield already matches the people eating it (keep its amounts and say in your reply how it compares with their targets), and for a batch size the user fixed. A version for targets always passes it: if refused, change the amounts, never remove for_meals.
+3. create_recipe_version once for each alternative the user asked for: another main, another batch size, a version for targets. When a version is sized for particular meals (the user says who eats it, or asks for targets), pass for_meals at the top level, beside original on create_recipe, e.g. dinner for everyone plus Ben's lunch: the server checks it against those meals' targets. Leave it out for the source's own batch, including one whose yield already matches the people eating it (keep its amounts and say in your reply how it compares with their targets), and for a batch size the user fixed in amounts ("double it", "500 g of chicken"). Saying who eats it ("for the two of us with a lunch left over") names meals: pass for_meals for those. A version for targets always passes it: if refused, change the amounts, never remove for_meals.
 4. After each save, read its result and fix every warning that asks for a change with update_recipe_version, unless the step only mentions that ingredient in passing. After a refusal, change what it names before you send again. For a warning that asks you to check something, check it and keep figures that are right, such as a source's published nutrition.
 5. Once the dish has every version the user asked for, get_recipe and cook it through in your head, version by version: does each step have the prepped ingredients, reserved liquid and time it assumes, does each side finish with the main, and is there a doneness cue for the main itself? Check the title and description still fit every version (update_recipe if not). Then go back to step 1 for the next dish.
 6. Only when every dish is done, reply to the user as "you": each version's label, ingredient and step counts from the final get_recipe of its dish, how it compares with any targets, the batch size you used and whether it differs from the source, and your substitutions and assumptions, from the final read-back. Leave out server warnings and retries unless they changed the recipe. Your reasoning belongs in the reply, never in the recipe.
@@ -295,13 +295,17 @@ export function buildMcpServer(user: AuthUser): McpServer {
           ? await svc.getVersion(u, input.based_on_version_id).catch(() => undefined)
           : undefined;
         const baseNames = base?.ingredients.map((l) => l.ingredient);
-        const { title } = await svc.getRecipe(u, recipe_id);
+        const recipe = await svc.getRecipe(u, recipe_id);
+        const { title } = recipe;
+        const original = recipe.versions.find((x) => x.is_original);
         const check = checkVersion(input, {
           isNew: true,
           title,
           baseNames,
           baseProteinPerServing:
-            base?.nutrition?.protein_g != null ? Number(base.nutrition.protein_g) / Number(base.servings) : undefined,
+            original?.nutrition?.protein_g != null
+              ? Number(original.nutrition.protein_g) / Number(original.servings)
+              : undefined,
           baseLabel: base?.label,
           ...(await checkContext(for_meals)),
         });

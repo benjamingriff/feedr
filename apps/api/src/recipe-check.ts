@@ -131,7 +131,7 @@ function clauseBefore(text: string, at: number) {
   return (
     text
       .slice(0, at)
-      .split(/[.;!?,]|\bthen\b/i)
+      .split(/[.;!?]|\bthen\b/i)
       .at(-1) ?? ''
   );
 }
@@ -245,9 +245,10 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
           warnings.push(`Line ${i} (${l.ingredient}) looks like the existing ingredient "${twin}". Use that name.`);
       }
     });
-    const halves = lines.flatMap((l, i) =>
-      l.quantity != null && !l.unit && l.quantity < 1 ? [`${i} (${l.ingredient})`] : [],
-    );
+    // Only for copies: a source's own half lemon stays as it is.
+    const halves = opts.baseNames
+      ? lines.flatMap((l, i) => (l.quantity != null && !l.unit && l.quantity < 1 ? [`${i} (${l.ingredient})`] : []))
+      : [];
     if (halves.length) {
       warnings.push(
         `Ingredient lines ${halves.join(', ')} are part of a whole item. Round to whole items (1 cinnamon stick, 1 small potato); weigh only what the source weighs.`,
@@ -308,7 +309,13 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
           // "Discard the bay leaf", "while the salmon rests": mentions, not handling.
           const before = clauseBefore(step.text, m.start);
           const after = step.text.slice(m.end).split(/[.;!?]/)[0] ?? '';
+          const sentence =
+            step.text
+              .slice(0, m.start)
+              .split(/[.;!?]/)
+              .at(-1) ?? '';
           return (
+            !/^\s*meanwhile\b/i.test(sentence) &&
             !/\b(?:tast|adjust|discard|remov|strain|while)\w*/i.test(before) &&
             !/^\s+rests?\b/i.test(after) &&
             !endsLongerName(

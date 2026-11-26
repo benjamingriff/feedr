@@ -268,21 +268,24 @@ test('parallel work is one wait, and a first use at the end is still linked', ()
 });
 
 test('a step that turns the main links it, not just the side', () => {
-  const { errors, warnings } = checkVersion({
-    ingredients: [
-      { ingredient: 'pumpkin', quantity: 400, unit: 'g', section: 'Katsu', nutrition: est(100) },
-      { ingredient: 'lemongrass', quantity: 0.5, section: 'Katsu', nutrition: est(5) },
-      { ingredient: 'basmati rice', quantity: 150, unit: 'g', section: 'To serve', nutrition: est(540) },
-    ],
-    steps: [
-      { text: 'Bruise the lemongrass for the next step.', ingredients: [{ line: 1 }] },
-      {
-        text: 'Turn the pumpkin and air-fry for 7 minutes. Meanwhile, cook the basmati rice.',
-        timer_seconds: 420,
-        ingredients: [{ line: 2 }],
-      },
-    ],
-  });
+  const { errors, warnings } = checkVersion(
+    {
+      ingredients: [
+        { ingredient: 'pumpkin', quantity: 400, unit: 'g', section: 'Katsu', nutrition: est(100) },
+        { ingredient: 'lemongrass', quantity: 0.5, section: 'Katsu', nutrition: est(5) },
+        { ingredient: 'basmati rice', quantity: 150, unit: 'g', section: 'To serve', nutrition: est(540) },
+      ],
+      steps: [
+        { text: 'Bruise the lemongrass for the next step.', ingredients: [{ line: 1 }] },
+        {
+          text: 'Turn the pumpkin and air-fry for 7 minutes. Meanwhile, cook the basmati rice.',
+          timer_seconds: 420,
+          ingredients: [{ line: 2 }],
+        },
+      ],
+    },
+    { baseNames: ['chicken breast'] },
+  );
   const problems = errors.join('\n');
   assert.match(problems, /links only the side, but its text also handles line 0 \(pumpkin\)/);
   assert.match(problems, /refers to another step/);

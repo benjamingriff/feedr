@@ -68,7 +68,7 @@ Versions:
 - The original keeps the source's ingredients, amounts and from-scratch parts (no shop-bought swaps), with the user's standing changes: their method, equipment they lack, substitutions. Make only the changes they asked for, at the size they asked for. Use their usual batch size if they give one, otherwise the source's yield. For equipment they lack, adapt the technique to their tool: which vessel, and what prep it needs.
 - One version per alternative, labelled by what's different ("Pumpkin", "Chicken", "High protein"). The original is "Original" or its main. Never two mains in one version.
 - When you copy a version, rewrite every mention of what changed: every amount and volume in the step text, the method, time and doneness cue for a new main, and a paste scaled with the fat and liquid that cook it.
-- For people or targets (pass for_meals): scale every line together so the batch's kcal is within about 10% of their total, with servings = the portions it's for, sides at normal portions (75g dry rice a person), and amounts a cook measures: whole tins and eggs, 5 g or ml steps, quarter teaspoons. A high-protein version has more of the main per serving than the original: keep the main's cut and the sauce's fat and liquid, and trim the sides first, until each person gets their protein at their share of the calories (the dish is split by calorie target). Don't swap the main or its cut unless the user asks. Say in your reply where calories or protein fall short.
+- For a version sized for particular meals, pass for_meals (not for the source's batch or a size the user fixed). First scale every line together so the batch's kcal is within about 10% of those meals' total, with servings = the portions it's for, sides at normal portions (about 75g dry rice a person, never under 50g) and amounts a cook measures: whole tins and eggs, 5 g or ml steps, quarter teaspoons. A high-protein version then has more of the main per serving than the original, paid for from the same calories: trim the sides first, then the fat, keeping the sauce in proportion. Don't swap the main or its cut unless the user asks, and never leave out for_meals to get a version saved. Say in your reply where calories or protein fall short.
 
 Ingredients, in the order first used: one line per thing bought or measured. Sides served with it (rice, salad) go last, with amounts, under "To serve" when there are sections. Reserved liquid or the rest of a line links the original line again; water to cover or loosen needs no line. Sections only for separate parts (e.g. "Sauce", "Coating"), ordered by when they're cooked. Each line carries its own nutrition estimate, unless you copy a source's published figures for its unchanged recipe as the version's nutrition (source from_source, the whole batch).
 
@@ -136,7 +136,7 @@ const ForMeals = z
   .min(1)
   .optional()
   .describe(
-    'The meals this version is cooked for, e.g. [{"slot":"dinner"},{"slot":"lunch","person_ids":["<id>"]}] for dinner for everyone plus one lunch. The server checks its kcal and protein against their targets. Leave out for the source\'s own batch.',
+    'The meals this version is cooked for, e.g. [{"slot":"dinner"},{"slot":"lunch","person_ids":["<id>"]}] for dinner for everyone plus one lunch. The server checks its kcal and protein against their targets. Leave out for the source\'s own batch or a batch size the user fixed.',
   );
 
 export function buildMcpServer(user: AuthUser): McpServer {
@@ -221,7 +221,7 @@ export function buildMcpServer(user: AuthUser): McpServer {
     'get_recipe',
     {
       description:
-        'A recipe with every version in full: ingredients, steps and whole-batch nutrition. After writing a recipe, report each version to the user as "Label: N ingredients, M steps" from this result.',
+        'A recipe with every version in full: ingredients, steps and whole-batch nutrition. Use it to check a dish once all its versions are saved, then go on to the next dish.',
       inputSchema: { recipe_id: id },
       annotations: readOnly,
     },

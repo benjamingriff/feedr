@@ -181,4 +181,20 @@ test('sizes against the meals it is for, and keeps prep where the app shows it',
     ],
   });
   assert.deepEqual(fine.errors, []);
+  const more = checkVersion({
+    ingredients: [
+      { ingredient: 'tomatoes, cherry', quantity: 10, unit: 'g', raw_text: '10 g tomatoes, cherry', nutrition: est(2) },
+    ],
+    steps: [
+      { text: 'Prepare the oven (line 2 trays with parchment while it heats).', ingredients: [] },
+      {
+        text: 'Smoke the tomatoes, cherry for 1 hour a side at 375 F.',
+        timer_seconds: 3600,
+        ingredients: [{ line: 0 }],
+      },
+    ],
+  }).errors.join('\n');
+  assert.doesNotMatch(more, /line number|prep in raw_text/);
+  assert.match(more, /times a wait "per side"/);
+  assert.match(more, /imperial measure/);
 });

@@ -67,7 +67,8 @@ const baseName = (name: string) =>
     .join(' ');
 
 const DURATION = /\d+(?:\s*[–-]\s*\d+)?\s?(?:more\s)?(?:min(?:ute)?s?|hrs?|hours?|sec(?:ond)?s?)\b/gi;
-const IMPERIAL = /(?:\b\d+(?:[./]\d+)?|[½¼¾⅓⅔])\s*-?\s*(?:cups?|oz|ounces?|lbs?|pounds?|inch(?:es)?|°\s?F)(?![a-z])/i;
+const IMPERIAL =
+  /(?:\b\d+(?:[./]\d+)?|[½¼¾⅓⅔])\s*-?\s*(?:cups?|oz|ounces?|lbs?|pounds?|inch(?:es)?|°\s?F)(?![a-z])|\b\d{3}\s?F\b/i;
 const macroKcal = (n: { protein_g: number; carbs_g: number; fat_g: number }) =>
   4 * n.protein_g + 4 * n.carbs_g + 9 * n.fat_g;
 /** Whole-name matches of `names` in `text`, so "stock" alone doesn't count as "chicken stock". */
@@ -136,7 +137,9 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
       }
       // raw_text is rebuilt from the fields for measured lines, so prep written only there is lost.
       if (l.quantity != null && !l.preparation && l.raw_text) {
-        if (/,\s*[a-z]/i.test(l.raw_text)) {
+        // The name itself can hold a comma ("tomatoes, cherry"), so look past it.
+        const rest = l.raw_text.toLowerCase().split(l.ingredient.toLowerCase()).join(' ');
+        if (/,\s*[a-z]/i.test(rest)) {
           problems.push(
             `Line ${i} (${l.ingredient}) has prep in raw_text ("${l.raw_text}") but no preparation. Put the prep in preparation; the app shows it there.`,
           );
@@ -183,14 +186,17 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
         `Step ${n} is ${step.text.length} characters. Split it into stages of one to three short sentences.`,
       );
     }
-    if (/\(\s*lines?\s+\d+|\blines? \d+\s*\)/i.test(step.text)) {
+    if (/\(\s*lines?\s+\d+(?:\s*(?:,|and)\s*\d+)*\s*\)/i.test(step.text)) {
       problems.push(
         `Step ${n} mentions a line number. Line numbers belong only in the links; in the text say e.g. "the oil for the sauce".`,
       );
     }
     if (IMPERIAL.test(step.text)) problems.push(`Step ${n} uses an imperial measure. Use g, ml, cm or °C.`);
     const times = waitCount(step.text);
-    if (step.timer_seconds && /\b(?:per|each) side\b|(?:min(?:ute)?s?|secs?|seconds?)\s+a side\b/i.test(step.text)) {
+    if (
+      step.timer_seconds &&
+      /\b(?:per|each) side\b|(?:min(?:ute)?s?|secs?|seconds?|hrs?|hours?)\s+a side\b/i.test(step.text)
+    ) {
       problems.push(`Step ${n} times a wait "per side". Make it two timed steps, the second starting with the turn.`);
     } else if (step.timer_seconds && times > 1) {
       problems.push(
@@ -290,7 +296,7 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
   // Against the targets of the meals it's cooked for: calories are refused when well off, protein flagged.
   const t = opts.mealTargets;
   const batch =
-    published && n?.kcal
+    published && n?.kcal != null
       ? { kcal: n.kcal, protein_g: n.protein_g ?? 0 }
       : lines.length && lines.every((l) => l.nutrition)
         ? {
@@ -303,7 +309,9 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
     if (Math.abs(off) > 0.1) {
       const message = `The batch is ${Math.round(batch.kcal)} kcal against ${t.kcal} kcal for the meals it's for (${off > 0 ? '+' : ''}${Math.round(off * 100)}%).`;
       if (published) warnings.push(message);
-      else {
+      else if (batch.kcal <= 0) {
+        problems.push(`${message} Estimate each line's nutrition for its amount.`);
+      } else {
         const factor = Math.round((t.kcal / batch.kcal) * 100) / 100;
         problems.push(
           `${message} Multiply every line's quantity and nutrition estimate by about ${factor}, keeping tins and eggs whole, and send it again.`,

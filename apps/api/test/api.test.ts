@@ -331,6 +331,56 @@ test('clearing an account deletes its data but keeps the account, its tokens and
   await db.deleteFrom('users').where('id', '=', other).execute();
 });
 
+test('per-line estimates add up to the batch nutrition', async () => {
+  const line = (ingredient: string, kcal: number, protein_g: number) => ({
+    ingredient,
+    raw_text: ingredient,
+    nutrition: { kcal, protein_g, carbs_g: 10, fat_g: 5 },
+  });
+  const recipe = await svc.createRecipe(userId, {
+    title: 'Beans on toast',
+    original: {
+      servings: 1,
+      ingredients: [line('bread', 160, 6), line('baked beans', 190, 10.5)],
+      steps: [{ text: 'Toast the bread and heat the baked beans.', ingredients: [{ line: 0 }, { line: 1 }] }],
+    },
+  });
+  const n = recipe.versions[0]!.nutrition!;
+  assert.deepEqual([n.kcal, n.protein_g, n.carbs_g, n.source], [350, 16.5, 20, 'agent_estimate']);
+  // New ingredients without figures would leave the old totals describing other amounts.
+  await assert.rejects(
+    svc.updateVersion(userId, recipe.versions[0]!.id, { ingredients: [{ ingredient: 'bread', raw_text: 'bread' }] }),
+    svc.InvalidError,
+  );
+  await svc.deleteRecipe(userId, recipe.id);
+});
+
+test('deleting a recipe removes it, unless a planned service uses it', async () => {
+  const toast = () =>
+    svc.createRecipe(userId, {
+      title: 'Toast',
+      original: {
+        servings: 1,
+        ingredients: [{ ingredient: 'bread', raw_text: '2 slices bread' }],
+        steps: [{ text: 'Toast the bread.', ingredients: [{ line: 0 }] }],
+        nutrition: nutrition(200, 8),
+      },
+    });
+  const unused = await toast();
+  await svc.deleteRecipe(userId, unused.id);
+  await assert.rejects(svc.getRecipe(userId, unused.id), svc.NotFoundError);
+
+  const planned = await toast();
+  const service = await svc.planService(userId, {
+    version_id: planned.versions[0]!.id,
+    cook_date: '2026-12-07',
+    portions: [{ target_kcal: 200 }],
+  });
+  await assert.rejects(svc.deleteRecipe(userId, planned.id), svc.InvalidError);
+  await svc.deleteService(userId, service.id);
+  await svc.deleteRecipe(userId, planned.id);
+});
+
 test('MCP lists tools and calls them', async () => {
   const rpc = async (method: string, params: unknown) => {
     const res = await app.request('/mcp', {
@@ -354,6 +404,20 @@ test('MCP lists tools and calls them', async () => {
   const found = JSON.parse(search.result.content[0].text);
   assert.equal(found[0].title, 'Chicken curry');
   assert.equal(found[0].versions.length, 2);
+
+  // Replacing ingredients alone would drop the steps' links, so the MCP refuses it.
+  const recipe = await call<Recipe>('GET', `/recipes/${found[0].id}`);
+  const version = recipe.versions[0]!;
+  const ingredientsOnly = await rpc('tools/call', {
+    name: 'update_recipe_version',
+    arguments: { version_id: version.id, ingredients: [{ ingredient: 'rice', raw_text: '200g rice' }] },
+  });
+  assert.equal(ingredientsOnly.result.isError, true);
+  assert.match(ingredientsOnly.result.content[0].text, /Send the steps too/);
+  assert.equal(
+    (await call<Recipe>('GET', `/recipes/${recipe.id}`)).versions[0]!.ingredients.length,
+    version.ingredients.length,
+  );
 
   const bad = await rpc('tools/call', {
     name: 'get_recipe',

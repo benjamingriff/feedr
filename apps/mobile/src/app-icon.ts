@@ -19,12 +19,23 @@ const icons = Platform.OS === 'ios' ? requireOptionalNativeModule<AppIcons>('Exp
 /**
  * Switches the Home Screen icon to the palette's, unless it already shows it. iOS announces every
  * switch with an alert, so this only calls through when the icon is wrong. A failed switch is
- * left alone: the icon is cosmetic, and the next palette change or launch tries again.
+ * left alone: the icon is cosmetic, and the next palette change or launch tries again. One switch
+ * runs at a time; a palette picked meanwhile is matched once it settles.
  */
 export function matchAppIcon(palette: PaletteName) {
-  if (!icons?.supportsAlternateIcons) return;
+  latest = palette;
+  if (switching || !icons?.supportsAlternateIcons) return;
   // The default palette's icon is the primary icon, which iOS names null.
   const name = palette === defaultPalette ? null : palette;
   if (icons.getAppIconName() === name) return;
-  icons.setAlternateAppIcon(name).catch(() => {});
+  switching = true;
+  icons
+    .setAlternateAppIcon(name)
+    .catch(() => {})
+    .finally(() => {
+      switching = false;
+      if (latest !== palette) matchAppIcon(latest);
+    });
 }
+let switching = false;
+let latest: PaletteName = defaultPalette;

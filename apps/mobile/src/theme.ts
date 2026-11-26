@@ -9,7 +9,7 @@ import { HankenGrotesk_500Medium } from '@expo-google-fonts/hanken-grotesk/500Me
 import { HankenGrotesk_600SemiBold } from '@expo-google-fonts/hanken-grotesk/600SemiBold';
 import { type ColorName, type Colors, type PaletteName, defaultPalette, palettes } from './palettes';
 
-export { type ColorName, type Colors, type PaletteName, defaultPalette, paletteNames, palettes } from './palettes';
+export { type ColorName, type Colors, type PaletteName, paletteNames, palettes } from './palettes';
 
 // Tokens, type roles and layout constants from design/README.md. Values are exact; don't round them.
 

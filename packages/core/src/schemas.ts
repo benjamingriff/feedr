@@ -58,7 +58,9 @@ export const IngredientLineInput = z.object({
   ingredient: z
     .string()
     .min(1)
-    .describe('The plain name the app shows, e.g. "red onion". Reuse names from list_ingredients.'),
+    .describe(
+      'The plain name the app shows, in the singular, e.g. "red onion", "egg", "bay leaf". Reuse names from list_ingredients.',
+    ),
   aisle: z
     .string()
     .nullish()
@@ -143,7 +145,12 @@ export const VersionInput = z.object({
     "The version this one starts from: a versions[].id from get_recipe, not the recipe's id",
   ),
   prep_minutes: z.number().int().nonnegative().nullish().describe('Hands-on prep time. Set it and cook_minutes.'),
-  cook_minutes: z.number().int().nonnegative().nullish().describe('Cooking time'),
+  cook_minutes: z
+    .number()
+    .int()
+    .nonnegative()
+    .nullish()
+    .describe('Cooking time, worked out from the final steps with parallel work counted once'),
   ingredients: z.array(IngredientLineInput),
   steps: z.array(StepInput),
   nutrition: NutritionInput.optional().describe(

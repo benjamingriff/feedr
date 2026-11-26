@@ -192,6 +192,14 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
           warnings.push(`Line ${i} (${l.ingredient}) looks like the existing ingredient "${twin}". Use that name.`);
       }
     });
+    const halves = lines.flatMap((l, i) =>
+      l.quantity != null && !l.unit && l.quantity < 1 ? [`${i} (${l.ingredient})`] : [],
+    );
+    if (halves.length) {
+      problems.push(
+        `Ingredient lines ${halves.join(', ')} are part of a whole item. Use whole items, or measure them in g.`,
+      );
+    }
     const unmeasured = lines.flatMap((l, i) => (l.quantity == null && !l.raw_text ? [`${i} (${l.ingredient})`] : []));
     if (unmeasured.length) {
       problems.push(
@@ -226,17 +234,29 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
     if (step.timer_seconds && step.timer_seconds < 60) {
       warnings.push(`Step ${n} has a timer under a minute. Leave it out for short hands-on work.`);
     }
-    // A step that only cooks a side, e.g. "Cook the rice according to the packet".
+    if (/\b(?:next|previous|last) step\b/i.test(step.text)) {
+      problems.push(`Step ${n} refers to another step. Say the action itself, in the step where it happens.`);
+    }
+    // A step that links only a side: either it also handles the main (link it), or it only cooks the side.
     const linkedLines = (step.ingredients ?? []).map((i) => lines[i.line]).filter(Boolean);
-    if (
-      linkedLines.length &&
-      linkedLines.every((l) => /^(?:to serve|serve with|sides?)$/i.test(l!.section ?? '')) &&
-      /\b(?:cook|boil|simmer|steam)\b/i.test(step.text) &&
-      !PARALLEL.test(step.text)
-    ) {
-      warnings.push(
-        `Step ${n} only cooks a side. Put it in the step whose wait it cooks during, with how long it takes.`,
-      );
+    const isSide = (l: (typeof lines)[number] | undefined) =>
+      /^(?:to serve|serve with|sides?)$/i.test(l?.section ?? '');
+    if (linkedLines.length && linkedLines.every(isSide)) {
+      const handled = wholeNames(
+        step.text,
+        lines.map((l) => l.ingredient),
+      )
+        .map((m) => m.index)
+        .filter((i) => !isSide(lines[i]) && !(step.ingredients ?? []).some((x) => x.line === i));
+      if (handled.length) {
+        problems.push(
+          `Step ${n} links only the side, but its text also handles ${[...new Set(handled)].map((i) => `line ${i} (${lines[i]!.ingredient})`).join(', ')}. Link those too.`,
+        );
+      } else if (/\b(?:cook|boil|simmer|steam)\b/i.test(step.text) && !PARALLEL.test(step.text)) {
+        warnings.push(
+          `Step ${n} only cooks a side. Put it in the step whose wait it cooks during, with how long it takes.`,
+        );
+      }
     }
     // Amounts in the text that no linked line has, e.g. "300 ml" after the stock was cut to 250 ml.
     // Only amounts written against a linked line's name ("300 ml beef stock") are compared.

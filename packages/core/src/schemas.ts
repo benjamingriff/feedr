@@ -76,7 +76,7 @@ export const IngredientLineInput = z.object({
     .string()
     .nullish()
     .describe(
-      'g or ml for most things, tsp or tbsp for spices and small amounts, or a count word like "clove", "can". Omit for whole items (2 eggs), never "count". Pieces measured by length, like ginger, go in g.',
+      'g or ml for most things, tsp or tbsp for spices and small amounts, or a count word like "clove". A tin goes by its weight (400 g tinned tomatoes, not 1 can). Omit for whole items (2 eggs), never "count". Pieces measured by length, like ginger, go in g.',
     ),
   raw_text: z
     .string()

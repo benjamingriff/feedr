@@ -43,6 +43,8 @@ export interface CheckOptions {
   newIngredients?: boolean;
   /** Ingredient names of the version this one was based on, to catch text left over from it. */
   baseNames?: string[];
+  /** The recipe's shared title, checked against a new version's ingredients. */
+  title?: string;
   /** True for create_recipe and create_recipe_version, where a new version is being written. */
   isNew?: boolean;
   /** The label of the version this one was based on, naming the main it may have swapped out. */
@@ -115,6 +117,14 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
     const swapped = words(opts.baseLabel).filter(
       (w) => !words(v.label!).includes(w) && dropped.some((x) => x.toLowerCase().split(/\s+/)[0] === w),
     );
+    // The shared title must fit this version too: "Chicken katsu curry" over a pumpkin version.
+    for (const word of swapped) {
+      if (opts.title && new RegExp(`\\b${word}\\b`, 'i').test(opts.title)) {
+        problems.push(
+          `The recipe's title "${opts.title}" names ${word}, which this version doesn't have. Rename the recipe with update_recipe so the title fits every version (e.g. drop "${word}"), then send this again.`,
+        );
+      }
+    }
     for (const word of swapped) {
       const re = new RegExp(`\\b${word}\\b`, 'i');
       const section = [...new Set(lines.flatMap((l) => (l.section && re.test(l.section) ? [l.section] : [])))];

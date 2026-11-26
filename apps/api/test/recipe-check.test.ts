@@ -212,8 +212,9 @@ test('catches a swapped main left in a section name, and protein versions withou
         { text: 'Simmer the chicken stock for 10 minutes.', timer_seconds: 600, ingredients: [{ line: 1 }] },
       ],
     },
-    { baseNames: ['chicken breast', 'chicken stock'], baseLabel: 'Chicken', isNew: true },
+    { baseNames: ['chicken breast', 'chicken stock'], baseLabel: 'Chicken', isNew: true, title: 'Chicken katsu curry' },
   );
+  assert.match(errors.join('\n'), /title "Chicken katsu curry" names chicken/);
   assert.match(warnings.join('\n'), /Section "Chicken" names chicken/);
   assert.match(errors.join('\n'), /"Pumpkin, high protein" is a version for targets/);
   // Chicken stock with a pumpkin main is the cook's choice, not a leftover.

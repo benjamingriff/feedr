@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Appearance as RNAppearance, Pressable, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { matchAppIcon } from './app-icon';
 import { SectionHeader, Text, WEB } from './primitives';
 import {
   AppearanceContext,
@@ -16,8 +17,8 @@ import {
 } from './theme';
 
 // The colour palette and light/dark mode a person picks. The choice is kept on this device
-// and applied everywhere through `useColors()`. Settings screens drop in `AppearanceSettings`,
-// or `ModePicker` and `PalettePicker` on their own.
+// and applied everywhere through `useColors()`, and to the Home Screen icon through app-icon.ts.
+// Settings screens drop in `AppearanceSettings`, or `ModePicker` and `PalettePicker` on their own.
 
 // v2 started when Cobalt became the default. v1 saved Clay for anyone who only changed the mode,
 // so it's dropped rather than read, and everyone starts on Cobalt once.
@@ -57,6 +58,12 @@ export function AppearanceProvider({ children, onReady }: { children: ReactNode;
   useEffect(() => {
     if (mode && !WEB) RNAppearance.setColorScheme(mode === 'system' ? 'auto' : mode);
   }, [mode]);
+  // And give the Home Screen icon the palette's colour. This also catches up an icon that's out
+  // of step at launch, such as after updating from a version without palette icons.
+  const palette = appearance?.palette;
+  useEffect(() => {
+    if (palette) matchAppIcon(palette);
+  }, [palette]);
 
   const value = useMemo(() => {
     const current = appearance ?? defaultAppearance;

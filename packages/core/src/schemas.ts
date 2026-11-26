@@ -58,7 +58,7 @@ export const IngredientLineInput = z.object({
   ingredient: z
     .string()
     .min(1)
-    .describe('Canonical ingredient name, e.g. "red onion". Reuse existing names from list_ingredients.'),
+    .describe('The plain name the app shows, e.g. "red onion". Reuse names from list_ingredients.'),
   aisle: z
     .string()
     .nullish()
@@ -69,21 +69,28 @@ export const IngredientLineInput = z.object({
   unit: z
     .string()
     .nullish()
-    .describe('g, kg, ml, l, tsp, tbsp, or a count word like "clove", "can". Omit for whole items (e.g. 2 eggs).'),
+    .describe(
+      'g or ml for most things, tsp or tbsp for spices and small amounts, or a count word like "clove", "can". Omit for whole items (2 eggs), never "count". Pieces measured by length, like ginger, go in g.',
+    ),
   raw_text: z
     .string()
     .min(1)
     .describe(
-      'The line as it reads in this version, e.g. "2 red onions, finely sliced". Shown only when there is no quantity.',
+      'Quantity, name and prep only, e.g. "2 red onions, finely sliced": no brackets, notes or conversions. Shown only when there is no quantity, as the amount, e.g. "To taste".',
     ),
-  preparation: z.string().nullish().describe('The prep the cook must do, e.g. "finely sliced". Shown under the name.'),
+  preparation: z
+    .string()
+    .nullish()
+    .describe(
+      'Prep done before cooking starts, e.g. "finely sliced". Shown under the name. Prep done partway through (after charring) goes in that step.',
+    ),
   section: z
     .string()
     .nullish()
     .describe('Only when the recipe has separate parts, e.g. "Sauce". Then every line gets one.'),
   optional: z.boolean().optional().describe('For garnishes and extras'),
   nutrition: LineNutritionInput.optional().describe(
-    "Your estimate for this line's amount, as bought (rice and pasta dry). 0 for water and salt.",
+    "Your estimate for this line's amount as measured (raw meat, dry rice and pasta), with the same per-gram figures in every version. 0 for water and salt.",
   ),
 });
 export type IngredientLineInput = z.infer<typeof IngredientLineInput>;
@@ -102,14 +109,14 @@ export const StepInput = z.object({
   text: z
     .string()
     .min(1)
-    .describe('One stage of cooking in one to three short sentences, naming the ingredients it uses'),
+    .describe('One stage of cooking in one to three short sentences, naming each linked ingredient as on its line'),
   section: z.string().nullish(),
   timer_seconds: z
     .number()
     .int()
     .positive()
     .nullish()
-    .describe('For the one wait the cook times in this step, until their next action'),
+    .describe("For one wait the cook times, until their next action. The step's text gives that one time."),
   ingredients: z
     .array(StepIngredientInput)
     .optional()

@@ -16,7 +16,7 @@ export interface Check {
 /** The parts of a version the checks need, from a write or from the stored version. */
 export interface CheckedVersion {
   notes?: string | null;
-  ingredients?: { ingredient: string; section?: string | null; nutrition?: LineNutrition }[];
+  ingredients?: { ingredient: string; unit?: string | null; section?: string | null; nutrition?: LineNutrition }[];
   steps?: { text: string; timer_seconds?: number | null; ingredients?: { line: number }[] }[];
   nutrition?: {
     kcal: number | null;
@@ -36,7 +36,7 @@ export interface CheckOptions {
   baseNames?: string[];
 }
 
-const DURATION = /\d+(?:\s*[–-]\s*\d+)?\s?(?:min(?:ute)?s?|hrs?|hours?|sec(?:ond)?s?)\b/gi;
+const DURATION = /\d+(?:\s*[–-]\s*\d+)?\s?(?:more\s)?(?:min(?:ute)?s?|hrs?|hours?|sec(?:ond)?s?)\b/gi;
 const macroKcal = (n: { protein_g: number; carbs_g: number; fat_g: number }) =>
   4 * n.protein_g + 4 * n.carbs_g + 9 * n.fat_g;
 /** Whole-name matches of `names` in `text`, so "stock" alone doesn't count as "chicken stock". */
@@ -79,6 +79,11 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
       if (seen.has(l.section)) problems.push(`Section "${l.section}" is split up. Keep its lines together.`);
       seen.add(l.section);
     });
+  }
+
+  const counted = lines.flatMap((l, i) => (l.unit?.toLowerCase() === 'count' ? [i] : []));
+  if (counted.length) {
+    problems.push(`Ingredient lines ${counted.join(', ')} have unit "count". Leave unit out for whole items (2 eggs).`);
   }
 
   if (steps.length) {

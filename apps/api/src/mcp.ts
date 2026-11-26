@@ -15,6 +15,7 @@ import {
   ServiceUpdate,
   Slot,
   VersionInput,
+  type Recipe,
 } from '@feedr/core';
 import type { AuthUser } from './auth.ts';
 import * as svc from './service.ts';
@@ -22,14 +23,17 @@ import { checkRecipe, checkVersion, saveChecked, storedVersion } from './recipe-
 
 const INSTRUCTIONS = `feedr stores recipes, plans meals and portions cooked dishes for a household.
 
-Model:
-- A recipe has one or more versions. Each version is a complete, cookable recipe: its own ingredients, steps and WHOLE-BATCH nutrition.
-- The original version is the recipe as this household cooks it: the source's recipe with the changes the user always makes (their own method, equipment they don't have). Each real alternative is a version of its own: a different main ingredient (a veggie and a meat version), a different batch size, or a version built to meet calorie or protein targets.
-- Scaling is your job, not the server's. To cook a different amount, create a new version with sensible amounts: round whole items (eggs, tins) to whole numbers, don't scale spices, salt or aromatics linearly, and adjust pan sizes and cook times in the steps. Reuse an existing version when it's close enough.
-- Nutrition is for the whole batch the version makes, not per serving. You estimate each ingredient line; the server adds them up.
-- A service is one version cooked on a date. Its portions say who eats it, when (date + slot: breakfast, lunch, dinner, snack) and how much. The server splits the dish by calorie target: each portion's share = its target_kcal / the sum of all portion targets. Leftovers are extra portions, e.g. tomorrow's lunch.
+Adding a recipe. Finish each dish before starting the next:
+1. list_ingredients. If the user says who eats it or asks for targets, get_slot_targets for those people and meals.
+2. create_recipe with the original version: the source's recipe with the changes the user always makes. Its description says how to write a recipe.
+3. create_recipe_version once for each alternative the user asked for: another main, another batch size, a version for targets.
+4. Fix every warning in the save results with update_recipe_version.
+5. get_recipe, then reply: each version as "Label: N ingredients, M steps", how it compares with any targets, and your substitutions and assumptions. Your reasoning belongs in the reply, never in the recipe.
 
-Writing a recipe: read create_recipe's description before you write one. Everything in a recipe is read by the cook in the app; your reasoning and notes belong in your reply to the user. When you write a version for people's targets, size it to their total and tell the user how it compares. After saving, read each recipe back with get_recipe and reply with each version as "Label: N ingredients, M steps", how it compares with any targets, and the substitutions and assumptions you made.
+Model:
+- A recipe has one or more versions. Each version is a complete, cookable recipe: its own ingredients, steps and whole-batch nutrition, which the server adds up from your estimate on each ingredient line.
+- Scaling is your job, not the server's: round whole items (eggs, tins), don't scale spices, salt or aromatics linearly, and adjust pans and times in the steps. Reuse an existing version when it's close enough.
+- A service is one version cooked on a date. Its portions say who eats it, when (date + slot: breakfast, lunch, dinner, snack) and how much. The server splits the dish by calorie target: each portion's share = its target_kcal / the sum of all portion targets. Leftovers are extra portions, e.g. tomorrow's lunch.
 
 Planning a meal:
 1. get_slot_targets for the slot and people to see the calories (and protein) the meal should provide.
@@ -41,52 +45,58 @@ Treats live in the cookbook and aren't part of the meal plan yet: don't plan a r
 
 Shopping: get_shopping_list combines the ingredients of every service cooked in a date range (or of given versions) by ingredient and aisle. It is read-only.
 
-Ingredients: call list_ingredients first and reuse existing names exactly (spelling variants like yogurt/yoghurt create duplicates and split the shopping list). Give every new ingredient you buy an aisle: an existing one, or one of Produce, Meat & fish, Dairy, Bakery, Baking, Spices, Tins & jars, Rice & pasta, Oils & sauces, Frozen. An ingredient's name and aisle are fixed when it's first created, so get them right first time; water needs no aisle. Use metric units everywhere, step text included.`;
+Ingredients: reuse names from list_ingredients exactly (yogurt/yoghurt variants split the shopping list). Give every new ingredient you buy an aisle: an existing one, or one of Produce, Meat & fish, Dairy, Bakery, Baking, Spices, Tins & jars, Rice & pasta, Oils & sauces, Frozen. A new ingredient's name and aisle are fixed once created; water needs no aisle. Use metric units everywhere, step text included.`;
 
 /**
  * How to write a recipe for the app. It is create_recipe's description, because every client shows
  * tool descriptions but some drop the server instructions. The version tools point back to it.
  */
-const RECIPE_GUIDE = `Create a recipe and its original version in one call. Add each alternative afterwards with create_recipe_version.
+const RECIPE_GUIDE = `Create a recipe and its original version. Add each alternative afterwards with create_recipe_version.
 
-Write it like a page in a good recipe app. The cook reads every field in the app while cooking, so write only what helps them cook. Your reasoning, what you changed from the source and why, caveats about your figures, portion splits, storage, allergens and tips nobody asked for go in your reply to the user, never in the recipe. Never mention agents, notes, sources' footnotes or "this version" in the text.
+Write it like a page in a good recipe app: the cook reads every field while cooking. Only what helps them cook goes in the recipe. Your reasoning, changes from the source, caveats, portion splits, storage, allergens and tips go in your reply. Never mention agents or "this version".
 
-The server checks each version (links, sections, timers, nutrition, lengths). It refuses one that breaks a rule, listing what to fix by step number and opening words: fix every item without dropping any cooking instruction, and send it again. Keep going until it saves. Likely problems come back as warnings with the saved recipe: fix any that are real with update_recipe_version.
+The server checks every write. It refuses one that breaks a rule, listing each problem by step: fix them all, keep every cooking instruction, and send it again until it saves. Warnings come back with a saved recipe: fix them with update_recipe_version.
 
-The recipe (every version shares these):
-- title: the dish's name, true of every version: "Katsu curry" when there's a chicken and a pumpkin version. No options or brackets.
-- description: one or two sentences on what the dish is and what it's like to eat, true of every version. No method, history or links.
-- source_url and source_name: the page it came from and the site's name, e.g. "Wagamama". The app shows "Adapted from <source_name>".
-- tags: the meal type, one or more of breakfast, lunch, dinner or treat (sweet things that are nice rather than good for you, like cakes and weekend bakes). Add other tags only when true of every version.
+The recipe:
+- title: the dish's name, true of every version ("Katsu curry" for a chicken and a pumpkin version). No brackets.
+- description: one or two full sentences that name the dish and say what it's like to eat, true of every version ("Panko-crusted katsu in a mild, smooth curry sauce"). No method, history or links.
+- source_url and source_name (the site's name, e.g. "Wagamama"). The app shows "Adapted from <source_name>".
+- tags: the meal type, one or more of breakfast, lunch, dinner or treat (sweet things like cakes and weekend bakes).
 
 Versions:
-- The original is the source's recipe, at the source's yield, with the changes the user always makes (their method, equipment they don't have, substitutions). Otherwise keep the source's ingredients and amounts. When equipment changes, adapt the technique to the tool: say which vessel to use and any prep it needs (e.g. chop dried chillies by hand, then blend in a tall jug).
-- One version per alternative: another main, another batch size, a version for targets. Never put two mains in one version as optional ingredients or "or" steps. Label each version by what makes it different, e.g. "Pumpkin", "Chicken", "For three", "High protein". The original is "Original" or its main (e.g. "Beef"), never a method or piece of equipment.
-- servings: how many even portions the batch makes. Don't write who eats how much: plan_service splits the dish by each person's calorie target.
-- When the user says who eats it (e.g. dinner for two plus a lunch) or asks for calorie or protein targets, call get_slot_targets for those people and meals. First size it: scale every line together so the batch's kcal is within about 10% of their total, set servings to the portions it's for, keep sides at normal portions (about 75g dry rice a person) and keep tins and eggs whole. Then, for protein targets, move some of that budget to the main: more of the main, a little less of the sides and fat, keeping the dish recognisable, until it gives at least the targets' total protein. Don't swap the main or its cut unless the user asks. Tell the user how each version compares, and where calories and protein can't both be met.
-- If a version changes the main or its cut, recheck the method, time and doneness cue for it, label it by the main (e.g. "Chicken"), and update the title and description with update_recipe if they no longer fit every version.
+- The original keeps the source's ingredients, amounts and from-scratch parts (no shop-bought swaps), with the user's standing changes: their method, equipment they lack, substitutions. Make only the changes they asked for, at the size they asked for. Use their usual batch size if they give one, otherwise the source's yield. For equipment they lack, adapt the technique to their tool: which vessel, and what prep it needs.
+- One version per alternative, labelled by what's different ("Pumpkin", "Chicken", "High protein"). The original is "Original" or its main. Never two mains in one version.
+- When you copy a version, rewrite every mention of what changed: every amount and volume in the step text, the method, time and doneness cue for a new main, and a paste scaled with the fat and liquid that cook it.
+- For people or targets: scale every line together so the batch's kcal is within about 10% of their total, with servings = the portions it's for, sides at normal portions (75g dry rice a person) and tins and eggs whole. For protein, then move some of that budget to more of the main until protein reaches the targets' total, keeping the sauce recognisable.
 
-Ingredients. The app shows each line as its amount, its name, then its preparation underneath; raw_text appears only when there's no quantity.
-- One line per thing the cook buys or measures, in the order the steps first use them. Sides served with it (rice, salad) are lines too, with amounts. Reserved liquid or the rest of a line aren't new lines: link the original line again. Water to cover, top up or loosen, with no measure, needs no line.
-- ingredient: the plain name, e.g. "chicken breast".
-- quantity and unit as a cook measures it: g or ml for most things, tsp or tbsp for spices and small amounts, a count for whole items (2 eggs, 1 onion). Give a quantity whenever there's a number. Pieces measured by length, like ginger, go in g.
-- preparation: the prep the cook must do, in a few words, e.g. "cut into 4cm cubes". It must agree with raw_text and the steps.
-- raw_text: the line as it reads in this version, e.g. "1 onion, finely chopped". With no quantity it fills the amount column, so keep it to the amount, e.g. "To taste".
-- optional: true for garnishes and extras. Don't write "optional" in the text.
-- nutrition: your estimate for the line's amount, as bought (rice and pasta dry): kcal, protein_g, carbs_g, fat_g, with kcal close to 4 x protein + 4 x carbs + 9 x fat. 0 for water and salt. The server adds the lines up for the batch, so leave the version's nutrition out. Send version nutrition only to copy a source's published figures for its unchanged recipe (source from_source, per-serving figures times its yield).
-- No notes, brands, conversions or alternatives in any of these.
-- section: only when the recipe has separate parts, e.g. a sauce and a coating. Then give every line one, keep each section's lines together, and order sections by when they're first cooked. Short headings like "Sauce", "Coating", "To serve". An ingredient measured separately for two parts gets a line in each.
+Ingredients, in the order first used: one line per thing bought or measured. Sides served with it (rice, salad) go last, with amounts, under "To serve" when there are sections. Reserved liquid or the rest of a line links the original line again; water to cover or loosen needs no line. Sections only for separate parts (e.g. "Sauce", "Coating"), ordered by when they're cooked. Each line carries its own nutrition estimate.
 
-Steps:
-- One step per stage of cooking, in the order the cook works: what goes in the pan or on the board at that point, and with what (pan, oven, air fryer, steamer). Usually one to three short sentences. Start sides like rice in the step where the cook would put them on, so everything is ready together. Say what to do, about how long, and how to tell it's done. No tips, explanations or warnings beyond what's needed to cook it right, and never why a step differs from the source (no "since" or "because").
-- ingredients: link every line the step adds or handles, including the main whenever the step cooks it, and nothing else. Once lines are combined into a paste or sauce, later steps name the paste or sauce and don't link its lines again. Format: [{ line }], where line is the index into this version's ingredients, starting at 0. When a step uses part of a line, add its quantity: { line: 3, quantity: 4 } for "Add 4 garlic cloves" when the line has 6.
-- Name each linked ingredient in the text as it's named on its line, so the app can mark it ("beef chuck", not just "beef", when there's also beef stock). You needn't repeat amounts or prep.
-- timer_seconds: only on a step with one wait the cook times (simmering, baking, resting, air-frying), set to the time until the cook's next action. A step's text gives one time; when another wait follows, start a new step. For "air-fry 14 minutes, turning halfway", make two steps of 7 minutes, the second starting with the turn. For a range, time the shortest. No timer on hands-on work like chopping, coating, browning or toasting, or when the packet sets the time.
-- Set prep_minutes and cook_minutes on the version.
+Steps: one stage of cooking each, in the order the cook works: what to do, with what (pan, air fryer, tall jug), about how long, and how to tell it's done, in one to three short sentences. Merge tiny prep-only steps. Start a side in the step it finishes alongside, e.g. "While the curry simmers, cook the rice". Keep the source's times in the text. No tips or reasons. Link every line the step adds or handles and name it as on its line; once a paste or sauce is made, later steps name it and don't relink its lines. A timer is for one wait, until the cook's next action: "air-fry 14 minutes, turning halfway" is two steps of 7 minutes.
 
-notes: usually empty. Only one short line the cook must know before starting when the version is out of the ordinary, e.g. "High protein: twice the usual chicken." Never a tip, a comparison with another version, or what you changed or why (not "Chicken replaces the beef").
+notes: usually empty. Only one short line the cook must know before starting when the version is unusual, e.g. "High protein: twice the usual chicken". Never a tip, a comparison or a reason.`;
 
-When you've finished, read each recipe back with get_recipe after your last change, and check every version on its own: its steps name only its own ingredients; the main, method and timers are right throughout; and the shared title and description are true of it. Fix anything wrong. Then reply to the user, for each version: "Label: N ingredients, M steps" from the read-back; how it compares with any targets; and the substitutions, assumptions and amounts you chose. Don't explain these rules to them.`;
+/**
+ * What a recipe write returns: ids and counts instead of the whole recipe, so the next call is easy
+ * to make and the reminder of what's left is hard to miss. get_recipe has the full recipe.
+ */
+function written(recipe: Recipe, next: string) {
+  return {
+    recipe_id: recipe.id,
+    title: recipe.title,
+    versions: recipe.versions.map((v) => ({
+      version_id: v.id,
+      label: v.label,
+      servings: v.servings,
+      ingredients: v.ingredients.length,
+      steps: v.steps.length,
+      kcal: v.nutrition?.kcal ?? null,
+      protein_g: v.nutrition?.protein_g ?? null,
+    })),
+    next,
+  };
+}
+const NEXT_AFTER_WRITE =
+  'Add each other version the user asked for with create_recipe_version (recipe_id, and based_on_version_id from versions above). Fix any warnings. Then get_recipe and reply.';
 
 type Result = { content: { type: 'text'; text: string }[]; isError?: boolean };
 
@@ -187,7 +197,11 @@ export function buildMcpServer(user: AuthUser): McpServer {
       inputSchema: RecipeCreate.shape,
     },
     (input) =>
-      run(() => saveChecked([checkRecipe(input), checkVersion(input.original)], () => svc.createRecipe(u, input))),
+      run(() =>
+        saveChecked([checkRecipe(input), checkVersion(input.original)], async () =>
+          written(await svc.createRecipe(u, input), NEXT_AFTER_WRITE),
+        ),
+      ),
   );
   server.registerTool(
     'update_recipe',
@@ -196,7 +210,11 @@ export function buildMcpServer(user: AuthUser): McpServer {
       inputSchema: { recipe_id: id, ...RecipeUpdate.shape },
     },
     ({ recipe_id, ...input }) =>
-      run(() => saveChecked([checkRecipe(input)], () => svc.updateRecipe(u, recipe_id, input))),
+      run(() =>
+        saveChecked([checkRecipe(input)], async () =>
+          written(await svc.updateRecipe(u, recipe_id, input), NEXT_AFTER_WRITE),
+        ),
+      ),
   );
   server.registerTool(
     'archive_recipe',
@@ -216,7 +234,7 @@ export function buildMcpServer(user: AuthUser): McpServer {
     'create_recipe_version',
     {
       description:
-        'Add an alternative version, written by the same rules as create_recipe (read its description first). Send the version fields at the top level, not inside "original": recipe_id from the recipe, based_on_version_id from its versions[].id, and complete ingredients (each with its nutrition estimate, unless you send published figures) and steps. When you start from another version, rewrite every mention of what changed: the main, stock, method, steps and timers. Scale with judgement: whole eggs, spices that do not scale linearly, adjusted times.',
+        'Add an alternative version, written by create_recipe\'s rules. Fields go at the top level, with no "original" wrapper: recipe_id, based_on_version_id (one of the recipe\'s versions[].id), and complete ingredients, each with its nutrition estimate, and steps. Rewrite every mention of what changed, including amounts in step text.',
       inputSchema: { recipe_id: id, ...VersionInput.shape },
     },
     ({ recipe_id, ...input }) =>
@@ -225,14 +243,17 @@ export function buildMcpServer(user: AuthUser): McpServer {
           ? await svc.getVersion(u, input.based_on_version_id).catch(() => undefined)
           : undefined;
         const baseNames = base?.ingredients.map((l) => l.ingredient);
-        return saveChecked([checkVersion(input, { baseNames })], () => svc.createVersion(u, recipe_id, input));
+        return saveChecked([checkVersion(input, { baseNames })], async () => {
+          await svc.createVersion(u, recipe_id, input);
+          return written(await svc.getRecipe(u, recipe_id), NEXT_AFTER_WRITE);
+        });
       }),
   );
   server.registerTool(
     'update_recipe_version',
     {
       description:
-        'Edit the version with this version_id, by the same rules as create_recipe. Any of ingredients, steps or nutrition given replaces that part entirely. Step ingredient links point at ingredient lines, so when you replace ingredients, send steps too to keep the links. Replaced ingredients need their nutrition estimates again, which the server adds up, unless you resend published figures as nutrition (source from_source).',
+        "Edit a version by version_id, by create_recipe's rules. Ingredients, steps or nutrition given replace that part entirely. Send steps with replaced ingredients (links point at lines), and give replaced ingredients their nutrition estimates again, or published figures as nutrition (source from_source).",
       inputSchema: { version_id: id, ...VersionInput.partial().shape },
     },
     ({ version_id, ...input }) =>
@@ -258,7 +279,10 @@ export function buildMcpServer(user: AuthUser): McpServer {
           newIngredients: !!input.ingredients,
           baseNames: base?.ingredients.map((l) => l.ingredient),
         });
-        return saveChecked([check], () => svc.updateVersion(u, version_id, input));
+        return saveChecked([check], async () => {
+          await svc.updateVersion(u, version_id, input);
+          return written(await svc.getRecipe(u, version.recipe_id), NEXT_AFTER_WRITE);
+        });
       }),
   );
   server.registerTool(

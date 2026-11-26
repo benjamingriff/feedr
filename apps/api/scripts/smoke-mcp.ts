@@ -67,11 +67,11 @@ const recipe = await call('create_recipe', {
     ],
   },
 });
-const version = await call('create_recipe_version', {
-  recipe_id: recipe.id,
+const saved = await call('create_recipe_version', {
+  recipe_id: recipe.recipe_id,
   label: 'For two, bigger',
   servings: 3,
-  based_on_version_id: recipe.versions[0].id,
+  based_on_version_id: recipe.versions[0].version_id,
   ingredients: [
     { ingredient: 'egg', quantity: 6, raw_text: '6 eggs', nutrition: est(430, 38, 2, 30) },
     {
@@ -97,6 +97,8 @@ const version = await call('create_recipe_version', {
     },
   ],
 });
+// Writes return ids and counts; the new version is the last one.
+const version = { id: saved.versions.at(-1).version_id };
 const service = await call('plan_service', {
   version_id: version.id,
   cook_date: '2027-01-04',
@@ -120,6 +122,6 @@ console.log(
 );
 
 await call('delete_service', { service_id: service.id });
-await call('delete_recipe', { recipe_id: recipe.id });
+await call('delete_recipe', { recipe_id: recipe.recipe_id });
 await client.close();
 console.log('MCP smoke passed');

@@ -130,3 +130,35 @@ test('one wait per timer, one section is none, no leftovers from the base versio
   });
   assert.deepEqual(published.errors, []);
 });
+
+test('sizes against the meals it is for, and keeps prep where the app shows it', () => {
+  const lines = [
+    {
+      ingredient: 'chicken breast',
+      quantity: 2,
+      unit: 'breast',
+      raw_text: '2 chicken breasts, halved',
+      nutrition: { kcal: 600, protein_g: 120, carbs_g: 0, fat_g: 13 },
+    },
+    { ingredient: 'cumin', quantity: 1, unit: 'tsp', nutrition: est(10) },
+  ];
+  const { errors, warnings } = checkVersion(
+    {
+      ingredients: lines,
+      steps: [
+        {
+          text: 'Air-fry the chicken breast with cumin for 7 minutes per side.',
+          timer_seconds: 420,
+          ingredients: [{ line: 0 }, { line: 1 }],
+        },
+      ],
+    },
+    { mealTargets: { kcal: 1453, protein_g: 88 }, knownNames: ['ground cumin'] },
+  );
+  const problems = errors.join('\n');
+  assert.match(problems, /unit "breast", which repeats its name/);
+  assert.match(problems, /prep in raw_text/);
+  assert.match(problems, /times a wait "per side"/);
+  assert.match(problems, /610 kcal against 1453 kcal .*-58%/);
+  assert.match(warnings.join('\n'), /looks like the existing ingredient "ground cumin"/);
+});

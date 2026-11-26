@@ -21,6 +21,7 @@ export interface CheckedVersion {
     quantity?: number | null;
     unit?: string | null;
     raw_text?: string | null;
+    preparation?: string | null;
     section?: string | null;
     nutrition?: LineNutrition;
   }[];
@@ -41,7 +42,20 @@ export interface CheckOptions {
   newIngredients?: boolean;
   /** Ingredient names of the version this one was based on, to catch text left over from it. */
   baseNames?: string[];
+  /** Names already in the user's catalog, to catch near-duplicates like "cumin" and "ground cumin". */
+  knownNames?: string[];
+  /** The summed targets of the meals the version is cooked for, when the agent says. */
+  mealTargets?: { kcal: number; protein_g: number | null };
 }
+
+/** "Ground cumin", "cumins" and "cumin" all come to "cumin". */
+const baseName = (name: string) =>
+  name
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((w) => !['ground', 'dried', 'fresh'].includes(w))
+    .map((w) => (w.length > 3 ? w.replace(/e?s$/, '') : w))
+    .join(' ');
 
 const DURATION = /\d+(?:\s*[–-]\s*\d+)?\s?(?:more\s)?(?:min(?:ute)?s?|hrs?|hours?|sec(?:ond)?s?)\b/gi;
 const IMPERIAL = /\b\d+(?:[./]\d+)?\s*(?:cups?|oz|ounces?|lbs?|pounds?|inch(?:es)?|"|°?\s?F)(?![a-z])/i;
@@ -103,6 +117,34 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
   }
 
   if (opts.newIngredients !== false) {
+    lines.forEach((l, i) => {
+      const nameWords = l.ingredient
+        .toLowerCase()
+        .split(/\s+/)
+        .map((w) => w.replace(/e?s$/, ''));
+      if (l.unit && nameWords.includes(l.unit.toLowerCase().replace(/e?s$/, ''))) {
+        problems.push(
+          `Line ${i} (${l.ingredient}) has unit "${l.unit}", which repeats its name. Leave unit out for whole items.`,
+        );
+      }
+      // raw_text is rebuilt from the fields for measured lines, so prep written only there is lost.
+      if (l.quantity != null && !l.preparation && l.raw_text && /,\s*\S/.test(l.raw_text)) {
+        problems.push(
+          `Line ${i} (${l.ingredient}) has prep in raw_text ("${l.raw_text}") but no preparation. Put the prep in preparation; the app shows it there.`,
+        );
+      }
+      if (l.quantity != null && ['g', 'ml'].includes(l.unit ?? '') && l.quantity >= 20 && l.quantity % 5) {
+        warnings.push(
+          `Line ${i} (${l.ingredient}) is ${l.quantity}${l.unit}. Round it to an amount a cook measures, in 5${l.unit} steps.`,
+        );
+      }
+      const known = opts.knownNames ?? [];
+      if (!known.some((k) => k.toLowerCase() === l.ingredient.toLowerCase())) {
+        const twin = known.find((k) => baseName(k) === baseName(l.ingredient));
+        if (twin)
+          warnings.push(`Line ${i} (${l.ingredient}) looks like the existing ingredient "${twin}". Use that name.`);
+      }
+    });
     const unmeasured = lines.flatMap((l, i) => (l.quantity == null && !l.raw_text ? [`${i} (${l.ingredient})`] : []));
     if (unmeasured.length) {
       problems.push(
@@ -135,7 +177,9 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
     }
     if (IMPERIAL.test(step.text)) problems.push(`Step ${n} uses an imperial measure. Use g, ml, cm or °C.`);
     const times = waitCount(step.text);
-    if (step.timer_seconds && times > 1) {
+    if (step.timer_seconds && /\b(?:per|each|a) side\b/i.test(step.text)) {
+      problems.push(`Step ${n} times a wait "per side". Make it two timed steps, the second starting with the turn.`);
+    } else if (step.timer_seconds && times > 1) {
       problems.push(
         `Step ${n} has a timer and gives ${times} times. Time one wait per step: split it where the next wait starts, each part with its own timer.`,
       );
@@ -227,6 +271,30 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
     if (Math.abs(fromMacros - n.kcal) / n.kcal > 0.15) {
       warnings.push(
         `nutrition: ${n.kcal} kcal doesn't match its macros (${Math.round(fromMacros)}). Check the source's figures.`,
+      );
+    }
+  }
+  // Against the targets of the meals it's cooked for: calories are refused when well off, protein flagged.
+  const t = opts.mealTargets;
+  const batch =
+    published && n?.kcal
+      ? { kcal: n.kcal, protein_g: n.protein_g ?? 0 }
+      : lines.length && lines.every((l) => l.nutrition)
+        ? {
+            kcal: lines.reduce((sum, l) => sum + l.nutrition!.kcal, 0),
+            protein_g: lines.reduce((sum, l) => sum + l.nutrition!.protein_g, 0),
+          }
+        : undefined;
+  if (t && batch && t.kcal) {
+    const off = (batch.kcal - t.kcal) / t.kcal;
+    if (Math.abs(off) > 0.1) {
+      const message = `The batch is ${Math.round(batch.kcal)} kcal against ${t.kcal} kcal for the meals it's for (${off > 0 ? '+' : ''}${Math.round(off * 100)}%).`;
+      if (published) warnings.push(message);
+      else problems.push(`${message} Scale every line together to within about 10%.`);
+    }
+    if (t.protein_g && batch.protein_g < 0.95 * t.protein_g) {
+      warnings.push(
+        `Protein is ${Math.round(batch.protein_g)} g against ${t.protein_g} g for those meals. Tell the user, or for a protein version add more of the main.`,
       );
     }
   }

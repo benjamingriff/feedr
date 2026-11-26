@@ -65,7 +65,11 @@ export const IngredientLineInput = z.object({
     .describe(
       'For a new ingredient: an existing aisle, or one of Produce, Meat & fish, Dairy, Bakery, Baking, Spices, Tins & jars, Rice & pasta, Oils & sauces, Frozen. Omit for water.',
     ),
-  quantity: z.number().positive().nullish(),
+  quantity: z
+    .number()
+    .positive()
+    .nullish()
+    .describe('Give one whenever the line has a number. Leave it out only for unmeasured lines like salt to taste.'),
   unit: z
     .string()
     .nullish()
@@ -116,7 +120,9 @@ export const StepInput = z.object({
     .int()
     .positive()
     .nullish()
-    .describe("For one wait the cook times, until their next action. The step's text gives that one time."),
+    .describe(
+      "For one wait the cook times, until their next action; the step's text gives that one time. For a range, the shortest. None for hands-on work or packet times.",
+    ),
   ingredients: z
     .array(StepIngredientInput)
     .optional()
@@ -135,12 +141,12 @@ export const VersionInput = z.object({
   based_on_version_id: Id.nullish().describe(
     "The version this one starts from: a versions[].id from get_recipe, not the recipe's id",
   ),
-  prep_minutes: z.number().int().nonnegative().nullish(),
-  cook_minutes: z.number().int().nonnegative().nullish(),
+  prep_minutes: z.number().int().nonnegative().nullish().describe('Hands-on prep time. Set it and cook_minutes.'),
+  cook_minutes: z.number().int().nonnegative().nullish().describe('Cooking time'),
   ingredients: z.array(IngredientLineInput),
   steps: z.array(StepInput),
   nutrition: NutritionInput.optional().describe(
-    "Leave out: the server adds up the lines' estimates. Send it only to copy a source's published figures for its unchanged recipe.",
+    "Leave out: the server adds up the lines' estimates. Send it only to copy a source's published figures for its unchanged recipe, as the whole batch (per-serving figures times its yield).",
   ),
 });
 export type VersionInput = z.infer<typeof VersionInput>;

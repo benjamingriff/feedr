@@ -81,7 +81,8 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
     });
   }
 
-  const counted = lines.flatMap((l, i) => (l.unit?.toLowerCase() === 'count' ? [i] : []));
+  const counted =
+    opts.newIngredients === false ? [] : lines.flatMap((l, i) => (l.unit?.toLowerCase() === 'count' ? [i] : []));
   if (counted.length) {
     problems.push(`Ingredient lines ${counted.join(', ')} have unit "count". Leave unit out for whole items (2 eggs).`);
   }

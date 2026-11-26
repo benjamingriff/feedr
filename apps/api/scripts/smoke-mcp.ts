@@ -97,8 +97,8 @@ const saved = await call('create_recipe_version', {
     },
   ],
 });
-// Writes return ids and counts; the new version is the last one.
-const version = { id: saved.versions.at(-1).version_id };
+// Writes return ids and counts, and a version write the id of that version.
+const version = { id: saved.version_id };
 const service = await call('plan_service', {
   version_id: version.id,
   cook_date: '2027-01-04',

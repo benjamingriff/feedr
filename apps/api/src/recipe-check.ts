@@ -283,6 +283,13 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
     )) {
       const name = lines[m.index]!.ingredient;
       if (links.includes(m.index) || name.toLowerCase() === 'water') continue;
+      // "Taste and adjust with fish sauce", "discard the bay leaves": no link needed.
+      const sentence =
+        step.text
+          .slice(0, m.start)
+          .split(/[.;!?]/)
+          .at(-1) ?? '';
+      if (/\b(?:taste|adjust|discard|remove)\b/i.test(sentence)) continue;
       warnings.push(
         `Step ${n} names ${name} but doesn't link line ${m.index}. Link it if the step adds or handles it.`,
       );
@@ -364,7 +371,7 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
   if (t && batch && t.kcal) {
     const off = (batch.kcal - t.kcal) / t.kcal;
     if (Math.abs(off) > 0.1) {
-      const message = `The batch is ${Math.round(batch.kcal)} kcal against ${t.kcal} kcal for the meals it's for (${off > 0 ? '+' : ''}${Math.round(off * 100)}%).`;
+      const message = `The batch is ${Math.round(batch.kcal)} kcal against ${t.kcal} kcal for the meals it's for (${off > 0 ? '+' : ''}${Math.round(off * 100)}%); aim for ${Math.round(t.kcal * 0.9)} to ${Math.round(t.kcal * 1.1)} kcal.`;
       if (published) warnings.push(message);
       else if (batch.kcal <= 0) {
         problems.push(`${message} Estimate each line's nutrition for its amount.`);
@@ -377,8 +384,8 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
           off < 0
             ? `Add about ${gap} kcal: more of every line together, sides at about 75g dry rice a person.`
             : proteinMet
-              ? `Take off about ${gap} kcal from the other lines first (sauce fat, then sides, not under 50g dry rice a person), then the main if needed.`
-              : `Take off about ${gap} kcal from the sides and sauce fat, not the main: protein is already short.`;
+              ? `Take off about ${gap} kcal: trim the sides first (not under 50g dry rice a person), then use a lighter form of the sauce's rich ingredient and less oil, then the main if needed.`
+              : `Take off about ${gap} kcal from the sides and the sauce's fat, not the main: protein is already short.`;
         problems.push(
           `${message} ${advice} Re-estimate each changed line's nutrition, keep for_meals and send it again.`,
         );

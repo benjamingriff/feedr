@@ -194,6 +194,10 @@ test('ingredient names are found in step text', () => {
   const found = (text: string, names: string[]) =>
     matchIngredientNames(text, names).map((m) => [text.slice(m.start, m.end), names[m.index]]);
 
+  // -ies plurals of -i words.
+  assert.deepEqual(found('Char the dried red chillies.', ['dried red chilli']), [
+    ['dried red chillies', 'dried red chilli'],
+  ]);
   // Case and plurals, either way round.
   assert.deepEqual(found('Soften the Onions, then add one tomato.', ['onion', 'tomatoes']), [
     ['Onions', 'onion'],

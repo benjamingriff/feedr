@@ -221,9 +221,9 @@ ink2, centred.
 - A trailing "→" in the 20 slot.
 - Hairlines between rows.
 
-**Agent note** (recipe).
+**Note** (recipe).
 - A 1px accent left border with 16 padding on the left and 2 at the top and bottom.
-- The label is 12 mono caps accent ("Agent note · For 2"). The body is 15/23 ink2, 6
+- The label is 12 mono caps accent ("Note · For 2"). The body is 15/23 ink2, 6
   below it.
 
 **Meta row** (recipe). Four equal columns 16 apart. Each has a 12 mono caps ink3 label
@@ -269,7 +269,7 @@ cookbook rows. A row opens the recipe.
 
 **Recipe.**
 - The top bar has only "← Recipes" on the left.
-- The hero has, in order: chips, the title, a standfirst, the meta row, an agent note,
+- The hero has, in order: chips, the title, a standfirst, the meta row, a note,
   and the primary button.
 - Then come Ingredients (grouped by section) and Method (numbered steps with timer
   chips), followed by "Per serving" nutrition with "[agent estimate]" in italic ink3 mono

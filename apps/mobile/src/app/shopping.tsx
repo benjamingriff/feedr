@@ -1,6 +1,6 @@
 import { View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import type { ShoppingItem, ShoppingList } from '@feedr/core';
+import { countName, type ShoppingItem, type ShoppingList } from '@feedr/core';
 import { addDays, monday, today, weekRange } from '../dates';
 import { amount, capitalise } from '../format';
 import {
@@ -49,6 +49,10 @@ function Checkbox({ ticked }: { ticked: boolean }) {
 /** Amounts in different unit families are joined, then any that couldn't be added up: "200 g + a handful". */
 const itemAmount = (item: ShoppingItem) =>
   [...item.amounts.map((a) => amount(a.quantity, a.unit)), ...item.unquantified].join(' + ');
+
+/** "Eggs" when the list counts more than one. */
+const itemName = (item: ShoppingItem) =>
+  capitalise(countName(item.ingredient, item.amounts.find((a) => !a.unit)?.quantity ?? null, null));
 
 /**
  * The week's shopping, grouped by aisle. `week` is the Monday to show; it defaults to this week.
@@ -100,7 +104,7 @@ export default function Shopping() {
                     <IngredientRow
                       key={item.ingredient_id}
                       quantity={itemAmount(item)}
-                      name={capitalise(item.ingredient)}
+                      name={itemName(item)}
                       detail={item.recipes.join(' · ')}
                       tag={item.optional ? 'Optional' : undefined}
                       struck={isTicked}

@@ -7,3 +7,4 @@ export * from './units.ts';
 export * from './shopping.ts';
 export * from './versions.ts';
 export * from './ingredient-match.ts';
+export * from './quantities.ts';

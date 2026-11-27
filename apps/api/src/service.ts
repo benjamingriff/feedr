@@ -270,7 +270,7 @@ async function writeVersionContents(
           ingredient_id: ingredientId,
           quantity: line.quantity ?? null,
           unit: line.unit ?? null,
-          raw_text: line.raw_text,
+          raw_text: lineText(line),
           preparation: line.preparation ?? null,
           section: line.section ?? null,
           optional: line.optional ?? false,
@@ -297,7 +297,38 @@ async function writeVersionContents(
       await writeStepIngredients(trx, versionId, input.steps, stepRows);
     }
   }
-  if (input.nutrition) await writeNutrition(trx, versionId, input.nutrition);
+  const nutrition = input.nutrition ?? (input.ingredients && lineTotals(input.ingredients));
+  // New ingredients without figures would leave the old batch nutrition describing other amounts.
+  if (input.ingredients && !nutrition) {
+    throw new InvalidError('Give nutrition, or a nutrition estimate on every ingredient line');
+  }
+  if (nutrition) await writeNutrition(trx, versionId, nutrition);
+}
+
+/**
+ * The line as text: what was sent, or for a measured line without it, built from its fields. The
+ * app shows it only when there's no quantity. The MCP drops it on measured lines, so agents' text
+ * can't disagree with the amounts.
+ */
+function lineText(line: VersionInput['ingredients'][number]): string {
+  if (line.raw_text) return line.raw_text;
+  if (line.quantity == null) return line.ingredient;
+  const amount = `${line.quantity}${line.unit ? ` ${line.unit}` : ''}`;
+  return `${amount} ${line.ingredient}${line.preparation ? `, ${line.preparation}` : ''}`;
+}
+
+/** The batch nutrition from per-line estimates, or undefined unless every line has one. */
+function lineTotals(lines: VersionInput['ingredients']): NutritionInput | undefined {
+  if (!lines.length || !lines.every((l) => l.nutrition)) return undefined;
+  const sum = (k: 'kcal' | 'protein_g' | 'carbs_g' | 'fat_g') =>
+    Math.round(lines.reduce((total, l) => total + l.nutrition![k], 0) * 10) / 10;
+  return {
+    kcal: Math.round(sum('kcal')),
+    protein_g: sum('protein_g'),
+    carbs_g: sum('carbs_g'),
+    fat_g: sum('fat_g'),
+    source: 'agent_estimate',
+  };
 }
 
 /** Links steps to the version's ingredient lines. `line` is an index into the lines as they are stored now. */
@@ -368,8 +399,24 @@ async function insertVersion(
   isOriginal: boolean,
 ): Promise<string> {
   if (input.based_on_version_id) {
-    const base = await ownedVersion(trx, userId, input.based_on_version_id);
-    if (base.recipe_id !== recipeId) throw new InvalidError('based_on_version_id belongs to another recipe');
+    const base = await trx
+      .selectFrom('recipe_versions')
+      .select('id')
+      .where('id', '=', input.based_on_version_id)
+      .where('recipe_id', '=', recipeId)
+      .executeTakeFirst();
+    if (!base) {
+      const versions = await trx
+        .selectFrom('recipe_versions')
+        .select(['id', 'label'])
+        .where('recipe_id', '=', recipeId)
+        .execute();
+      throw new InvalidError(
+        versions.length
+          ? `based_on_version_id isn't a version of this recipe. Use one of: ${versions.map((v) => `${v.id} (${v.label})`).join(', ')}`
+          : 'Leave based_on_version_id out of the original version.',
+      );
+    }
   }
   const { id } = await trx
     .insertInto('recipe_versions')
@@ -461,6 +508,11 @@ export async function getRecipe(userId: string, recipeId: string, trx: Db = db):
   return { ...recipeFields(recipe), versions: ids.map((id) => versions.get(id)!) };
 }
 
+export async function getVersion(userId: string, versionId: string): Promise<RecipeVersion> {
+  await ownedVersion(db, userId, versionId);
+  return (await loadVersions(db, [versionId])).get(versionId)!;
+}
+
 export async function createRecipe(userId: string, input: RecipeCreate): Promise<Recipe> {
   return db.transaction().execute(async (trx) => {
     const { id } = await trx
@@ -508,6 +560,20 @@ export async function updateRecipe(
 export async function archiveRecipe(userId: string, recipeId: string): Promise<void> {
   await ownedRecipe(db, userId, recipeId);
   await db.updateTable('recipes').set({ archived_at: new Date() }).where('id', '=', recipeId).execute();
+}
+
+/** Deletes a recipe and its versions. Refused while a service uses one of them, since deleting would cascade to it. */
+export async function deleteRecipe(userId: string, recipeId: string): Promise<void> {
+  await ownedRecipe(db, userId, recipeId);
+  const used = await db
+    .selectFrom('services')
+    .innerJoin('recipe_versions as v', 'v.id', 'services.version_id')
+    .select('services.id')
+    .where('v.recipe_id', '=', recipeId)
+    .executeTakeFirst();
+  if (used)
+    throw new InvalidError('A planned service uses this recipe. Remove the service first, or archive the recipe.');
+  await db.deleteFrom('recipes').where('id', '=', recipeId).execute();
 }
 
 export async function createVersion(userId: string, recipeId: string, input: VersionInput): Promise<RecipeVersion> {

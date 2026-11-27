@@ -37,26 +37,68 @@ export const NutritionInput = z.object({
   sugar_g: z.number().nonnegative().nullish(),
   salt_g: z.number().nonnegative().nullish(),
   extra: z.record(z.string(), z.number()).optional().describe('Further nutrients, e.g. {"iron_mg": 4.2}'),
-  source: z.enum(['from_source', 'agent_estimate']),
-  notes: z.string().nullish(),
+  source: z
+    .enum(['from_source', 'agent_estimate'])
+    .describe(
+      "agent_estimate: your own estimate. from_source: only when its ingredients are exactly the source's and every figure is published.",
+    ),
+  notes: z.string().nullish().describe('Leave empty'),
 });
 export type NutritionInput = z.infer<typeof NutritionInput>;
+
+/** An agent's estimate for one ingredient line. The server adds a version's lines up for its batch nutrition. */
+export const LineNutritionInput = z.object({
+  kcal: z.number().nonnegative(),
+  protein_g: z.number().nonnegative(),
+  carbs_g: z.number().nonnegative(),
+  fat_g: z.number().nonnegative(),
+});
 
 export const IngredientLineInput = z.object({
   ingredient: z
     .string()
     .min(1)
-    .describe('Canonical ingredient name, e.g. "red onion". Reuse existing names from list_ingredients.'),
-  aisle: z.string().nullish().describe('Supermarket aisle for new ingredients, e.g. "Produce", "Dairy", "Spices"'),
-  quantity: z.number().positive().nullish(),
+    .describe(
+      'The plain name the app shows, in the singular, e.g. "red onion", "egg", "bay leaf", with qualifiers like "skinless" in preparation. Reuse names from list_ingredients.',
+    ),
+  aisle: z
+    .string()
+    .nullish()
+    .describe(
+      'For a new ingredient: an existing aisle, or one of Produce, Meat & fish, Dairy, Bakery, Baking, Spices, Tins & jars, Rice & pasta, Oils & sauces, Frozen. Omit for water.',
+    ),
+  quantity: z
+    .number()
+    .positive()
+    .nullish()
+    .describe('Give one whenever the line has a number. Leave it out only for unmeasured lines like salt to taste.'),
   unit: z
     .string()
     .nullish()
-    .describe('g, kg, ml, l, tsp, tbsp, or a count word like "clove", "can". Omit for whole items (e.g. 2 eggs).'),
-  raw_text: z.string().min(1).describe('The line as a cook reads it, e.g. "2 red onions, finely sliced"'),
-  preparation: z.string().nullish(),
-  section: z.string().nullish().describe('Group heading, e.g. "For the sauce"'),
-  optional: z.boolean().optional(),
+    .describe(
+      'Whole vegetables and eggs by count (omit unit: 1 onion), tsp or tbsp for spices, oil and small amounts, g or ml for the rest, or a count word like "clove". A tin goes by its weight (400 g tinned tomatoes, not 1 can). Omit for whole items (2 eggs), never "count". Pieces measured by length, like ginger, go in g.',
+    ),
+  raw_text: z
+    .string()
+    .min(1)
+    .optional()
+    .describe(
+      'Only for a line with no quantity: the amount as the cook reads it, e.g. "To taste", "A pinch". With a quantity, leave it out and the server writes it.',
+    ),
+  preparation: z
+    .string()
+    .nullish()
+    .describe(
+      'Prep done before cooking starts, e.g. "finely sliced". Shown under the name. Prep done partway through (after charring) goes in that step.',
+    ),
+  section: z
+    .string()
+    .nullish()
+    .describe('Only when the recipe has separate parts, e.g. "Sauce". Then every line gets one.'),
+  optional: z.boolean().optional().describe('For garnishes and extras'),
+  nutrition: LineNutritionInput.optional().describe(
+    "Your estimate for this line's amount as measured (raw meat, dry rice and pasta), with the same per-gram figures in every version (for a coating or marinade, count what's eaten, about two-thirds): oil about 8 kcal per ml, dry rice or pasta about 3.5 kcal per g, raw beef or chicken about 1.2 to 2.5 kcal per g. 0 for water and salt.",
+  ),
 });
 export type IngredientLineInput = z.infer<typeof IngredientLineInput>;
 
@@ -71,9 +113,19 @@ export const StepIngredientInput = z.object({
 });
 
 export const StepInput = z.object({
-  text: z.string().min(1),
+  text: z
+    .string()
+    .min(1)
+    .describe('One stage of cooking in one to three short sentences, naming each linked ingredient as on its line'),
   section: z.string().nullish(),
-  timer_seconds: z.number().int().positive().nullish(),
+  timer_seconds: z
+    .number()
+    .int()
+    .positive()
+    .nullish()
+    .describe(
+      "For one wait the cook times, until their next action; the step's text gives that one time. For a range, the shortest. None for hands-on work or packet times.",
+    ),
   ingredients: z
     .array(StepIngredientInput)
     .optional()
@@ -81,35 +133,46 @@ export const StepInput = z.object({
 });
 
 export const VersionInput = z.object({
-  label: z.string().min(1).describe('e.g. "Original", "For two", "Batch for four"'),
-  servings: z.number().positive(),
+  label: z.string().min(1).describe('What makes this version different, e.g. "Original", "Chicken", "High protein"'),
+  servings: z.number().positive().describe('How many even portions the batch makes'),
   notes: z
     .string()
     .nullish()
-    .describe('What changed and why, e.g. "Kept 3 eggs; curry powder 1.5 tbsp, not a straight 1.1"'),
-  based_on_version_id: Id.nullish(),
-  prep_minutes: z.number().int().nonnegative().nullish(),
-  cook_minutes: z.number().int().nonnegative().nullish(),
+    .describe(
+      'Usually empty. One short line the cook must know before starting, e.g. "High protein: twice the usual chicken". Never what changed or why (not "Chicken replaces the beef").',
+    ),
+  based_on_version_id: Id.nullish().describe(
+    "The version this one starts from: a versions[].id from get_recipe, not the recipe's id",
+  ),
+  prep_minutes: z.number().int().nonnegative().nullish().describe('Hands-on prep time. Set it and cook_minutes.'),
+  cook_minutes: z
+    .number()
+    .int()
+    .nonnegative()
+    .nullish()
+    .describe('Cooking time, worked out from the final steps with parallel work counted once'),
   ingredients: z.array(IngredientLineInput),
   steps: z.array(StepInput),
-  nutrition: NutritionInput,
+  nutrition: NutritionInput.optional().describe(
+    "Leave out: the server adds up the lines' estimates. Send it only to copy a source's published figures for its unchanged recipe, as the whole batch (per-serving figures times its yield).",
+  ),
 });
 export type VersionInput = z.infer<typeof VersionInput>;
 
 export const RecipeFields = z.object({
   title: z.string().min(1),
-  description: z.string().nullish(),
+  description: z.string().nullish().describe('One or two sentences on what the dish is and what it is like to eat'),
   source_url: z.url().nullish(),
   source_name: z.string().nullish(),
   kind: z.enum(['full', 'simple']).optional().describe('"simple" for snacks like "yoghurt + honey"'),
-  tags: z.array(z.string()).optional(),
+  tags: z.array(z.string()).optional().describe('Meal type: breakfast, lunch, dinner or treat'),
   image_url: z.url().nullish(),
 });
 
 export const RecipeCreate = RecipeFields.extend({
-  original: VersionInput.describe('The recipe as published. Its label defaults to "Original".').partial({
-    label: true,
-  }),
+  original: VersionInput.partial({ label: true }).describe(
+    'The recipe as this household cooks it. Its label defaults to "Original".',
+  ),
 });
 export type RecipeCreate = z.infer<typeof RecipeCreate>;
 export const RecipeUpdate = RecipeFields.partial();

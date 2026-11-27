@@ -6,9 +6,13 @@ export interface NameMatch {
   index: number;
 }
 
+/** Plurals the rules below get wrong, as the singular they should match. */
+const IRREGULAR: Record<string, string> = { chillies: 'chilli', chilies: 'chili' };
+
 /** Reduces a word to a rough singular so "onions", "tomatoes" and "berries" match their singular. */
 function stem(word: string): string {
   const w = word.toLowerCase();
+  if (IRREGULAR[w]) return IRREGULAR[w];
   if (w.length > 4 && w.endsWith('ies')) return `${w.slice(0, -3)}y`;
   if (w.length > 3 && /(oes|ches|shes|sses|xes|zes)$/.test(w)) return w.slice(0, -2);
   if (w.length > 2 && w.endsWith('s') && !w.endsWith('ss')) return w.slice(0, -1);

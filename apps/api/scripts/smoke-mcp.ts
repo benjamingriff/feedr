@@ -32,6 +32,8 @@ console.log(
   targets.total_kcal,
 );
 
+// Per-line nutrition estimates; the server adds them up for the batch.
+const est = (kcal: number, protein_g: number, carbs_g: number, fat_g: number) => ({ kcal, protein_g, carbs_g, fat_g });
 const recipe = await call('create_recipe', {
   title: 'Smoke test shakshuka',
   source_url: 'https://example.com/shakshuka',
@@ -39,33 +41,64 @@ const recipe = await call('create_recipe', {
   original: {
     servings: 2,
     ingredients: [
-      { ingredient: 'egg', aisle: 'Dairy', quantity: 4, raw_text: '4 eggs' },
-      { ingredient: 'chopped tomatoes', quantity: 1, unit: 'tin', raw_text: '1 tin chopped tomatoes' },
-      { ingredient: 'ground cumin', aisle: 'Spices', quantity: 1, unit: 'tsp', raw_text: '1 tsp ground cumin' },
+      { ingredient: 'egg', aisle: 'Dairy', quantity: 4, raw_text: '4 eggs', nutrition: est(290, 25, 1, 20) },
+      {
+        ingredient: 'chopped tomatoes',
+        quantity: 1,
+        unit: 'tin',
+        raw_text: '1 tin chopped tomatoes',
+        nutrition: est(80, 4, 14, 1),
+      },
+      {
+        ingredient: 'ground cumin',
+        aisle: 'Spices',
+        quantity: 1,
+        unit: 'tsp',
+        raw_text: '1 tsp ground cumin',
+        nutrition: est(8, 0.4, 1, 0.5),
+      },
     ],
-    steps: [{ text: 'Simmer the tomatoes with cumin, crack in the eggs, cover until set.', timer_seconds: 480 }],
-    nutrition: { kcal: 700, protein_g: 40, carbs_g: 30, fat_g: 40, source: 'agent_estimate' },
+    steps: [
+      {
+        text: 'Simmer the tomatoes with cumin, crack in the eggs, cover and cook for 8 minutes until set.',
+        timer_seconds: 480,
+        ingredients: [{ line: 0 }, { line: 1 }, { line: 2 }],
+      },
+    ],
   },
 });
-const version = await call('create_recipe_version', {
-  recipe_id: recipe.id,
+const saved = await call('create_recipe_version', {
+  recipe_id: recipe.recipe_id,
   label: 'For two, bigger',
   servings: 3,
-  based_on_version_id: recipe.versions[0].id,
-  notes: '6 eggs not 6.0; cumin 1.25 tsp',
+  based_on_version_id: recipe.versions[0].version_id,
   ingredients: [
-    { ingredient: 'egg', quantity: 6, raw_text: '6 eggs' },
-    { ingredient: 'chopped tomatoes', quantity: 2, unit: 'tin', raw_text: '2 tins chopped tomatoes' },
-    { ingredient: 'ground cumin', quantity: 1.25, unit: 'tsp', raw_text: '1¼ tsp ground cumin' },
+    { ingredient: 'egg', quantity: 6, raw_text: '6 eggs', nutrition: est(430, 38, 2, 30) },
+    {
+      ingredient: 'chopped tomatoes',
+      quantity: 2,
+      unit: 'tin',
+      raw_text: '2 tins chopped tomatoes',
+      nutrition: est(160, 8, 28, 2),
+    },
+    {
+      ingredient: 'ground cumin',
+      quantity: 1.25,
+      unit: 'tsp',
+      raw_text: '1¼ tsp ground cumin',
+      nutrition: est(10, 0.5, 1, 0.6),
+    },
   ],
   steps: [
     {
-      text: 'Use a large pan. Simmer the tomatoes with cumin, crack in the eggs, cover until set.',
+      text: 'In a large pan, simmer the tomatoes with cumin, crack in the eggs, cover and cook for 10 minutes until set.',
       timer_seconds: 600,
+      ingredients: [{ line: 0 }, { line: 1 }, { line: 2 }],
     },
   ],
-  nutrition: { kcal: 1050, protein_g: 60, carbs_g: 45, fat_g: 60, source: 'agent_estimate' },
 });
+// Writes return ids and counts, and a version write the id of that version.
+const version = { id: saved.version_id };
 const service = await call('plan_service', {
   version_id: version.id,
   cook_date: '2027-01-04',
@@ -89,6 +122,6 @@ console.log(
 );
 
 await call('delete_service', { service_id: service.id });
-await call('archive_recipe', { recipe_id: recipe.id });
+await call('delete_recipe', { recipe_id: recipe.recipe_id });
 await client.close();
 console.log('MCP smoke passed');

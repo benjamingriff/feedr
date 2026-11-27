@@ -1,3 +1,5 @@
+import { pluralise, quantityText } from '@feedr/core';
+
 // Display formatting shared by the screens.
 
 /** A whole number with thousands separators, or an em dash when there's no value. */
@@ -36,14 +38,12 @@ export function totalMinutes(v: { prep_minutes: number | null; cook_minutes: num
 const FIXED_UNITS = new Set(['g', 'kg', 'mg', 'ml', 'l', 'tsp', 'tbsp', 'oz', 'lb', 'large', 'medium', 'small']);
 
 /**
- * A quantity at the precision the API gave it, with its unit: "30 g", "2 large", "6 cloves", "2".
+ * A quantity with its unit: "30 g", "1½ tsp", "2 large", "6 cloves", "2".
  * Count words are stored singular ("clove"), so they're made plural here.
  */
 export function amount(quantity: number, unit: string | null) {
-  if (!unit) return String(quantity);
-  const plural =
-    quantity > 1 && !FIXED_UNITS.has(unit.toLowerCase()) && !unit.endsWith('s')
-      ? `${unit}${/(ch|sh|x|z)$/.test(unit) ? 'es' : 's'}`
-      : unit;
-  return `${quantity} ${plural}`;
+  const q = quantityText(quantity, unit);
+  if (!unit) return q;
+  const plural = quantity > 1 && !FIXED_UNITS.has(unit.toLowerCase()) && !unit.endsWith('s') ? pluralise(unit) : unit;
+  return `${q} ${plural}`;
 }

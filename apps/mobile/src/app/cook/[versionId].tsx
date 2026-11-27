@@ -4,7 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useKeepAwake } from 'expo-keep-awake';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Recipe, RecipeVersion, Step } from '@feedr/core';
-import { capitalise, minutes } from '../../format';
+import { minutes } from '../../format';
 import {
   BrandMark,
   Chip,
@@ -24,6 +24,7 @@ import {
   splitNote,
   stepAmount,
   stepIngredients,
+  stepName,
   stepNumber,
   stepPieces,
 } from '../../recipe-parts';
@@ -181,7 +182,7 @@ function Cooking({ recipe, version, serviceId }: { recipe: Recipe; version: Reci
                 <IngredientRow
                   key={line.id}
                   quantity={stepAmount(step, line)}
-                  name={capitalise(line.ingredient)}
+                  name={stepName(step, line)}
                   highlight={on}
                   last={i === lines.length - 1}
                   detail={

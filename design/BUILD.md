@@ -108,10 +108,10 @@ Supporting rules:
   - Show the version passed in as a param (from the plan or Tonight). Otherwise show the
     default version.
   - If the recipe has more than one version, add one 12 mono caps ink2 `TextAction` under
-    the agent note, such as "2 versions · Original →". It cycles to the next version.
+    the note, such as "2 versions · Original →". It cycles to the next version.
 - **Hero and meta.**
-  - Chips are the tags, the standfirst is the description, and the agent note is
-    `version.notes` with the label "Agent note · For {servings}".
+  - Chips are the tags, the standfirst is the description, and the note is
+    `version.notes` with the label "Note · For {servings}".
   - Leave out the note if it's empty.
   - The meta row shows servings, prep, cook, and kcal per serving.
 - **Ingredients.** Group them by `section`. The quantity is

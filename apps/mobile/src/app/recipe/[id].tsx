@@ -20,7 +20,15 @@ import {
   TextAction,
   TopBar,
 } from '../../primitives';
-import { IngredientRow, lineAmount, prepLine, stepIngredients, stepNumber, stepPieces } from '../../recipe-parts';
+import {
+  IngredientRow,
+  lineAmount,
+  lineName,
+  prepLine,
+  stepIngredients,
+  stepNumber,
+  stepPieces,
+} from '../../recipe-parts';
 import { useApiQuery } from '../../store';
 import { mono, sans, underline, useColors } from '../../theme';
 
@@ -47,7 +55,7 @@ function Ingredients({ version }: { version: RecipeVersion }) {
             <IngredientRow
               key={l.id}
               quantity={lineAmount(l)}
-              name={capitalise(l.ingredient)}
+              name={lineName(l)}
               detail={prepLine(l)}
               tag={l.optional ? 'Optional' : undefined}
               // Only the very last row closes the list; a group label's hairline closes the others.
@@ -229,7 +237,7 @@ export default function RecipeScreen() {
                 }}
               >
                 <Text variant="label" color="accent">
-                  Agent note · For {version.servings}
+                  Note · For {version.servings}
                 </Text>
                 <Text variant="note">{version.notes}</Text>
               </View>

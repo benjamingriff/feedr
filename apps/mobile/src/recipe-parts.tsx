@@ -1,6 +1,13 @@
 import type { ReactNode } from 'react';
 import { View } from 'react-native';
-import { matchIngredientNames, type IngredientLine, type RecipeVersion, type Step } from '@feedr/core';
+import {
+  countName,
+  matchIngredientNames,
+  quantityText,
+  type IngredientLine,
+  type RecipeVersion,
+  type Step,
+} from '@feedr/core';
 import { amount, capitalise } from './format';
 import { Chip, Fill, Lane, Row, Text } from './primitives';
 import { mono } from './theme';
@@ -11,6 +18,17 @@ import { mono } from './theme';
 /** The quantity lane's text: quantity and unit, or the cook's line when there's no quantity. */
 export function lineAmount(line: IngredientLine) {
   return line.quantity == null ? line.raw_text : amount(line.quantity, line.unit);
+}
+
+/** The name lane's text: "Egg", or "Eggs" beside a count of more than one. */
+export const lineName = (line: IngredientLine) => capitalise(countName(line.ingredient, line.quantity, line.unit));
+
+/** The name beside a step's amount, plural to match it like `lineName`. */
+export function stepName(step: Step, line: IngredientLine) {
+  const link = step.ingredients.find((i) => i.line_id === line.id);
+  return link?.quantity == null
+    ? lineName(line)
+    : capitalise(countName(line.ingredient, link.quantity, link.unit ?? line.unit));
 }
 
 /**
@@ -110,7 +128,8 @@ export function splitNote(step: Step, line: IngredientLine, version: RecipeVersi
   // Bare numbers when every amount is in the line's unit ("4 of 6"); otherwise units on
   // all of them ("100 g of 1 kg"), so different units are never compared as numbers.
   const sameUnit = [mine, ...others].every((i) => (i.unit ?? line.unit) === line.unit);
-  const show = (q: number, unit: string | null) => (sameUnit ? String(q) : amount(q, unit ?? line.unit));
+  const show = (q: number, unit: string | null) =>
+    sameUnit ? quantityText(q, line.unit) : amount(q, unit ?? line.unit);
   return ` · ${[
     `${show(mine.quantity, mine.unit)} of ${show(line.quantity, line.unit)}`,
     ...others.map((i) => `${show(i.quantity!, i.unit)} for step ${i.step}`),

@@ -24,12 +24,12 @@ import { checkRecipe, checkVersion, saveChecked, storedVersion } from './recipe-
 const INSTRUCTIONS = `feedr stores recipes, plans meals and portions cooked dishes for a household.
 
 Adding recipes. Do steps 1 to 5 for each dish the user asked for, finishing one before starting the next:
-1. list_ingredients. If the user says who eats it or asks for targets, get_slot_targets for each of those meals (dinner, plus a lunch).
-2. create_recipe with the original version: the source's recipe with the changes the user always makes. Its description says how to write a recipe. If the user asked for alternatives, choose a title and description that fit all of them now.
-3. create_recipe_version once for each alternative the user asked for: another main, another batch size, a version for targets. When a version is sized for particular meals (the user says who eats it, or asks for targets), pass for_meals at the top level, beside original on create_recipe, e.g. dinner for everyone plus Ben's lunch: the server checks it against those meals' targets. Leave it out for the source's own batch, including one whose yield already matches the people eating it (keep its amounts and say in your reply how it compares with their targets), and for a batch size the user fixed in amounts ("double it", "500 g of chicken"). Saying who eats it ("for the two of us with a lunch left over") names meals: pass for_meals for those and size the batch to them, rather than dividing the source's yield. A version for targets always passes it: if refused, change the amounts, never remove for_meals.
-4. After each save, read its result and fix every warning that asks for a change with update_recipe_version, unless the step only mentions that ingredient in passing. After a refusal, change what it names before you send again. For a warning that asks you to check something, check it and keep figures that are right, such as a source's published nutrition.
-5. Once the dish has every version the user asked for, get_recipe and cook it through in your head, version by version: does each step have the prepped ingredients, reserved liquid and time it assumes, does each side finish with the main, and is there a doneness cue for the main itself? Check the title and description still fit every version (update_recipe if not). Then go back to step 1 for the next dish.
-6. Only when every dish is done, reply to the user as "you": each version's label, ingredient and step counts from the final get_recipe of its dish, how it compares with any targets, the batch size you used and whether it differs from the source, and your substitutions and assumptions, from the final read-back. Leave out server warnings and retries unless they changed the recipe. Your reasoning belongs in the reply, never in the recipe.
+1. list_ingredients. If the user says who eats it or asks for targets, get_slot_targets for each of those meals.
+2. create_recipe with the original version. Its description says how to write a recipe. If the user asked for alternatives, choose a title and description that fit all of them now.
+3. create_recipe_version once for each alternative the user asked for: another main, another batch size, a version for targets. When you size a version for particular meals (the user says who eats it, or asks for targets), pass for_meals with it, e.g. dinner for everyone plus one person's lunch, and the server checks it against those meals' targets. Leave it out for the source's own batch and for a size the user fixed in amounts ("double it"). If a version for meals is refused, change the amounts, never remove for_meals.
+4. After each save, fix the warnings that ask for a change with update_recipe_version and check the others. After a refusal, change what it names and send it again.
+5. get_recipe and cook the dish through in your head, version by version: does each step have the prepped ingredients, liquid and time it assumes, and does each side finish with the main? Check the title and description fit every version (update_recipe if not). Then start the next dish.
+6. When every dish is done, reply to the user as "you": each version's label, ingredient and step counts from its final get_recipe, how it compares with any targets, and your substitutions and assumptions. Leave out server warnings and retries. Your reasoning belongs in the reply, never in the recipe.
 
 Model:
 - A recipe has one or more versions. Each version is a complete, cookable recipe: its own ingredients, steps and whole-batch nutrition, which the server adds up from your estimate on each ingredient line.
@@ -65,17 +65,17 @@ The recipe:
 - tags: the meal type, one or more of breakfast, lunch, dinner or treat (sweet things like cakes and weekend bakes).
 
 Versions:
-- The original keeps the source's ingredients, amounts and from-scratch parts (no shop-bought swaps), with the user's standing changes: their method, equipment they lack, substitutions. Make only the changes they asked for, at the size they asked for, and keep the source's optional garnishes as optional lines. Whole vegetables go by count (1 onion) unless the source weighs them. Less oil still leaves enough to fry in: about 1 tbsp for onions or a paste. Use their usual batch size if they give one, otherwise the source's yield. For equipment they lack, adapt the technique to their tool: which vessel, and what prep it needs.
-- One version per alternative, labelled by what's different ("Pumpkin", "Chicken", "High protein"). The original is "Original" or its main. Never two mains in one version.
-- When you copy a version, rewrite every mention of what changed, section names and renamed ingredients included ("light coconut milk"), and actions that only fit the old main ("slice the cooked chicken"): every amount and volume in the step text, the method, time and doneness cue for a new main, a paste scaled with the fat and liquid that cook it, and a coating or marinade resized to the new main's amount. With much less frying fat or a smaller batch, use a smaller pan and lower heat, and check a small paste still blends (soften tough ingredients first). A smaller batch never has more of anything, except the main in a protein version, and seasonings (fish sauce, sugar, salt) never drop below the plainly scaled amount. With a stick blender, keep enough liquid to cover the blade. Change only what the user asked for: a veggie main keeps the rest of the recipe as it is, unless they ask for a vegetarian dish.
-- To size for meals, multiply every line by one factor first, except whole spices, aromatics and seasonings (keep or round those), rounding to amounts a cook measures; never cut the main below the source's amount per serving, and add more of the main only for a protein version.
-- For a version sized for particular meals, pass for_meals (not for the source's batch, one whose yield already matches the eaters, or a size the user fixed). Add up the rounded line estimates before you send it. First scale every line together so the batch's kcal is within about 10% of those meals' total, with servings = the portions it's for, sides at normal portions (about 75g dry rice a person, never under 50g) and amounts a cook measures: whole tins, eggs, cinnamon sticks and stalks, 5 g or ml steps, ½ tsp for spices. After rounding, re-estimate each line's nutrition from the same per-gram figures. A version that isn't for protein scales every line together, sides at normal portions. A high-protein version then has clearly more of the main per serving than the original (about a quarter more), paid for from the same calories: trim the sides first (to the 50g floor), then use the lighter form of the sauce's rich ingredient (light coconut milk, half-fat crème fraîche) and less frying oil, but enough to fry in (about 1 tbsp for a paste or onions), before cutting the sauce's volume. Don't swap the main or its cut unless the user asks, and never leave out for_meals to get a version saved. Say in your reply where calories or protein fall short.
+- The original is the source's recipe with the user's standing changes (their method, equipment they lack, substitutions), at the source's yield or their usual batch size. Keep the source's ingredients, amounts and from-scratch parts, and its optional garnishes as optional lines. For equipment they lack, adapt the technique to their tool: which vessel, and what prep it needs.
+- One version per alternative, labelled by what's different ("Pumpkin", "High protein"). The original is "Original" or its main. Never two mains in one version. Change only what the user asked for: a veggie main keeps the rest of the recipe as it is, unless they ask for a vegetarian dish.
+- When you copy a version, rewrite everything that changed: amounts in the step text, section names, the method, time and doneness cue for a new main, and the pan and heat for a different batch size.
+- To scale, multiply the lines by one factor, but round whole items (eggs, tins, cinnamon sticks) and don't scale spices, aromatics and seasonings linearly.
+- For a version sized for meals, pass for_meals and bring the batch within about 10% of those meals' calories, with servings = the portions it's for and sides at normal portions. A protein version puts more of the main in each serving within the same calories. Say in your reply where calories or protein fall short.
 
-Ingredients, in the order first used: one line per thing bought or measured, with the prep done before cooking in preparation ("diced", "cut into 4 cm cubes"), not in the steps. Every amount is one a cook measures, scaled or not: under 1 tbsp use tsp in ¼ steps (⅛ tsp is fine for strong spices), 1 tbsp and over stays in tbsp (1½ tbsp, not 4.5 tsp), g and ml to round figures, whole tins. Whole items stay whole (1 cinnamon stick, 1 small potato); weigh only what the source weighs. Sides served with it (rice, salad) go last, with amounts, under "To serve" when there are sections. Reserved liquid or the rest of a line links the original line again, with the reserved amount, in the step where it goes back in (not the step that sets it aside); say what to strain out when it's set aside, and how to make it up with water if there's too little; water to cover or loosen needs no line, but measured water (4 tbsp for a paste) does. Sections only for separate parts, ordered by when they're cooked: a made-from-scratch paste or sauce is always its own section (e.g. "Paste", "Sauce"), sides go under "To serve", and the main and its coating are one part. Each line carries its own nutrition estimate, unless you copy a source's published figures for its unchanged recipe as the version's nutrition (source from_source, the whole batch).
+Ingredients, in the order first used: one line per thing bought or measured, with the prep done before cooking in preparation ("diced", "cut into 4 cm cubes"), not in the steps. Amounts are ones a cook measures: tsp in ¼ steps under 1 tbsp (⅛ for strong spices), tbsp from there, g and ml in round figures, whole tins, whole vegetables by count unless the source weighs them. Sides served with it (rice, salad) go last. Reserved liquid or the rest of a line links its line again, with the amount, in the step where it goes back in. Water to cover or loosen needs no line; measured water does. Sections only for separate parts, ordered by when they're cooked (e.g. "Paste", "Sauce", "To serve"); the main and its coating are one part. Each line carries its own nutrition estimate, unless you copy a source's published figures for its unchanged recipe as the version's nutrition (source from_source, the whole batch).
 
-Steps: one stage of cooking each, in the order the cook works: what to do, with what (pan, air fryer, tall jug), about how long, and how to tell it's done, in one to three short sentences. Most recipes need 5 to 10 steps: merge tiny prep-only steps. No separate side step: start the rice in the step from which the timers that follow add up to about the rice's time (around 12 minutes), e.g. "While the curry simmers, cook the rice". Hands-on work goes in its own step before the step that starts a timer; the timer step carries the wait and, if the cook can use it, ends "While it simmers, go on to the next step." Describe each job once. Never refer to other steps by number. Keep the source's times where its method still applies. Finish with a plating step that says what goes on what and links the sides. If a timer ends while the cook is busy with another part, say what to do with it (keep the sauce warm on the lowest heat). No tips or reasons. Link every line the step adds or handles, including the main when the cook loads, turns, drains or slices it, and name it as on its line, in a natural sentence ("Heat the olive oil", "Add the onion"); plurals are fine ("the chillies"), and a prepped ingredient is named in its state ("the grated galangal") (two lines with one name: tell them apart the way a cook would, "a little of the oil", "the flour for coating", never by line number); a step links each line the first time it goes in; when an earlier group goes in (the toasted spices, the paste, the sauce), the step names the group and doesn't relink its lines; a step that only tastes, adjusts or discards a line already used doesn't link it, but a line's first use (salt to taste at the end) is linked. A timer is for one wait the cook can walk away from (simmering, baking, resting), until their next action, not for browning or frying they stand over: "air-fry 14 minutes, turning halfway" is two steps of 7 minutes. For a range, time the shortest; no timer on hands-on work or packet times.
+Steps: one stage of cooking each, in the order the cook works: what to do, with what (pan, air fryer, tall jug), about how long, and how to tell it's done, in one to three short sentences. Most recipes need 5 to 10 steps. Describe each job once and never refer to other steps by number. Start sides so they're ready with the main, and finish with a plating step that links them. No tips or reasons. Link every line the step adds or handles, the first time it goes in, and name it in the text as on its line ("Add the onion"; plurals and prepped states like "the grated galangal" are fine). When an earlier group goes back in (the paste, the toasted spices), name the group and don't relink its lines. Tell two lines with one name apart as a cook would ("the flour for coating"), never by line number. A timer is for one wait the cook can walk away from (simmering, baking, resting), not frying they stand over: "air-fry 14 minutes, turning halfway" is two timed steps of 7 minutes. For a range, time the shortest.
 
-notes: usually empty, and empty when the label already says it. Only one short line the cook must know before starting when the version is unusual, naming the one headline difference, e.g. "High protein: twice the usual chicken". Never a list of changes, a tip, a comparison or a reason.`;
+notes: usually empty. Only one short line the cook must know before starting, e.g. "High protein: twice the usual chicken". Never a list of changes, a tip or a reason.`;
 
 /**
  * What a recipe write returns: ids and counts instead of the whole recipe, so the next call is easy
@@ -232,26 +232,14 @@ export function buildMcpServer(user: AuthUser): McpServer {
     'create_recipe',
     {
       description: RECIPE_GUIDE,
-      inputSchema: {
-        ...RecipeCreate.shape,
-        original: RecipeCreate.shape.original.extend({ for_meals: ForMeals }),
-        for_meals: ForMeals,
-      },
+      inputSchema: { ...RecipeCreate.shape, original: RecipeCreate.shape.original.extend({ for_meals: ForMeals }) },
     },
-    ({ for_meals: topMeals, ...input }) =>
+    (input) =>
       run(async () => {
-        // Small models also put it inside original; take it from either place.
-        const { for_meals: nestedMeals, ...original } = input.original as typeof input.original & {
-          for_meals?: z.infer<typeof ForMeals>;
-        };
-        if (topMeals && nestedMeals) {
-          throw new svc.InvalidError('for_meals is given twice. Send it once, beside original.');
-        }
-        const for_meals = topMeals ?? nestedMeals;
-        input = { ...input, original };
-        const check = checkVersion(input.original, { isNew: true, ...(await checkContext(for_meals)) });
+        const { for_meals, ...original } = input.original;
+        const check = checkVersion(original, await checkContext(for_meals));
         return saveChecked([checkRecipe(input), check], async () =>
-          written(await svc.createRecipe(u, { ...input, original: fromFields(input.original) }), NEXT_AFTER_WRITE),
+          written(await svc.createRecipe(u, { ...input, original: fromFields(original) }), NEXT_AFTER_WRITE),
         );
       }),
   );
@@ -295,20 +283,8 @@ export function buildMcpServer(user: AuthUser): McpServer {
           ? await svc.getVersion(u, input.based_on_version_id).catch(() => undefined)
           : undefined;
         const baseNames = base?.ingredients.map((l) => l.ingredient);
-        const recipe = await svc.getRecipe(u, recipe_id);
-        const { title } = recipe;
-        const original = recipe.versions.find((x) => x.is_original);
-        const check = checkVersion(input, {
-          isNew: true,
-          title,
-          baseNames,
-          baseProteinPerServing:
-            original?.nutrition?.protein_g != null
-              ? Number(original.nutrition.protein_g) / Number(original.servings)
-              : undefined,
-          baseLabel: base?.label,
-          ...(await checkContext(for_meals)),
-        });
+        const { title } = await svc.getRecipe(u, recipe_id);
+        const check = checkVersion(input, { title, baseNames, ...(await checkContext(for_meals)) });
         return saveChecked([check], async () => {
           const created = await svc.createVersion(u, recipe_id, fromFields(input));
           return { version_id: created.id, ...written(await svc.getRecipe(u, recipe_id), NEXT_AFTER_WRITE) };
@@ -345,7 +321,6 @@ export function buildMcpServer(user: AuthUser): McpServer {
         const check = checkVersion(changed, {
           newIngredients: !!input.ingredients,
           baseNames: base?.ingredients.map((l) => l.ingredient),
-          baseLabel: base?.label,
           // Targets are checked when the batch nutrition changes: new lines, or new published figures.
           ...((input.ingredients || input.nutrition) && (await checkContext(for_meals))),
         });

@@ -89,7 +89,7 @@ test('one wait per timer, one section is none, no leftovers from the base versio
     { quantity: 1, ingredient: 'pumpkin', section: 'Katsu', nutrition: est(100) },
     { quantity: 1, ingredient: 'vegetable stock', section: 'Katsu', nutrition: est(20) },
   ];
-  const { errors } = checkVersion(
+  const { errors, warnings } = checkVersion(
     {
       ingredients: lines,
       steps: [
@@ -104,7 +104,7 @@ test('one wait per timer, one section is none, no leftovers from the base versio
     { baseNames: ['chicken breast', 'chicken stock', 'vegetable stock'] },
   );
   const problems = errors.join('\n');
-  assert.match(problems, /Step 1 \(.*\) has a timer and gives 2 times/);
+  assert.match(warnings.join('\n'), /Step 1 \(.*\) has a timer and gives 2 times/);
   assert.match(problems, /Leave section empty/);
   assert.match(problems, /Step 2 \(.*\) names chicken stock, which this version doesn't have/);
   // Compound times and ranges are one wait; a base name inside this version's own name isn't a leftover.
@@ -122,6 +122,7 @@ test('one wait per timer, one section is none, no leftovers from the base versio
     { baseNames: ['paprika'] },
   );
   assert.deepEqual(fine.errors, []);
+  assert.doesNotMatch(fine.warnings.join('\n'), /gives 2 times/);
   // A source's own figures can be sent as they are, without per-line estimates.
   const published = checkVersion({
     ingredients: [{ quantity: 1, ingredient: 'bread' }],
@@ -167,7 +168,7 @@ test('sizes against the meals it is for, and keeps prep where the app shows it',
   const problems = errors.join('\n');
   assert.match(problems, /unit "breast", which repeats its name/);
   assert.match(problems, /prep in raw_text/);
-  assert.match(problems, /times a wait "per side"/);
+  assert.match(warnings.join('\n'), /times a wait "per side"/);
   assert.match(problems, /610 kcal against 1453 kcal .*-58%/);
   assert.match(warnings.join('\n'), /looks like the existing ingredient "ground cumin"/);
   // Ordinary wording isn't mistaken for line numbers, imperial units, prep or a timed side.
@@ -193,14 +194,14 @@ test('sizes against the meals it is for, and keeps prep where the app shows it',
         ingredients: [{ line: 0 }],
       },
     ],
-  }).errors.join('\n');
-  assert.doesNotMatch(more, /line number|prep in raw_text/);
-  assert.match(more, /times a wait "per side"/);
-  assert.match(more, /imperial measure/);
+  });
+  assert.doesNotMatch(more.errors.join('\n'), /line number|prep in raw_text/);
+  assert.match(more.warnings.join('\n'), /times a wait "per side"/);
+  assert.match(more.errors.join('\n'), /imperial measure/);
 });
 
-test('catches a swapped main left in a section name, and protein versions without targets', () => {
-  const { errors, warnings } = checkVersion(
+test('catches a swapped main left in the title or a section name', () => {
+  const { warnings } = checkVersion(
     {
       label: 'Pumpkin, high protein',
       ingredients: [
@@ -212,11 +213,10 @@ test('catches a swapped main left in a section name, and protein versions withou
         { text: 'Simmer the chicken stock for 10 minutes.', timer_seconds: 600, ingredients: [{ line: 1 }] },
       ],
     },
-    { baseNames: ['chicken breast', 'chicken stock'], baseLabel: 'Chicken', isNew: true, title: 'Chicken katsu curry' },
+    { baseNames: ['chicken breast', 'chicken stock'], title: 'Chicken katsu curry' },
   );
   assert.match(warnings.join('\n'), /title "Chicken katsu curry" names chicken/);
   assert.match(warnings.join('\n'), /Section "Chicken" names chicken/);
-  assert.match(errors.join('\n'), /"Pumpkin, high protein" is a version for targets/);
   // Chicken stock with a pumpkin main is the cook's choice, not a leftover.
   assert.doesNotMatch(warnings.join('\n'), /chicken stock/);
 });
@@ -238,7 +238,7 @@ test('leaves batch-size variants and unlisted liquids alone, but flags amounts a
         },
       ],
     },
-    { baseNames: ['chicken thigh', 'cream', 'beef stock'], baseLabel: 'Chicken thighs', isNew: true },
+    { baseNames: ['chicken thigh', 'cream', 'beef stock'] },
   );
   assert.deepEqual(thighs.errors, []);
   const notes = thighs.warnings.join('\n');
@@ -261,8 +261,7 @@ test('parallel work is one wait, and a first use at the end is still linked', ()
       { text: 'Taste and adjust with salt.', ingredients: [] },
     ],
   });
-  assert.doesNotMatch(errors.join('\n'), /gives 2 times/);
-  assert.doesNotMatch(warnings.join('\n'), /only cooks a side/);
+  assert.doesNotMatch(warnings.join('\n'), /gives 2 times/);
   // Salt's only use is the tasting step, so it must still be linked there.
   assert.match(errors.join('\n'), /1 \(salt\) aren't linked/);
 });
@@ -287,7 +286,7 @@ test('a step that turns the main links it, not just the side', () => {
     { baseNames: ['chicken breast'] },
   );
   const problems = errors.join('\n');
-  assert.match(problems, /links only the side, but its text also handles line 0 \(pumpkin\)/);
+  assert.match(warnings.join('\n'), /names pumpkin but doesn't link line 0/);
   assert.match(problems, /refers to another step/);
   assert.match(warnings.join('\n'), /1 \(lemongrass\) are part of a whole item/);
 });
@@ -314,9 +313,8 @@ test('ordinary wording around sides, steps and reserved liquid', () => {
       { text: 'As a last step, cook the basmati rice while the salmon rests.', ingredients: [{ line: 2 }] },
     ],
   });
-  const problems = errors.join('\n');
-  assert.doesNotMatch(problems, /refers to another step|links only the side/);
-  assert.match(problems, /gives 2 times/);
+  assert.doesNotMatch(errors.join('\n'), /refers to another step/);
+  assert.match(warnings.join('\n'), /gives 2 times/);
   assert.match(warnings.join('\n'), /says 300 ml of the reserved beef stock/);
 });
 
@@ -337,33 +335,26 @@ test('a longer name wins, and discarding needs no link', () => {
   assert.doesNotMatch(warnings.join('\n'), /names shallot|names bay leaf|no time/);
 });
 
-test('high-protein versions need more protein a serving, and a meanwhile preview needs no link', () => {
-  const { warnings } = checkVersion(
-    {
-      label: 'High protein',
-      servings: 2,
-      ingredients: [
-        {
-          ingredient: 'beef chuck',
-          quantity: 350,
-          unit: 'g',
-          section: 'Curry',
-          nutrition: { kcal: 700, protein_g: 70, carbs_g: 0, fat_g: 47 },
-        },
-        { ingredient: 'chicken breast', quantity: 1, section: 'Curry', nutrition: est(0) },
-      ],
-      steps: [
-        {
-          text: 'Simmer the beef chuck for 90 minutes. Meanwhile, slice the chicken breast.',
-          timer_seconds: 5400,
-          ingredients: [{ line: 0 }],
-        },
-        { text: 'Add the chicken breast.', ingredients: [{ line: 1 }] },
-      ],
-    },
-    { baseProteinPerServing: 47, isNew: true, mealTargets: { kcal: 700, portions: [] } },
-  );
-  const notes = warnings.join('\n');
-  assert.match(notes, /35 g protein a serving against 47 g/);
-  assert.doesNotMatch(notes, /names chicken breast/);
+test('a meanwhile preview needs no link', () => {
+  const { warnings } = checkVersion({
+    ingredients: [
+      {
+        ingredient: 'beef chuck',
+        quantity: 350,
+        unit: 'g',
+        section: 'Curry',
+        nutrition: { kcal: 700, protein_g: 70, carbs_g: 0, fat_g: 47 },
+      },
+      { ingredient: 'chicken breast', quantity: 1, section: 'Curry', nutrition: est(0) },
+    ],
+    steps: [
+      {
+        text: 'Simmer the beef chuck for 90 minutes. Meanwhile, slice the chicken breast.',
+        timer_seconds: 5400,
+        ingredients: [{ line: 0 }],
+      },
+      { text: 'Add the chicken breast.', ingredients: [{ line: 1 }] },
+    ],
+  });
+  assert.doesNotMatch(warnings.join('\n'), /names chicken breast/);
 });

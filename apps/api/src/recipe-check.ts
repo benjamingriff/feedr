@@ -44,14 +44,8 @@ export interface CheckOptions {
   newIngredients?: boolean;
   /** Ingredient names of the version this one was based on, to catch text left over from it. */
   baseNames?: string[];
-  /** Protein per serving of the version this one is based on, for checking a high-protein version. */
-  baseProteinPerServing?: number;
   /** The recipe's shared title, checked against a new version's ingredients. */
   title?: string;
-  /** True for create_recipe and create_recipe_version, where a new version is being written. */
-  isNew?: boolean;
-  /** The label of the version this one was based on, naming the main it may have swapped out. */
-  baseLabel?: string;
   /** Names already in the user's catalog, to catch near-duplicates like "cumin" and "ground cumin". */
   knownNames?: string[];
   /** The summed targets of the meals the version is cooked for, when the agent says. */
@@ -144,9 +138,6 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
   const steps = v.steps ?? [];
 
   if (lines.length && v.steps && !steps.length) problems.push('There are no steps. Give the method.');
-  if (opts.isNew && v.label && /\bhigh[- ]protein\b/i.test(v.label) && !opts.mealTargets) {
-    problems.push(`"${v.label}" is a version for targets: pass for_meals so the server can check it.`);
-  }
 
   // A swapped main can linger in the title and section names: a word that starts a base line this version
   // dropped ("chicken" when chicken breast became pumpkin), unless one of its own protein-rich lines still
@@ -301,49 +292,7 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
     if (/\b(?:the|in|from) (?:next|previous) steps?\b|\bsteps? \d+\b/i.test(step.text)) {
       problems.push(`Step ${n} refers to another step. Say the action itself, in the step where it happens.`);
     }
-    // A step that links only a side: either it also handles the main (link it), or it only cooks the side.
     const linkedLines = (step.ingredients ?? []).map((i) => lines[i.line]).filter(Boolean);
-    const isSide = (l: (typeof lines)[number] | undefined) =>
-      /^(?:to serve|serve with|sides?)$/i.test(l?.section ?? '');
-    if (linkedLines.length && linkedLines.every(isSide)) {
-      const handled = wholeNames(
-        step.text,
-        lines.map((l) => l.ingredient),
-      )
-        .filter((m) => {
-          // "Discard the bay leaf", "while the salmon rests": mentions, not handling.
-          const before = clauseBefore(step.text, m.start);
-          const after = step.text.slice(m.end).split(/[.;!?]/)[0] ?? '';
-          const sentence =
-            step.text
-              .slice(0, m.start)
-              .split(/[.;!?]/)
-              .at(-1) ?? '';
-          return (
-            !/^\s*meanwhile\b/i.test(sentence) &&
-            !/\b(?:tast|adjust|discard|remov|strain|while)\w*/i.test(before) &&
-            !/^\s+rests?\b/i.test(after) &&
-            !endsLongerName(
-              step.text,
-              m.end,
-              lines,
-              m.index,
-              (step.ingredients ?? []).map((x) => x.line),
-            )
-          );
-        })
-        .map((m) => m.index)
-        .filter((i) => !isSide(lines[i]) && !(step.ingredients ?? []).some((x) => x.line === i));
-      if (handled.length) {
-        problems.push(
-          `Step ${n} links only the side, but its text also handles ${[...new Set(handled)].map((i) => `line ${i} (${lines[i]!.ingredient})`).join(', ')}. Link those too.`,
-        );
-      } else if (/\b(?:cook|boil|simmer|steam)\b/i.test(step.text) && !PARALLEL.test(step.text)) {
-        warnings.push(
-          `Step ${n} only cooks a side. Put it in the step whose wait it cooks during, with how long it takes.`,
-        );
-      }
-    }
     // Amounts in the text that no linked line has, e.g. "300 ml" after the stock was cut to 250 ml.
     // Only amounts written against a linked line's name ("300 ml beef stock") are compared.
     for (const l of linkedLines) {
@@ -366,9 +315,9 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
       step.timer_seconds &&
       /\b(?:per|each) side\b|(?:min(?:ute)?s?|secs?|seconds?|hrs?|hours?)\s+a side\b/i.test(step.text)
     ) {
-      problems.push(`Step ${n} times a wait "per side". Make it two timed steps, the second starting with the turn.`);
+      warnings.push(`Step ${n} times a wait "per side". Make it two timed steps, the second starting with the turn.`);
     } else if (step.timer_seconds && times > 1) {
-      problems.push(
+      warnings.push(
         `Step ${n} has a timer and gives ${times} times. Time one wait per step: start a new step where the unattended wait begins and keep the timer on it. Drop a timer only when the time is hands-on work like stirring or frying.`,
       );
     } else if (step.timer_seconds && !times) {
@@ -478,22 +427,6 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
       );
     }
   }
-  // A high-protein version has more protein per serving than the one it's based on.
-  if (
-    opts.baseProteinPerServing &&
-    v.servings &&
-    /\bhigh[- ]protein\b/i.test(v.label ?? '') &&
-    lines.length &&
-    lines.every((l) => l.nutrition)
-  ) {
-    const perServing = lines.reduce((sum, l) => sum + l.nutrition!.protein_g, 0) / v.servings;
-    if (perServing <= opts.baseProteinPerServing) {
-      warnings.push(
-        `"${v.label}" has ${Math.round(perServing)} g protein a serving against ${Math.round(opts.baseProteinPerServing)} g in the version it's based on. Give it clearly more of the main per serving.`,
-      );
-    }
-  }
-
   // Against the targets of the meals it's cooked for: calories are refused when well off, protein flagged.
   const t = opts.mealTargets;
   const batch =
@@ -513,19 +446,8 @@ export function checkVersion(v: CheckedVersion, opts: CheckOptions = {}): Check 
       else if (batch.kcal <= 0) {
         problems.push(`${message} Estimate each line's nutrition for its amount.`);
       } else {
-        const gap = Math.round(Math.abs(t.kcal - batch.kcal));
-        const proteinMet = t.portions.every(
-          (p) => p.protein_g == null || (batch.protein_g * p.kcal) / t.kcal >= 0.95 * p.protein_g,
-        );
         const factor = Math.round((t.kcal / batch.kcal) * 100) / 100;
-        const forProtein = /\bhigh[- ]protein\b/i.test(v.label ?? '');
-        const advice = !forProtein
-          ? `Scale every line together by about ${factor}, keeping tins, eggs and whole spices whole, then round each line to an amount a cook measures.`
-          : off < 0
-            ? `Add about ${gap} kcal: more of every line together, sides at about 75g dry rice a person.`
-            : proteinMet
-              ? `Take off about ${gap} kcal: trim the sides first (not under 50g dry rice a person), then use a lighter form of the sauce's rich ingredient and less oil, then the main if needed.`
-              : `Take off about ${gap} kcal from the sides and the sauce's fat, not the main: protein is already short.`;
+        const advice = `Scale the lines together by about ${factor}, keeping whole items whole and rounding to amounts a cook measures; for a protein version, change the sides and sauce before the main.`;
         problems.push(
           `${message} ${advice} Change quantities, keeping the same per-gram figures for unchanged ingredients, leave some margin inside the range, keep for_meals and send it again.`,
         );
